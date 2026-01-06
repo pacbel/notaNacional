@@ -1,10 +1,21 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback, ChangeEvent } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Pencil, Trash2, SlidersHorizontal, Search, X } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  SlidersHorizontal,
+  Search,
+  X,
+  Upload,
+  Save,
+  KeyRound,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { useApiMutation } from "@/hooks/use-api-mutation";
@@ -15,21 +26,26 @@ import {
   removerPrestador,
   obterConfiguracaoPrestador,
   definirConfiguracaoPrestador,
+  listarCertificadosPrestador,
+  uploadCertificadoPrestador,
+  atualizarCertificadoPrestador,
+  atualizarSenhaCertificadoPrestador,
+  removerCertificadoPrestador,
 } from "@/services/prestadores";
 import { listarUfs, listarMunicipiosPorUf, type IbgeUf } from "@/services/ibge";
-import { listarCertificados } from "@/services/nfse";
 import { ApiError } from "@/services/http";
-import { type CertificateInfo } from "@/types/nfse";
 import {
   PrestadorDto,
   CreatePrestadorDto,
   UpdatePrestadorDto,
   PrestadorConfiguracaoDto,
   UpsertPrestadorConfiguracaoDto,
+  PrestadorCertificadoDto,
 } from "@/types/prestadores";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -155,9 +171,15 @@ export default function PrestadoresPage() {
   const [municipioOptions, setMunicipioOptions] = useState<MunicipioOption[]>([]);
   const [isViaCepLoading, setIsViaCepLoading] = useState(false);
   const [isIbgeLoading, setIsIbgeLoading] = useState(false);
-  const [certificados] = useState<CertificateInfo[]>([]);
-  const [isCertificadosLoading] = useState(false);
-
+  const [certificados, setCertificados] = useState<PrestadorCertificadoDto[]>([]);
+  const [isCertificadosLoading, setIsCertificadosLoading] = useState(false);
+  const [certificadoSelecionadoId, setCertificadoSelecionadoId] = useState<string | null>(null);
+  const [aliasEdits, setAliasEdits] = useState<Record<string, string>>({});
+  const [senhaEdits, setSenhaEdits] = useState<Record<string, string>>({});
+  const [novoCertificadoAlias, setNovoCertificadoAlias] = useState("");
+  const [novoCertificadoSenha, setNovoCertificadoSenha] = useState("");
+  const [arquivoCertificadoBase64, setArquivoCertificadoBase64] = useState<string | null>(null);
+  const [arquivoCertificadoNome, setArquivoCertificadoNome] = useState("");
 
   const prestadoresQuery = useApiQuery({
     queryKey: ["prestadores"],
@@ -275,6 +297,249 @@ export default function PrestadoresPage() {
   );
 
   const lastConsultedCepRef = useRef<string | null>(null);
+  const certificadoFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadCertificados = useCallback(
+    async (prestadorId: string, destaqueCertificadoId?: string) => {
+      setIsCertificadosLoading(true);
+      try {
+        const data = await listarCertificadosPrestador(prestadorId);
+        setCertificados(data);
+        setAliasEdits(
+          data.reduce<Record<string, string>>((accumulator, certificado) => {
+            accumulator[certificado.id] = certificado.alias ?? "";
+            return accumulator;
+          }, {})
+        );
+        setSenhaEdits({});
+        setCertificadoSelecionadoId((current) => {
+          if (destaqueCertificadoId && data.some((item) => item.id === destaqueCertificadoId)) {
+            return destaqueCertificadoId;
+          }
+          if (current && data.some((item) => item.id === current)) {
+            return current;
+          }
+
+          return data[0]?.id ?? null;
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error("Não foi possível carregar os certificados do prestador.");
+      } finally {
+        setIsCertificadosLoading(false);
+      }
+    },
+    []
+  );
+
+  const uploadCertificadoMutation = useApiMutation(
+    ({ prestadorId, payload }: { prestadorId: string; payload: { alias?: string; conteudo: string; senha: string } }) =>
+      uploadCertificadoPrestador(prestadorId, payload),
+    {
+      successMessage: "Certificado enviado com sucesso.",
+      onSuccess: (data, variables) => {
+        setArquivoCertificadoBase64(null);
+        setArquivoCertificadoNome("");
+        setNovoCertificadoAlias("");
+        setNovoCertificadoSenha("");
+        if (certificadoFileInputRef.current) {
+          certificadoFileInputRef.current.value = "";
+        }
+        void loadCertificados(variables.prestadorId, data.id);
+      },
+    }
+  );
+
+  const atualizarAliasCertificadoMutation = useApiMutation(
+    ({ prestadorId, certificadoId, alias }: { prestadorId: string; certificadoId: string; alias: string | null }) =>
+      atualizarCertificadoPrestador(prestadorId, certificadoId, { alias }),
+    {
+      successMessage: "Alias atualizado.",
+      onSuccess: (_data, variables) => {
+        void loadCertificados(variables.prestadorId);
+      },
+    }
+  );
+
+  const atualizarSenhaCertificadoMutation = useApiMutation(
+    ({ prestadorId, certificadoId, senha }: { prestadorId: string; certificadoId: string; senha: string }) =>
+      atualizarSenhaCertificadoPrestador(prestadorId, certificadoId, { senha }),
+    {
+      successMessage: "Senha do certificado atualizada.",
+      onSuccess: (_data, variables) => {
+        setSenhaEdits((previous) => ({ ...previous, [variables.certificadoId]: "" }));
+        void loadCertificados(variables.prestadorId);
+      },
+    }
+  );
+
+  const removerCertificadoMutation = useApiMutation(
+    ({ prestadorId, certificadoId }: { prestadorId: string; certificadoId: string }) =>
+      removerCertificadoPrestador(prestadorId, certificadoId),
+    {
+      successMessage: "Certificado removido.",
+      onSuccess: (_data, variables) => {
+        void loadCertificados(variables.prestadorId);
+      },
+    }
+  );
+
+  const handleCertificadoFileChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        setArquivoCertificadoBase64(null);
+        setArquivoCertificadoNome("");
+        return;
+      }
+
+      const allowedExtensions = [".pfx", ".p12"];
+      const hasValidExtension = allowedExtensions.some((extension) => file.name.toLowerCase().endsWith(extension));
+      if (!hasValidExtension) {
+        toast.error("Selecione um arquivo .pfx ou .p12 válido.");
+        setArquivoCertificadoBase64(null);
+        setArquivoCertificadoNome("");
+        if (certificadoFileInputRef.current) {
+          certificadoFileInputRef.current.value = "";
+        }
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") {
+          const [, base64] = result.split(",");
+          setArquivoCertificadoBase64(base64 ?? null);
+          setArquivoCertificadoNome(file.name);
+        } else {
+          toast.error("Não foi possível processar o arquivo selecionado.");
+          setArquivoCertificadoBase64(null);
+          setArquivoCertificadoNome("");
+        }
+      };
+      reader.onerror = () => {
+        toast.error("Falha ao ler o arquivo do certificado.");
+        setArquivoCertificadoBase64(null);
+        setArquivoCertificadoNome("");
+      };
+      reader.readAsDataURL(file);
+    },
+    []
+  );
+
+  const handleUploadCertificado = useCallback(async () => {
+    if (!configPrestador) {
+      toast.error("Selecione um prestador para enviar o certificado.");
+      return;
+    }
+
+    if (!arquivoCertificadoBase64) {
+      toast.error("Escolha o arquivo do certificado (.pfx).");
+      return;
+    }
+
+    if (!novoCertificadoSenha.trim()) {
+      toast.error("Informe a senha do certificado.");
+      return;
+    }
+
+    await uploadCertificadoMutation.mutateAsync({
+      prestadorId: configPrestador.id,
+      payload: {
+        alias: novoCertificadoAlias.trim() ? novoCertificadoAlias.trim() : undefined,
+        conteudo: arquivoCertificadoBase64,
+        senha: novoCertificadoSenha,
+      },
+    });
+  }, [
+    arquivoCertificadoBase64,
+    configPrestador,
+    novoCertificadoAlias,
+    novoCertificadoSenha,
+    uploadCertificadoMutation,
+  ]);
+
+  const handleCertificadoSelecionado = useCallback((certificadoId: string) => {
+    setCertificadoSelecionadoId(certificadoId);
+  }, []);
+
+  const handleAliasChange = useCallback((certificadoId: string, value: string) => {
+    setAliasEdits((previous) => ({ ...previous, [certificadoId]: value }));
+  }, []);
+
+  const handleSalvarAlias = useCallback(
+    async (certificado: PrestadorCertificadoDto) => {
+      if (!configPrestador) {
+        toast.error("Selecione um prestador.");
+        return;
+      }
+
+      const currentValue = aliasEdits[certificado.id] ?? "";
+      const normalizedValue = currentValue.trim();
+      const currentAlias = certificado.alias ?? "";
+
+      if (normalizedValue === currentAlias.trim()) {
+        toast.message("Nenhuma alteração no alias para salvar.");
+        return;
+      }
+
+      await atualizarAliasCertificadoMutation.mutateAsync({
+        prestadorId: configPrestador.id,
+        certificadoId: certificado.id,
+        alias: normalizedValue.length > 0 ? normalizedValue : null,
+      });
+    },
+    [aliasEdits, atualizarAliasCertificadoMutation, configPrestador]
+  );
+
+  const handleSenhaChange = useCallback((certificadoId: string, value: string) => {
+    setSenhaEdits((previous) => ({ ...previous, [certificadoId]: value }));
+  }, []);
+
+  const handleAtualizarSenha = useCallback(
+    async (certificado: PrestadorCertificadoDto) => {
+      if (!configPrestador) {
+        toast.error("Selecione um prestador.");
+        return;
+      }
+
+      const senha = (senhaEdits[certificado.id] ?? "").trim();
+      if (!senha) {
+        toast.error("Informe a nova senha do certificado.");
+        return;
+      }
+
+      await atualizarSenhaCertificadoMutation.mutateAsync({
+        prestadorId: configPrestador.id,
+        certificadoId: certificado.id,
+        senha,
+      });
+    },
+    [atualizarSenhaCertificadoMutation, configPrestador, senhaEdits]
+  );
+
+  const handleRemoverCertificado = useCallback(
+    async (certificado: PrestadorCertificadoDto) => {
+      if (!configPrestador) {
+        toast.error("Selecione um prestador.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Confirma a exclusão do certificado ${certificado.alias ?? certificado.cnpj}? Essa ação é irreversível.`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      await removerCertificadoMutation.mutateAsync({
+        prestadorId: configPrestador.id,
+        certificadoId: certificado.id,
+      });
+    },
+    [configPrestador, removerCertificadoMutation]
+  );
 
   const cidadeWatch = useWatch({ control: form.control, name: "endereco.cidade" });
   const codigoMunicipioWatch = useWatch({ control: form.control, name: "endereco.codigoMunicipioIbge" });
@@ -666,6 +931,17 @@ export default function PrestadoresPage() {
     setConfigPrestador(prestador);
     setConfigData(null);
     setIsConfigLoading(true);
+    setCertificados([]);
+    setAliasEdits({});
+    setSenhaEdits({});
+    setCertificadoSelecionadoId(null);
+    setArquivoCertificadoBase64(null);
+    setArquivoCertificadoNome("");
+    setNovoCertificadoAlias("");
+    setNovoCertificadoSenha("");
+    if (certificadoFileInputRef.current) {
+      certificadoFileInputRef.current.value = "";
+    }
     try {
       const data = await obterConfiguracaoPrestador(prestador.id);
       setConfigData(data);
@@ -708,9 +984,34 @@ export default function PrestadoresPage() {
     if (!configPrestador) {
       configForm.reset({
         ambiente: 2,
+        versaoAplicacao: "",
+        seriePadrao: "",
+        numeroAtual: 1,
+        enviaEmailAutomatico: true,
+        smtpHost: "",
+        smtpPort: 587,
+        smtpSecure: false,
+        smtpUser: "",
+        smtpPassword: "",
+        smtpFrom: "",
+        smtpFromName: "",
       });
+      setCertificados([]);
+      setAliasEdits({});
+      setSenhaEdits({});
+      setCertificadoSelecionadoId(null);
+      setArquivoCertificadoBase64(null);
+      setArquivoCertificadoNome("");
+      setNovoCertificadoAlias("");
+      setNovoCertificadoSenha("");
+      if (certificadoFileInputRef.current) {
+        certificadoFileInputRef.current.value = "";
+      }
+      return;
     }
-  }, [configPrestador, configForm]);
+
+    void loadCertificados(configPrestador.id);
+  }, [configPrestador, configForm, loadCertificados]);
 
   const closeConfigModal = () => {
     setConfigPrestador(null);

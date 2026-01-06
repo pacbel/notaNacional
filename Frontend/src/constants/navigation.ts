@@ -55,6 +55,11 @@ export const navigationItems: NavigationItem[] = [
         icon: LockKeyhole,
       },
       {
+        label: "Emitir NFSe",
+        href: "/nfse/emitir",
+        icon: FileSignature,
+      },
+      {
         label: "Notas Emitidas",
         href: "/nfse/notas",
         icon: ReceiptText,

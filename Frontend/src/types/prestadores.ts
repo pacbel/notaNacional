@@ -16,6 +16,7 @@ export interface PrestadorDto {
   endereco: PrestadorEnderecoDto;
   dataCriacao: string;
   dataAtualizacao?: string | null;
+  certificados?: PrestadorCertificadoDto[];
 }
 
 export interface CreatePrestadorDto {
@@ -79,4 +80,30 @@ export interface UpsertPrestadorConfiguracaoDto {
   smtpPassword?: string;
   smtpFrom: string;
   smtpFromName: string;
+}
+
+export interface PrestadorCertificadoDto {
+  id: string;
+  alias?: string | null;
+  cnpj: string;
+  validadeInicio: string;
+  validadeFim: string;
+  criadoEm: string;
+  atualizadoEm?: string | null;
+  ativo: boolean;
+  prestadorId?: string;
+}
+
+export interface PrestadorCertificadoUploadDto {
+  alias?: string | null;
+  conteudo: string;
+  senha: string;
+}
+
+export interface PrestadorCertificadoUpdateDto {
+  alias?: string | null;
+}
+
+export interface PrestadorCertificadoSenhaDto {
+  senha: string;
 }
