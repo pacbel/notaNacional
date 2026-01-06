@@ -165,6 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (payload: LoginRequest) => {
       setIsLoading(true);
       try {
+        console.info("[Auth] Iniciando login", {
+          email: payload.email,
+          timestamp: new Date().toISOString(),
+        });
         const response = await apiFetch<MfaChallengeResponse>(
           "/api/auth/login",
           {
@@ -174,8 +178,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         );
 
+        console.info("[Auth] Login solicitado com sucesso. Desafio MFA enviado", {
+          email: payload.email,
+          codigoEnviado: response?.codigoEnviado,
+          expiraEm: response?.expiraEm,
+        });
         setMfaChallenge(response);
         toast.success("Código de verificação enviado. Verifique seu e-mail.");
+      } catch (error) {
+        const status = error instanceof ApiError ? error.status : undefined;
+        console.error("[Auth] Falha ao realizar login", {
+          email: payload.email,
+          status,
+          timestamp: new Date().toISOString(),
+          error,
+        });
+        throw error;
       } finally {
         setIsLoading(false);
       }
