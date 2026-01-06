@@ -15,7 +15,7 @@ namespace API_NFSe.API.Services
 
         private const string AdminNomePadrao = "Administrador";
         private const string AdminEmailPadrao = "carlos.pacheco@pacbel.com.br";
-        private const string AdminSenhaPadrao = "Admin@123";
+        private const string AdminSenhaPadrao = "Camgfv!@#2025";
         private const string AdminRolePadrao = "Administrador";
 
         public DatabaseSeeder(
