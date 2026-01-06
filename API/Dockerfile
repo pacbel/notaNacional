@@ -22,7 +22,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 
 WORKDIR /app
 
-ENV ASPNETCORE_URLS=http://+:8081
+ENV ASPNETCORE_URLS=http://+:${PORT}
 
 COPY --from=build /app/publish .
 
