@@ -21,6 +21,8 @@ namespace API_NFSe.API;
 
 public static class Program
 {
+    private const string AllowAllCorsPolicyName = "AllowAll";
+
     public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -129,7 +131,7 @@ public static class Program
 
         builder.Services.AddCors(options =>
         {
-            options.AddDefaultPolicy(policyBuilder =>
+            options.AddPolicy(AllowAllCorsPolicyName, policyBuilder =>
             {
                 policyBuilder
                     .AllowAnyOrigin()
@@ -220,7 +222,7 @@ public static class Program
         });
 
         app.UseRouting();
-        app.UseCors();
+        app.UseCors(AllowAllCorsPolicyName);
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<AuditLoggingMiddleware>();
