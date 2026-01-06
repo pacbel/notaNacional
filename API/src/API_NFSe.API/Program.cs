@@ -211,13 +211,19 @@ public static class Program
             options.DocumentTitle = "Manual interativo - API NFSe";
         });
 
-        app.UseHttpsRedirection();
+        if (builder.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
         app.UseRouting();
         app.UseCors();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<AuditLoggingMiddleware>();
+
         app.MapGet("/", () => Results.Ok("API NFSe - Running"));
+        app.MapGet("/health", () => Results.Ok("Healthy"));
+
         app.MapControllers();
     }
 
