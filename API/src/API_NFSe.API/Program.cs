@@ -217,6 +217,7 @@ public static class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<AuditLoggingMiddleware>();
+        app.MapGet("/", () => Results.Ok("API NFSe - Running"));
         app.MapControllers();
     }
 
