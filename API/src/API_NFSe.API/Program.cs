@@ -30,19 +30,21 @@ public static class Program
 
         var enableSwagger = ShouldEnableSwagger(builder.Environment, builder.Configuration);
 
-        var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase));
+        var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase))
+                         || ShouldSeedFromEnvironment();
 
         var app = builder.Build();
 
         if (shouldSeed)
         {
             await AplicarMigracoesAsync(app, executarSeed: true);
-            return;
+        }
+        else
+        {
+            await AplicarMigracoesAsync(app, executarSeed: false);
         }
 
         ConfigurePipeline(app, enableSwagger);
-
-        await AplicarMigracoesAsync(app, executarSeed: false);
 
         app.Run();
     }
@@ -237,6 +239,14 @@ public static class Program
         }
 
         return configuration.GetValue("Swagger:EnableInProduction", false);
+    }
+
+    private static bool ShouldSeedFromEnvironment()
+    {
+        var envValue = Environment.GetEnvironmentVariable("ASPNETCORE_SEED_ON_STARTUP")
+                       ?? Environment.GetEnvironmentVariable("SEED_ON_STARTUP");
+
+        return bool.TryParse(envValue, out var result) && result;
     }
 
     private static async Task AplicarMigracoesAsync(WebApplication app, bool executarSeed)
