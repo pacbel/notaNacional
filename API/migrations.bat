@@ -1,0 +1,1 @@
+dotnet ef database update --project src\API_NFSe.Infra.Data\API_NFSe.Infra.Data.csproj --startup-project src\API_NFSe.API\API_NFSe.API.csproj

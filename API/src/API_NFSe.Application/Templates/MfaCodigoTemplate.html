@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>Código de verificação</title>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; background-color: #f7f7f7; padding: 24px; }
+        .container { max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+        h1 { font-size: 20px; color: #222222; }
+        p { font-size: 16px; line-height: 1.5; color: #444444; }
+        .code { display: inline-block; margin: 16px 0; padding: 12px 24px; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #ffffff; background-color: #0a7cff; border-radius: 6px; }
+        .footer { font-size: 12px; color: #888888; margin-top: 32px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Olá, {{NOME}}!</h1>
+        <p>Recebemos uma solicitação de acesso e precisamos confirmar que foi você quem tentou entrar.</p>
+        <p>Use o código abaixo para concluir seu login. Ele expira em {{EXPIRACAO_LOCAL}}.</p>
+        <div class="code">{{CODIGO}}</div>
+        <p>Se você não reconhece esta tentativa, recomendamos alterar sua senha imediatamente.</p>
+        <p class="footer">Esta mensagem foi enviada automaticamente. Por favor, não responda.</p>
+    </div>
+</body>
+</html>

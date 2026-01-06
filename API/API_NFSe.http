@@ -1,0 +1,6 @@
+@API_NFSe_HostAddress = http://localhost:5177
+
+GET {{API_NFSe_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,1 @@
+dotnet run --launch-profile https --project src\API_NFSe.API\API_NFSe.API.csproj

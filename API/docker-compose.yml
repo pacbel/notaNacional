@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nfse-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS:-http://+:8080}
+      - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection:-Server=${DB_SERVER:-localhost};Port=${DB_PORT:-3306};Database=${DB_DATABASE:-NFSeDB};Uid=${DB_USER:-nfse_user};Pwd=${DB_PASSWORD:-nfse_pass};}
+      - Logging__LogLevel__Default=${LOG_LEVEL:-Information}
+    networks:
+      - nfse-network
+
+networks:
+  nfse-network:
+    driver: bridge

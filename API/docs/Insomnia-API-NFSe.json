@@ -1,0 +1,651 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-12-19T19:30:00.000Z",
+  "__export_source": "cascade-ai",
+  "resources": [
+    {
+      "_id": "wrk_api_nfse",
+      "_type": "workspace",
+      "name": "API NFSe",
+      "description": "Coleção de requisições para explorar a API NFSe."
+    },
+    {
+      "_id": "env_api_nfse_base",
+      "_type": "environment",
+      "parentId": "wrk_api_nfse",
+      "name": "Ambiente",
+      "data": {
+        "base_url": "https://localhost:7020",
+        "access_token": "",
+        "refresh_token": "",
+        "mfa_code": "000000",
+        "robot_client_id": "",
+        "robot_client_secret": "",
+        "robot_scope": "dps:ler",
+        "prestador_id": "00000000-0000-0000-0000-000000000000",
+        "dps_id": "00000000-0000-0000-0000-000000000000",
+        "usuario_id": "00000000-0000-0000-0000-000000000000",
+        "robot_id": "00000000-0000-0000-0000-000000000000",
+        "admin_email": "admin@empresa.com",
+        "admin_senha": "SenhaForte123!"
+      }
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "Autenticação"
+    },
+    {
+      "_id": "req_auth_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login com MFA",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.admin_email }}\",\n  \"senha\": \"{{ _.admin_senha }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_confirm_mfa",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Confirmar MFA",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/confirm-mfa",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.admin_email }}\",\n  \"codigo\": \"{{ _.mfa_code }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_refresh",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Renovar token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/refresh",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ _.refresh_token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_robot",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Token para robô",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/robot-token",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"clientId\": \"{{ _.robot_client_id }}\",\n  \"clientSecret\": \"{{ _.robot_client_secret }}\",\n  \"scope\": \"{{ _.robot_scope }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_revoke",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Revogar refresh token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/revoke",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ _.refresh_token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_forgot",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Esqueci minha senha",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/forgot-password",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.admin_email }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_reset",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Redefinir senha",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/reset-password",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"TOKEN_RECEBIDO\",\n  \"novaSenha\": \"NovaSenhaSegura123!\"\n}"
+      }
+    },
+    {
+      "_id": "fld_users",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "Usuários"
+    },
+    {
+      "_id": "req_users_list",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Listar usuários",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/usuarios",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_get",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Detalhar usuário",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/usuarios/{{ _.usuario_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_create",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Criar usuário",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/usuarios",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Novo Usuário\",\n  \"email\": \"novo@empresa.com\",\n  \"senha\": \"SenhaTemporaria123!\",\n  \"role\": \"Operator\",\n  \"prestadorId\": \"{{ _.prestador_id }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_users_update",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Atualizar usuário",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/usuarios/{{ _.usuario_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Usuário Atualizado\",\n  \"email\": \"atualizado@empresa.com\",\n  \"role\": \"Operator\",\n  \"prestadorId\": \"{{ _.prestador_id }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_users_change_pwd",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Trocar senha",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/usuarios/{{ _.usuario_id }}/senha",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"senhaAtual\": \"SenhaTemporaria123!\",\n  \"novaSenha\": \"NovaSenhaSegura123!\"\n}"
+      }
+    },
+    {
+      "_id": "req_users_delete",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Remover usuário",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/usuarios/{{ _.usuario_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_prestadores",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "Prestadores"
+    },
+    {
+      "_id": "req_prest_list",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Listar prestadores",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_prest_get",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Detalhar prestador",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_prest_create",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Criar prestador",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/prestadores",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"cnpj\": \"12345678000100\",\n  \"razaoSocial\": \"Empresa de Exemplo LTDA\",\n  \"nomeFantasia\": \"Empresa Exemplo\",\n  \"inscricaoMunicipal\": \"123456\",\n  \"inscricaoEstadual\": null,\n  \"cnae\": \"6201500\",\n  \"tipoEmissao\": 1,\n  \"codigoMunicipioIbge\": \"4205407\",\n  \"optanteSimplesNacional\": 1,\n  \"regimeEspecialTributario\": 3,\n  \"telefone\": \"47999990000\",\n  \"email\": \"contato@empresa.com\",\n  \"website\": \"https://empresa.com\",\n  \"endereco\": {\n    \"logradouro\": \"Rua das Flores\",\n    \"numero\": \"100\",\n    \"complemento\": \"Sala 01\",\n    \"bairro\": \"Centro\",\n    \"codigoMunicipioIbge\": \"4205407\",\n    \"uf\": \"SC\",\n    \"cep\": \"89000000\"\n  }\n}"
+      }
+    },
+    {
+      "_id": "req_prest_update",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Atualizar prestador",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"razaoSocial\": \"Empresa Exemplo Atualizada LTDA\",\n  \"nomeFantasia\": \"Empresa Exemplo Atualizada\",\n  \"inscricaoMunicipal\": \"123456\",\n  \"inscricaoEstadual\": null,\n  \"cnae\": \"6201500\",\n  \"tipoEmissao\": 1,\n  \"codigoMunicipioIbge\": \"4205407\",\n  \"optanteSimplesNacional\": 1,\n  \"regimeEspecialTributario\": 3,\n  \"telefone\": \"47999990000\",\n  \"email\": \"contato@empresa.com\",\n  \"website\": \"https://empresa.com\",\n  \"endereco\": {\n    \"logradouro\": \"Rua das Flores\",\n    \"numero\": \"100\",\n    \"complemento\": \"Sala 01\",\n    \"bairro\": \"Centro\",\n    \"codigoMunicipioIbge\": \"4205407\",\n    \"uf\": \"SC\",\n    \"cep\": \"89000000\"\n  }\n}"
+      }
+    },
+    {
+      "_id": "req_prest_delete",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Remover prestador",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_prest_conf_get",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Ver configuração",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/configuracao",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_prest_conf_put",
+      "_type": "request",
+      "parentId": "fld_prestadores",
+      "name": "Definir configuração",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/configuracao",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"ambiente\": 2,\n  \"versaoAplicacao\": \"1.0.0\",\n  \"seriePadrao\": \"A\",\n  \"numeroAtual\": 1,\n  \"urlEnvio\": \"https://homologacao.nfse.gov.br\",\n  \"urlConsulta\": \"https://homologacao.nfse.gov.br/consulta\",\n  \"enviaEmailAutomatico\": true\n}"
+      }
+    },
+    {
+      "_id": "fld_dps",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "DPS"
+    },
+    {
+      "_id": "req_dps_list",
+      "_type": "request",
+      "parentId": "fld_dps",
+      "name": "Listar DPS",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/dps",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "status",
+          "value": "Enviado"
+        }
+      ]
+    },
+    {
+      "_id": "req_dps_get",
+      "_type": "request",
+      "parentId": "fld_dps",
+      "name": "Detalhar DPS",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/dps/{{ _.dps_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_dps_create",
+      "_type": "request",
+      "parentId": "fld_dps",
+      "name": "Criar DPS",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/dps",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"versao\": \"1.00\",\n  \"identificador\": \"DPS-123\",\n  \"ambiente\": 2,\n  \"dataHoraEmissao\": \"2025-01-01T10:00:00Z\",\n  \"versaoAplicacao\": \"1.0.0\",\n  \"serie\": \"A\",\n  \"numeroDps\": \"1\",\n  \"dataCompetencia\": \"2025-01-01\",\n  \"tipoEmissao\": 1,\n  \"codigoLocalEmissao\": \"4205407\",\n  \"regimeTributario\": {\n    \"codigo\": \"1\",\n    \"codigoSimples\": \"1\"\n  },\n  \"tomador\": {\n    \"tipoDocumento\": \"CPF\",\n    \"documento\": \"12345678901\",\n    \"nome\": \"Cliente Exemplo\",\n    \"email\": \"cliente@exemplo.com\",\n    \"telefone\": \"47999990000\",\n    \"endereco\": {\n      \"logradouro\": \"Rua do Cliente\",\n      \"numero\": \"200\",\n      \"bairro\": \"Centro\",\n      \"codigoMunicipioIbge\": \"4205407\",\n      \"municipal\": \"Municipio Exemplo\"\n    }\n  },\n  \"servico\": {\n    \"codigoLocalPrestacao\": \"4205407\",\n    \"codigoTributacaoNacional\": \"12.34\",\n    \"codigoTributacaoMunicipal\": \"1234\",\n    \"descricaoServico\": \"Consultoria em tecnologia\"\n  },\n  \"valores\": {\n    \"valorServico\": 1000.0,\n    \"tributos\": {\n      \"issRetido\": 0,\n      \"tipoRetencaoIss\": 0,\n      \"totais\": {\n        \"federal\": 0.0,\n        \"estadual\": 0.0,\n        \"municipal\": 30.0\n      }\n    }\n  },\n  \"xmlAssinado\": \"PFw0K...\",\n  \"jsonEntrada\": \"{\\\"exemplo\\\":true}\",\n  \"status\": \"Rascunho\"\n}"
+      }
+    },
+    {
+      "_id": "fld_robot",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "Clientes robóticos"
+    },
+    {
+      "_id": "req_robot_list",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Listar robôs",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "incluirInativos",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "_id": "req_robot_get",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Detalhar robô",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients/{{ _.robot_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_robot_create",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Criar robô",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Robô Fiscal\",\n  \"clientId\": \"robot-app\",\n  \"secret\": \"segredo-super-seguro\",\n  \"scopes\": \"dps:ler dps:criar\",\n  \"role\": \"Robot\"\n}"
+      }
+    },
+    {
+      "_id": "req_robot_update",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Atualizar robô",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients/{{ _.robot_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Robô Fiscal Atualizado\",\n  \"clientId\": \"robot-app\",\n  \"scopes\": \"dps:ler dps:criar\",\n  \"role\": \"Robot\",\n  \"ativo\": true\n}"
+      }
+    },
+    {
+      "_id": "req_robot_delete",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Inativar robô",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients/{{ _.robot_id }}",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_robot_reactivate",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Reativar robô",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients/{{ _.robot_id }}/reativar",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_robot_rotate",
+      "_type": "request",
+      "parentId": "fld_robot",
+      "name": "Trocar segredo",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/prestadores/{{ _.prestador_id }}/robot-clients/{{ _.robot_id }}/rotate-secret",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"novoSecret\": \"segredo-novo-123\"\n}"
+      }
+    },
+    {
+      "_id": "fld_nfse",
+      "_type": "request_group",
+      "parentId": "wrk_api_nfse",
+      "name": "NFSe"
+    },
+    {
+      "_id": "req_nfse_certs",
+      "_type": "request",
+      "parentId": "fld_nfse",
+      "name": "Listar certificados",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/nfse/certificados",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_nfse_sign",
+      "_type": "request",
+      "parentId": "fld_nfse",
+      "name": "Assinar XML",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/nfse/assinatura",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.access_token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"certificateId\": \"CERTIFICADO_ID\",\n  \"xml\": \"<Rps>...</Rps>\",\n  \"tag\": \"Rps\"\n}"
+      }
+    }
+  ]
+}
