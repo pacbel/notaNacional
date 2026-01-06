@@ -211,10 +211,6 @@ public static class Program
             options.DocumentTitle = "Manual interativo - API NFSe";
         });
 
-        if (builder.Environment.IsDevelopment())
-        {
-            app.UseHttpsRedirection();
-        }
         app.UseRouting();
         app.UseCors();
         app.UseAuthentication();
