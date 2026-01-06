@@ -28,6 +28,8 @@ public static class Program
         ConfigureLogging(builder);
         ConfigureServices(builder);
 
+        var enableSwagger = ShouldEnableSwagger(builder.Environment, builder.Configuration);
+
         var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase));
 
         var app = builder.Build();
@@ -38,7 +40,7 @@ public static class Program
             return;
         }
 
-        ConfigurePipeline(app);
+        ConfigurePipeline(app, enableSwagger);
 
         await AplicarMigracoesAsync(app, executarSeed: false);
 
@@ -191,11 +193,15 @@ public static class Program
         });
     }
 
-    private static void ConfigurePipeline(WebApplication app)
+    private static void ConfigurePipeline(WebApplication app, bool enableSwagger)
     {
         if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
+        }
+
+        if (enableSwagger)
+        {
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
@@ -221,6 +227,16 @@ public static class Program
         app.MapGet("/health", () => Results.Ok("Healthy"));
 
         app.MapControllers();
+    }
+
+    private static bool ShouldEnableSwagger(IHostEnvironment environment, IConfiguration configuration)
+    {
+        if (environment.IsDevelopment())
+        {
+            return true;
+        }
+
+        return configuration.GetValue("Swagger:EnableInProduction", false);
     }
 
     private static async Task AplicarMigracoesAsync(WebApplication app, bool executarSeed)
