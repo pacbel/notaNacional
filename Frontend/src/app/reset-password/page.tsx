@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +23,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") ?? "";
@@ -104,5 +105,26 @@ export default function ResetPasswordPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Carregando redefinição</CardTitle>
+              <CardDescription>
+                Aguarde enquanto preparamos o formulário de redefinição de senha.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
