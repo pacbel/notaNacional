@@ -7,6 +7,7 @@ COPY ["src/API_NFSe.API/API_NFSe.API.csproj", "src/API_NFSe.API/"]
 COPY ["src/API_NFSe.Application/API_NFSe.Application.csproj", "src/API_NFSe.Application/"]
 COPY ["src/API_NFSe.Domain/API_NFSe.Domain.csproj", "src/API_NFSe.Domain/"]
 COPY ["src/API_NFSe.Infra.Data/API_NFSe.Infra.Data.csproj", "src/API_NFSe.Infra.Data/"]
+COPY ["tests/API_NFSe.Tests/API_NFSe.Tests.csproj", "tests/API_NFSe.Tests/"]
 
 RUN dotnet restore "API_NFSe.sln"
 
