@@ -18,6 +18,8 @@ namespace API_NFSe.Infra.Data.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.UseCollation("utf8mb4_general_ci");
+            
             // Aplica as configurações de mapeamento
             modelBuilder.ApplyConfiguration(new UsuarioConfiguration());
             modelBuilder.ApplyConfiguration(new PrestadorConfiguration());
