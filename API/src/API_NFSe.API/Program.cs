@@ -30,12 +30,6 @@ public static class Program
 
         var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase));
 
-        builder.Services.Configure<HttpsRedirectionOptions>(options =>
-        {
-            options.HttpsPort = null;
-        });
-
-
         var app = builder.Build();
 
         if (shouldSeed)
