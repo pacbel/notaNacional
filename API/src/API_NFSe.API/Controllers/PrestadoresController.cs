@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Prestadores;
 using API_NFSe.Application.Interfaces;
@@ -25,6 +26,139 @@ namespace API_NFSe.API.Controllers
         {
             _prestadorService = prestadorService;
             _currentUserService = currentUserService;
+        }
+
+        [HttpGet("{prestadorId:guid}/certificados")]
+        public async Task<IActionResult> ListarCertificados(Guid prestadorId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var acessivel = ValidarAcesso(prestadorId);
+                if (acessivel != null)
+                {
+                    return acessivel;
+                }
+
+                var certificados = await _prestadorService.ListarCertificadosAsync(prestadorId, cancellationToken);
+                return Ok(certificados);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
+        }
+
+        [HttpPost("{prestadorId:guid}/certificados")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao)]
+        public async Task<IActionResult> UploadCertificado(Guid prestadorId, [FromBody] PrestadorCertificadoUploadDto dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var acessivel = ValidarAcesso(prestadorId, requerPermissaoEdicao: true);
+                if (acessivel != null)
+                {
+                    return acessivel;
+                }
+
+                var usuarioId = _currentUserService.ObterUsuarioId();
+                var certificado = await _prestadorService.UploadCertificadoAsync(prestadorId, dto, usuarioId, cancellationToken);
+                return CreatedAtAction(nameof(ListarCertificados), new { prestadorId }, certificado);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
+        }
+
+        [HttpPut("{prestadorId:guid}/certificados/{certificadoId:guid}")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao)]
+        public async Task<IActionResult> AtualizarCertificado(Guid prestadorId, Guid certificadoId, [FromBody] PrestadorCertificadoUpdateDto dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var acessivel = ValidarAcesso(prestadorId, requerPermissaoEdicao: true);
+                if (acessivel != null)
+                {
+                    return acessivel;
+                }
+
+                var usuarioId = _currentUserService.ObterUsuarioId();
+                var certificado = await _prestadorService.AtualizarCertificadoAsync(prestadorId, certificadoId, dto, usuarioId, cancellationToken);
+                if (certificado is null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(certificado);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
+        }
+
+        [HttpPut("{prestadorId:guid}/certificados/{certificadoId:guid}/senha")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao)]
+        public async Task<IActionResult> AtualizarSenhaCertificado(Guid prestadorId, Guid certificadoId, [FromBody] PrestadorCertificadoSenhaDto dto, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var acessivel = ValidarAcesso(prestadorId, requerPermissaoEdicao: true);
+                if (acessivel != null)
+                {
+                    return acessivel;
+                }
+
+                var usuarioId = _currentUserService.ObterUsuarioId();
+                await _prestadorService.AtualizarSenhaCertificadoAsync(prestadorId, certificadoId, dto, usuarioId, cancellationToken);
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
+        }
+
+        [HttpDelete("{prestadorId:guid}/certificados/{certificadoId:guid}")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao)]
+        public async Task<IActionResult> RemoverCertificado(Guid prestadorId, Guid certificadoId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var acessivel = ValidarAcesso(prestadorId, requerPermissaoEdicao: true);
+                if (acessivel != null)
+                {
+                    return acessivel;
+                }
+
+                var usuarioId = _currentUserService.ObterUsuarioId();
+                await _prestadorService.RemoverCertificadoAsync(prestadorId, certificadoId, usuarioId, cancellationToken);
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
+            }
         }
 
         [HttpGet]

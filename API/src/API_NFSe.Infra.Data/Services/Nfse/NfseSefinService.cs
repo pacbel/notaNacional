@@ -50,7 +50,8 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 throw new ArgumentException("Prestador inválido.", nameof(prestadorId));
             }
 
-            var certificadosQuery = _certificateStoreService.ListCertificates().AsEnumerable();
+            var certificados = await _certificateStoreService.ListCertificatesAsync();
+            var certificadosQuery = certificados.AsEnumerable();
 
             if (!listarTodosCertificados && prestadorId.HasValue)
             {
@@ -65,22 +66,20 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                     .Where(c => string.Equals(SomenteDigitos(c.Cnpj), prestadorCnpj, StringComparison.Ordinal));
             }
 
-            var certificados = certificadosQuery
+            return certificadosQuery
                 .Select(c => new CertificateInfoDto
                 {
                     Id = c.Id,
+                    Alias = c.Alias,
+                    Thumbprint = c.Thumbprint,
                     CommonName = c.CommonName,
                     Cnpj = c.Cnpj,
-                    Subject = c.Subject,
-                    Issuer = c.Issuer,
                     NotBefore = c.NotBefore,
                     NotAfter = c.NotAfter,
-                    HasPrivateKey = c.HasPrivateKey,
-                    StoreLocation = c.StoreLocation.ToString()
+                    DataEnvio = c.DataEnvioUtc,
+                    TamanhoBytes = c.TamanhoBytes
                 })
                 .ToArray();
-
-            return certificados;
         }
 
         public async Task<ListarNotasEmitidasResponseDto> ListarNotasEmitidasAsync(string usuarioReferencia, Guid prestadorId, ListarNotasEmitidasRequestDto request)
@@ -199,7 +198,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
 
-            var certificado = ObterCertificadoPrestador(prestadorCnpj, request.CertificateId);
+            var certificado = await ObterCertificadoPrestadorAsync(prestadorCnpj, request.CertificateId, cancellationToken);
 
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.XmlAssinado), "application/xml", "request");
 
@@ -261,7 +260,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             _ = Convert.FromBase64String(request.EventoXmlGZipBase64); // lança exceção caso inválido
 
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
-            var certificado = ObterCertificadoPrestador(SomenteDigitos(prestador.Cnpj), request.CertificateId);
+            var certificado = await ObterCertificadoPrestadorAsync(SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
 
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.EventoXmlGZipBase64), "application/json", "request");
 
@@ -317,7 +316,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             X509Certificate2? certificado = null;
             if (!string.IsNullOrWhiteSpace(request.CertificateId))
             {
-                certificado = ObterCertificadoPrestador(SomenteDigitos(prestador.Cnpj), request.CertificateId);
+                certificado = await ObterCertificadoPrestadorAsync(SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
             }
 
             var response = await _sefinHttpClient.DownloadDanfseAsync(chaveNormalizada, request.Ambiente, certificado, cancellationToken);
@@ -367,22 +366,26 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             return prestador;
         }
 
-        private X509Certificate2 ObterCertificadoPrestador(string prestadorCnpj, string certificateId)
+        private async Task<X509Certificate2> ObterCertificadoPrestadorAsync(string prestadorCnpj, string certificateId, CancellationToken cancellationToken)
         {
-            var certificadoInfo = _certificateStoreService.ListCertificates()
-                .FirstOrDefault(c => string.Equals(c.Id, certificateId, StringComparison.OrdinalIgnoreCase));
+            if (!Guid.TryParse(certificateId, out var certificadoId))
+            {
+                throw new InvalidOperationException("Identificador de certificado inválido.");
+            }
 
-            if (string.IsNullOrWhiteSpace(certificadoInfo.Id))
+            var certificadoInfo = await _certificateStoreService.GetInfoAsync(certificadoId, cancellationToken);
+
+            if (certificadoInfo is null)
             {
                 throw new InvalidOperationException("Certificado não encontrado no repositório local.");
             }
 
-            if (!string.Equals(SomenteDigitos(certificadoInfo.Cnpj), prestadorCnpj, StringComparison.Ordinal))
+            if (!string.Equals(SomenteDigitos(certificadoInfo.Value.Cnpj), prestadorCnpj, StringComparison.Ordinal))
             {
                 throw new UnauthorizedAccessException("O certificado informado não pertence ao prestador autenticado.");
             }
 
-            var certificado = _certificateStoreService.GetByThumbprint(certificateId);
+            var certificado = await _certificateStoreService.LoadAsync(certificadoId, cancellationToken);
             if (certificado is null)
             {
                 throw new InvalidOperationException("Não foi possível carregar o certificado informado.");

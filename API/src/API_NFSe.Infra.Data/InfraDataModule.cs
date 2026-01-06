@@ -6,6 +6,7 @@ using API_NFSe.Infra.Data.Context;
 using API_NFSe.Application.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
+using API_NFSe.Infra.Data.Services.Storage;
 using API_NFSe.Application.Services;
 using API_NFSe.Infra.Data.Repositories;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
@@ -26,7 +27,7 @@ namespace API_NFSe.Infra.Data
                 options.UseMySql(
                     connectionString,
                     serverVersion,
-                    b => b.MigrationsAssembly("API_NFSe.API")
+                    b => b.MigrationsAssembly("API_NFSe.Infra.Data")
                 );
             });
 
@@ -35,13 +36,15 @@ namespace API_NFSe.Infra.Data
             // Registro dos repositórios
             services.AddScoped<IDpsRepository, DpsRepository>();
             services.AddScoped<IPrestadorRepository, PrestadorRepository>();
+            services.AddScoped<IPrestadorCertificadoRepository, PrestadorCertificadoRepository>();
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
             services.AddScoped<IAuditLogRepository, AuditLogRepository>();
             services.AddScoped<IRobotClientRepository, RobotClientRepository>();
 
+            services.AddSingleton<ICertificateFileStorage, FileSystemCertificateFileStorage>();
+
             // Serviços NFSe
-            services.AddSingleton<ICertificateStoreFactory, DefaultCertificateStoreFactory>();
-            services.AddSingleton<ICertificateStoreService, CertificateStoreService>();
+            services.AddScoped<ICertificateStoreService, FileSystemCertificateStoreService>();
             services.AddSingleton<IXmlSignatureService, XmlSignatureService>();
             services.AddSingleton<INfseStorageService, NfseStorageService>();
             services.AddSingleton<INfseResponseParser, NfseResponseParser>();

@@ -22,6 +22,7 @@ namespace API_NFSe.Application
             // Configuração das opções
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));
+            services.Configure<CertificateStorageSettings>(configuration.GetSection("CertificateStorage"));
             services.Configure<AdminUserSettings>(configuration.GetSection("AdminUser"));
             services.Configure<MfaSettings>(configuration.GetSection("Mfa"));
 
@@ -31,6 +32,7 @@ namespace API_NFSe.Application
             );
             services.AddSingleton(sp => sp.GetRequiredService<IOptions<AdminUserSettings>>().Value);
             services.AddSingleton(sp => sp.GetRequiredService<IOptions<MfaSettings>>().Value);
+            services.AddSingleton(sp => sp.GetRequiredService<IOptions<CertificateStorageSettings>>().Value);
 
             services.AddSingleton<ICryptographyService, CryptographyService>();
             services.AddScoped<IEmailService, EmailService>();

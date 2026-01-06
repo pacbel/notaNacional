@@ -1,6 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using API_NFSe.Application.Configurations;
 using API_NFSe.Application.DTOs.Prestadores;
 using API_NFSe.Application.Interfaces;
 using API_NFSe.Domain.Entities;
@@ -17,18 +24,27 @@ namespace API_NFSe.Application.Services
         private readonly IMapper _mapper;
         private readonly ILogger<PrestadorService> _logger;
         private readonly ICryptographyService _cryptographyService;
+        private readonly IPrestadorCertificadoRepository _certificadoRepository;
+        private readonly ICertificateFileStorage _fileStorage;
+        private readonly CertificateStorageSettings _storageSettings;
 
         public PrestadorService(
             IPrestadorRepository prestadorRepository,
             IMapper mapper,
             ILogger<PrestadorService> logger,
-            ICryptographyService cryptographyService
+            ICryptographyService cryptographyService,
+            IPrestadorCertificadoRepository certificadoRepository,
+            ICertificateFileStorage fileStorage,
+            CertificateStorageSettings storageSettings
         )
         {
             _prestadorRepository = prestadorRepository;
             _mapper = mapper;
             _logger = logger;
             _cryptographyService = cryptographyService;
+            _certificadoRepository = certificadoRepository;
+            _fileStorage = fileStorage;
+            _storageSettings = storageSettings;
         }
 
         public async Task<IEnumerable<PrestadorDto>> ObterTodosAsync()
@@ -375,6 +391,258 @@ namespace API_NFSe.Application.Services
             }
 
             return dto;
+        }
+
+        public async Task<IEnumerable<PrestadorCertificadoDto>> ListarCertificadosAsync(Guid prestadorId, CancellationToken cancellationToken = default)
+        {
+            var prestador = await _prestadorRepository.ObterPorIdComRelacoesAsync(prestadorId);
+            if (prestador is null)
+            {
+                throw new InvalidOperationException("Prestador não encontrado.");
+            }
+
+            return prestador.Certificados
+                .Where(c => c.Ativo)
+                .OrderBy(c => c.Alias, StringComparer.OrdinalIgnoreCase)
+                .Select(MapearCertificado)
+                .ToArray();
+        }
+
+        public async Task<PrestadorCertificadoDto> UploadCertificadoAsync(Guid prestadorId, PrestadorCertificadoUploadDto dto, Guid usuarioId, CancellationToken cancellationToken = default)
+        {
+            if (dto is null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+
+            var prestador = await _prestadorRepository.ObterPorIdComRelacoesAsync(prestadorId);
+            if (prestador is null)
+            {
+                throw new InvalidOperationException("Prestador não encontrado.");
+            }
+
+            if (dto.Conteudo is null || dto.Conteudo.Length == 0)
+            {
+                throw new ArgumentException("O arquivo do certificado é obrigatório.", nameof(dto.Conteudo));
+            }
+
+            X509Certificate2 certificado;
+            try
+            {
+                certificado = new X509Certificate2(
+                    dto.Conteudo,
+                    dto.Senha,
+                    X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+            }
+            catch (CryptographicException ex)
+            {
+                throw new InvalidOperationException("Não foi possível abrir o certificado. Verifique a senha informada.", ex);
+            }
+
+            if (!certificado.HasPrivateKey)
+            {
+                throw new InvalidOperationException("O certificado informado não possui chave privada.");
+            }
+
+            var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
+            var certificadoCnpj = ExtrairCnpjCertificado(certificado);
+            if (!string.Equals(prestadorCnpj, certificadoCnpj, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException("O certificado informado não pertence ao prestador.");
+            }
+
+            var thumbprint = certificado.Thumbprint?.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(thumbprint))
+            {
+                throw new InvalidOperationException("Não foi possível determinar o thumbprint do certificado.");
+            }
+
+            var alias = string.IsNullOrWhiteSpace(dto.Alias)
+                ? certificado.GetNameInfo(X509NameType.SimpleName, false) ?? thumbprint
+                : dto.Alias.Trim();
+
+            var fileName = thumbprint + ".pfx";
+            var relativePath = _fileStorage.BuildRelativePath(prestadorCnpj, fileName);
+
+            await _fileStorage.SaveAsync(relativePath, dto.Conteudo, cancellationToken);
+
+            var hashConteudo = _cryptographyService.ComputeSha256(Convert.ToBase64String(dto.Conteudo));
+            var senhaProtegida = string.IsNullOrWhiteSpace(dto.Senha)
+                ? null
+                : _cryptographyService.Encrypt(dto.Senha);
+
+            var existente = await _certificadoRepository.ObterPorThumbprintAsync(thumbprint);
+            var dataEnvio = DateTime.UtcNow;
+
+            if (existente is null)
+            {
+                var novoCertificado = new PrestadorCertificado(
+                    prestadorId,
+                    alias,
+                    relativePath,
+                    hashConteudo,
+                    dto.Conteudo.LongLength,
+                    senhaProtegida,
+                    certificado.NotBefore.ToUniversalTime(),
+                    certificado.NotAfter.ToUniversalTime(),
+                    thumbprint,
+                    certificado.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty,
+                    certificado.Subject,
+                    certificado.Issuer,
+                    certificadoCnpj,
+                    usuarioId,
+                    dataEnvio);
+
+                prestador.Certificados.Add(novoCertificado);
+                await _prestadorRepository.SaveChangesAsync();
+                return MapearCertificado(novoCertificado);
+            }
+
+            if (existente.PrestadorId != prestadorId)
+            {
+                throw new InvalidOperationException("O certificado informado já está vinculado a outro prestador.");
+            }
+
+            existente.AtualizarAlias(alias, usuarioId);
+            existente.AtualizarArquivo(
+                relativePath,
+                hashConteudo,
+                dto.Conteudo.LongLength,
+                certificado.NotBefore.ToUniversalTime(),
+                certificado.NotAfter.ToUniversalTime(),
+                thumbprint,
+                certificado.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty,
+                certificado.Subject,
+                certificado.Issuer,
+                certificadoCnpj,
+                dataEnvio,
+                usuarioId);
+
+            if (!string.IsNullOrWhiteSpace(senhaProtegida))
+            {
+                existente.AtualizarSenha(senhaProtegida, usuarioId);
+            }
+
+            _certificadoRepository.Atualizar(existente);
+            await _prestadorRepository.SaveChangesAsync();
+
+            return MapearCertificado(existente);
+        }
+
+        public async Task<PrestadorCertificadoDto?> AtualizarCertificadoAsync(Guid prestadorId, Guid certificadoId, PrestadorCertificadoUpdateDto dto, Guid usuarioId, CancellationToken cancellationToken = default)
+        {
+            if (dto is null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+
+            var certificado = await BuscarCertificadoDoPrestador(prestadorId, certificadoId);
+            if (certificado is null)
+            {
+                return null;
+            }
+
+            certificado.AtualizarAlias(dto.Alias, usuarioId);
+            _certificadoRepository.Atualizar(certificado);
+            await _prestadorRepository.SaveChangesAsync();
+
+            return MapearCertificado(certificado);
+        }
+
+        public async Task AtualizarSenhaCertificadoAsync(Guid prestadorId, Guid certificadoId, PrestadorCertificadoSenhaDto dto, Guid usuarioId, CancellationToken cancellationToken = default)
+        {
+            if (dto is null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+
+            var certificado = await BuscarCertificadoDoPrestador(prestadorId, certificadoId)
+                ?? throw new InvalidOperationException("Certificado não encontrado.");
+
+            var senhaProtegida = string.IsNullOrWhiteSpace(dto.Senha)
+                ? null
+                : _cryptographyService.Encrypt(dto.Senha);
+
+            certificado.AtualizarSenha(senhaProtegida, usuarioId);
+            _certificadoRepository.Atualizar(certificado);
+            await _prestadorRepository.SaveChangesAsync();
+        }
+
+        public async Task RemoverCertificadoAsync(Guid prestadorId, Guid certificadoId, Guid usuarioId, CancellationToken cancellationToken = default)
+        {
+            var certificado = await BuscarCertificadoDoPrestador(prestadorId, certificadoId)
+                ?? throw new InvalidOperationException("Certificado não encontrado.");
+
+            certificado.Desativar();
+            certificado.AtualizarSenha(null, usuarioId);
+            _certificadoRepository.Atualizar(certificado);
+            await _prestadorRepository.SaveChangesAsync();
+
+            await _fileStorage.DeleteAsync(certificado.CaminhoRelativo, cancellationToken);
+        }
+
+        private async Task<PrestadorCertificado?> BuscarCertificadoDoPrestador(Guid prestadorId, Guid certificadoId)
+        {
+            var certificado = await _certificadoRepository.ObterPorIdAsync(certificadoId);
+            if (certificado is null || certificado.PrestadorId != prestadorId)
+            {
+                return null;
+            }
+
+            return certificado;
+        }
+
+        private static string SomenteDigitos(string valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+            {
+                return string.Empty;
+            }
+
+            var buffer = new char[valor.Length];
+            var index = 0;
+            foreach (var caractere in valor)
+            {
+                if (char.IsDigit(caractere))
+                {
+                    buffer[index++] = caractere;
+                }
+            }
+
+            return index == 0 ? string.Empty : new string(buffer, 0, index);
+        }
+
+        private static string ExtrairCnpjCertificado(X509Certificate2 certificado)
+        {
+            var texto = certificado.Subject + " " + certificado.Issuer;
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return string.Empty;
+            }
+
+            var match = Regex.Match(texto, @"(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})");
+            if (!match.Success)
+            {
+                return string.Empty;
+            }
+
+            return SomenteDigitos(match.Value);
+        }
+
+        private static PrestadorCertificadoDto MapearCertificado(PrestadorCertificado certificado)
+        {
+            return new PrestadorCertificadoDto
+            {
+                Id = certificado.Id,
+                Alias = certificado.Alias,
+                Thumbprint = certificado.Thumbprint,
+                CommonName = certificado.CommonName,
+                Cnpj = certificado.Cnpj,
+                NotBefore = certificado.NotBefore,
+                NotAfter = certificado.NotAfter,
+                DataEnvio = certificado.DataEnvio,
+                TamanhoBytes = certificado.TamanhoBytes
+            };
         }
     }
 }
