@@ -61,10 +61,10 @@ export const navigationItems: NavigationItem[] = [
       },
     ],
   },
-  // {
-  //   label: "Swagger",
-  //   href: "/nfse/swagger",
-  //   icon: Workflow,
-  //   roles: ["Administrador", "Gestao", "Operacao", "Robot"],
-  // },
+  {
+    label: "Swagger",
+    href: "/nfse/swagger",
+    icon: Workflow,
+    roles: ["Administrador", "Gestao", "Operacao", "Robot"],
+  },
 ];
