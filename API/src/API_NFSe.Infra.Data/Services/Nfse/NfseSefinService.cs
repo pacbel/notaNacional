@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Nfse;
 using API_NFSe.Application.Interfaces;
 using API_NFSe.Application.Services;
+using API_NFSe.Domain.Entities;
 using API_NFSe.Domain.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
 using Microsoft.EntityFrameworkCore;
@@ -377,7 +378,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
 
-            var certificado = await ObterCertificadoPrestadorAsync(prestadorCnpj, request.CertificateId, cancellationToken);
+            var certificado = await ObterCertificadoPrestadorAsync(prestadorId, prestadorCnpj, request.CertificateId, cancellationToken);
 
             var now = DateTime.UtcNow;
             if (certificado.NotAfter.ToUniversalTime() < now)
@@ -456,20 +457,17 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 }
             }
 
-            if (certificado is null)
-            {
-                throw new InvalidOperationException($"Certificado com Id '{certificateId}' não encontrado para o prestador informado.");
-            }
+            var certificadoEncontrado = certificado ?? throw new InvalidOperationException($"Certificado com Id '{certificateId}' não encontrado para o prestador informado.");
 
-            if (!string.Equals(SomenteDigitos(certificado.Cnpj), prestadorCnpj, StringComparison.Ordinal))
+            if (!string.Equals(SomenteDigitos(certificadoEncontrado.Cnpj), prestadorCnpj, StringComparison.Ordinal))
             {
                 throw new UnauthorizedAccessException("O certificado informado não pertence ao prestador autenticado.");
             }
 
-            var conteudo = await _certificateFileStorage.ReadAsync(certificado.CaminhoRelativo, cancellationToken);
-            var senha = string.IsNullOrWhiteSpace(certificado.SenhaProtegida)
+            var conteudo = await _certificateFileStorage.ReadAsync(certificadoEncontrado.CaminhoRelativo, cancellationToken);
+            var senha = string.IsNullOrWhiteSpace(certificadoEncontrado.SenhaProtegida)
                 ? ReadOnlySpan<char>.Empty
-                : _cryptographyService.Decrypt(certificado.SenhaProtegida).AsSpan();
+                : _cryptographyService.Decrypt(certificadoEncontrado.SenhaProtegida).AsSpan();
 
             var certificadoX509 = X509CertificateLoader.LoadPkcs12(
                 conteudo,
