@@ -100,7 +100,7 @@ namespace API_NFSe.API.Services
                         {
                             Logradouro = "Rua hudson Magalhães Marques",
                             Numero = "208",
-                            Complemento = 'A',
+                            Complemento = "A",
                             Bairro = "Serrano",
                             CodigoMunicipioIbge = "3205309",
                             Uf = "MG",
