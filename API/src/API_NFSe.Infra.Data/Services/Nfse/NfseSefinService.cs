@@ -432,16 +432,33 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 throw new InvalidOperationException("Identificador de certificado inválido.");
             }
 
-            var certificado = await _prestadorCertificadoRepository.ObterPorIdAsync(certificadoId);
-            if (certificado is null)
+            PrestadorCertificado? certificado = null;
+            const int maxTentativas = 3;
+
+            for (var tentativa = 1; tentativa <= maxTentativas; tentativa++)
             {
+                certificado = await _prestadorCertificadoRepository.ObterPorIdAsync(certificadoId);
+                if (certificado is not null)
+                {
+                    break;
+                }
+
                 var certificadosPrestador = await _prestadorCertificadoRepository.ObterPorPrestadorAsync(prestadorId);
                 certificado = certificadosPrestador.FirstOrDefault(c => c.Id == certificadoId);
-
-                if (certificado is null)
+                if (certificado is not null)
                 {
-                    throw new InvalidOperationException($"Certificado com Id '{certificateId}' não encontrado para o prestador informado.");
+                    break;
                 }
+
+                if (tentativa < maxTentativas)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100 * tentativa), cancellationToken);
+                }
+            }
+
+            if (certificado is null)
+            {
+                throw new InvalidOperationException($"Certificado com Id '{certificateId}' não encontrado para o prestador informado.");
             }
 
             if (!string.Equals(SomenteDigitos(certificado.Cnpj), prestadorCnpj, StringComparison.Ordinal))
