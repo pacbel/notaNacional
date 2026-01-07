@@ -431,10 +431,13 @@ namespace API_NFSe.Application.Services
             X509Certificate2 certificado;
             try
             {
-                certificado = new X509Certificate2(
+                ReadOnlySpan<char> senhaSpan = dto.Senha is null
+                    ? ReadOnlySpan<char>.Empty
+                    : dto.Senha.AsSpan();
+                certificado = X509CertificateLoader.LoadPkcs12(
                     dto.Conteudo,
-                    dto.Senha,
-                    X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+                    senhaSpan,
+                    X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
             }
             catch (CryptographicException ex)
             {
@@ -627,10 +630,13 @@ namespace API_NFSe.Application.Services
 
                 try
                 {
-                    certificadoArquivo = new X509Certificate2(
+                    ReadOnlySpan<char> senhaSpan = dto.Senha is null
+                        ? ReadOnlySpan<char>.Empty
+                        : dto.Senha.AsSpan();
+                    certificadoArquivo = X509CertificateLoader.LoadPkcs12(
                         conteudo,
-                        dto.Senha,
-                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+                        senhaSpan,
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
                 }
                 catch (CryptographicException ex)
                 {

@@ -59,13 +59,13 @@ namespace API_NFSe.Infra.Data.Services.Nfse
 
             var conteudo = await _fileStorage.ReadAsync(certificado.CaminhoRelativo, cancellationToken);
             var senha = string.IsNullOrWhiteSpace(certificado.SenhaProtegida)
-                ? null
-                : _cryptographyService.Decrypt(certificado.SenhaProtegida);
+                ? ReadOnlySpan<char>.Empty
+                : _cryptographyService.Decrypt(certificado.SenhaProtegida).AsSpan();
 
-            return new X509Certificate2(
+            return X509CertificateLoader.LoadPkcs12(
                 conteudo,
                 senha,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
         }
 
         private static CertificateInfo Mapear(PrestadorCertificado certificado)

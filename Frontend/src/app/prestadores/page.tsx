@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef, useCallback, ChangeEvent } from "
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Pencil, Trash2, SlidersHorizontal, Search, X, Upload, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, SlidersHorizontal, Search, X, Loader2 } from "lucide-react";
 
 import { useAuth } from "@/contexts/auth-context";
 import { useApiQuery } from "@/hooks/use-api-query";
@@ -137,6 +137,22 @@ interface MunicipioOption {
 function formatDate(value?: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("pt-BR");
+}
+
+function isCertificadoVigente(validadeInicio?: string | null, validadeFim?: string | null) {
+  if (!validadeInicio || !validadeFim) {
+    return false;
+  }
+
+  const agora = new Date();
+  const inicio = new Date(validadeInicio);
+  const fim = new Date(validadeFim);
+
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) {
+    return false;
+  }
+
+  return inicio <= agora && agora <= fim;
 }
 
 export default function PrestadoresPage() {
@@ -294,16 +310,26 @@ export default function PrestadoresPage() {
       setIsCertificadosLoading(true);
       try {
         const data = await listarCertificadosPrestador(prestadorId);
-        setCertificados(data);
+        const normalizados = data.map((certificado) => {
+          const validadeInicio = certificado.validadeInicio ?? certificado.notBefore ?? null;
+          const validadeFim = certificado.validadeFim ?? certificado.notAfter ?? null;
+
+          return {
+            ...certificado,
+            validadeInicio,
+            validadeFim,
+          };
+        });
+        setCertificados(normalizados);
         setCertificadoSelecionadoId((current) => {
-          if (destaqueCertificadoId && data.some((item) => item.id === destaqueCertificadoId)) {
+          if (destaqueCertificadoId && normalizados.some((item) => item.id === destaqueCertificadoId)) {
             return destaqueCertificadoId;
           }
-          if (current && data.some((item) => item.id === current)) {
+          if (current && normalizados.some((item) => item.id === current)) {
             return current;
           }
 
-          return data[0]?.id ?? null;
+          return null;
         });
       } catch (error) {
         console.error(error);
@@ -350,7 +376,6 @@ export default function PrestadoresPage() {
     {
       successMessage: "Senha do certificado atualizada.",
       onSuccess: (_data, variables) => {
-        setSenhaEdits((previous) => ({ ...previous, [variables.certificadoId]: "" }));
         void loadCertificados(variables.prestadorId);
       },
     }
@@ -938,13 +963,12 @@ export default function PrestadoresPage() {
     setConfigTab("fiscal");
     setIsConfigLoading(true);
     setCertificados([]);
-    setAliasEdits({});
-    setSenhaEdits({});
     setCertificadoSelecionadoId(null);
     setArquivoCertificadoBase64(null);
     setArquivoCertificadoNome("");
     setNovoCertificadoAlias("");
     setNovoCertificadoSenha("");
+    setModoEdicao("criacao");
     if (certificadoFileInputRef.current) {
       certificadoFileInputRef.current.value = "";
     }
@@ -1003,8 +1027,6 @@ export default function PrestadoresPage() {
         smtpFromName: "",
       });
       setCertificados([]);
-      setAliasEdits({});
-      setSenhaEdits({});
       setCertificadoSelecionadoId(null);
       setArquivoCertificadoBase64(null);
       setArquivoCertificadoNome("");
@@ -1579,7 +1601,7 @@ export default function PrestadoresPage() {
 
       {configPrestador && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Configuração fiscal</h2>
@@ -1841,6 +1863,21 @@ export default function PrestadoresPage() {
                         />
                       </div>
                     )}
+                    {modoEdicao === "edicao" && (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-600" htmlFor="certificadoNovaSenha">
+                          Nova senha (opcional)
+                        </label>
+                        <Input
+                          id="certificadoNovaSenha"
+                          type="password"
+                          value={novoCertificadoSenha}
+                          onChange={(event) => setNovoCertificadoSenha(event.target.value)}
+                          placeholder="Preencha apenas se desejar alterar a senha"
+                        />
+                        <p className="text-xs text-slate-500">Deixe em branco para manter a senha atual.</p>
+                      </div>
+                    )}
                     {modoEdicao === "criacao" && (
                       <div className="space-y-1 md:col-span-2">
                         <label className="text-sm font-medium text-slate-600" htmlFor="certificadoArquivo">
@@ -1898,20 +1935,18 @@ export default function PrestadoresPage() {
                       <>
                         <Button
                           type="button"
-                          onClick={async () => {
-                            if (!modoEdicao) return;
-                            await handleSalvarAlias();
-                          }}
+                          onClick={() => void handleSalvarEdicao()}
                           disabled={
                             atualizarAliasCertificadoMutation.isPending ||
-                            !novoCertificadoAlias.trim() ||
+                            atualizarSenhaCertificadoMutation.isPending ||
                             !certificadoSelecionadoId
                           }
                         >
-                          {atualizarAliasCertificadoMutation.isPending && (
+                          {(atualizarAliasCertificadoMutation.isPending ||
+                            atualizarSenhaCertificadoMutation.isPending) && (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           )}
-                          Salvar alias
+                          Salvar alterações
                         </Button>
                         <Button
                           type="button"
@@ -1920,6 +1955,10 @@ export default function PrestadoresPage() {
                             setModoEdicao("criacao");
                             setCertificadoSelecionadoId(null);
                             setNovoCertificadoAlias("");
+                            setNovoCertificadoSenha("");
+                            if (certificadoFileInputRef.current) {
+                              certificadoFileInputRef.current.value = "";
+                            }
                           }}
                         >
                           Cancelar edição
@@ -1955,6 +1994,10 @@ export default function PrestadoresPage() {
                         ) : (
                           certificados.map((certificado) => {
                             const selecionado = certificadoSelecionadoId === certificado.id;
+                            const estaVigente =
+                              Boolean(certificado.validadeInicio) &&
+                              Boolean(certificado.validadeFim) &&
+                              isCertificadoVigente(certificado.validadeInicio, certificado.validadeFim);
 
                             return (
                               <TableRow key={certificado.id} className={selecionado ? "bg-slate-50" : undefined}>
@@ -1978,8 +2021,8 @@ export default function PrestadoresPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={certificado.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}>
-                                    {certificado.ativo ? "Ativo" : "Inativo"}
+                                  <Badge className={estaVigente ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}>
+                                    {estaVigente ? "Ativo" : "Inativo"}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>

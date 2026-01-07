@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Nfse;
 using API_NFSe.Application.Interfaces;
+using API_NFSe.Application.Services;
 using API_NFSe.Domain.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,11 @@ namespace API_NFSe.Infra.Data.Services.Nfse
     {
         private readonly IDpsRepository _dpsRepository;
         private readonly IPrestadorRepository _prestadorRepository;
+        private readonly IPrestadorCertificadoRepository _prestadorCertificadoRepository;
         private readonly ICertificateStoreService _certificateStoreService;
+        private readonly ICertificateFileStorage _certificateFileStorage;
+        private readonly ICryptographyService _cryptographyService;
+        private readonly IXmlSignatureService _xmlSignatureService;
         private readonly ISefinHttpClient _sefinHttpClient;
         private readonly INfseResponseParser _responseParser;
         private readonly INfseStorageService _storageService;
@@ -25,17 +30,25 @@ namespace API_NFSe.Infra.Data.Services.Nfse
         public NfseSefinService(
             IDpsRepository dpsRepository,
             IPrestadorRepository prestadorRepository,
+            IPrestadorCertificadoRepository prestadorCertificadoRepository,
             ICertificateStoreService certificateStoreService,
+            ICertificateFileStorage certificateFileStorage,
+            ICryptographyService cryptographyService,
             ISefinHttpClient sefinHttpClient,
             INfseResponseParser responseParser,
-            INfseStorageService storageService)
+            INfseStorageService storageService,
+            IXmlSignatureService xmlSignatureService)
         {
             _dpsRepository = dpsRepository ?? throw new ArgumentNullException(nameof(dpsRepository));
             _prestadorRepository = prestadorRepository ?? throw new ArgumentNullException(nameof(prestadorRepository));
+            _prestadorCertificadoRepository = prestadorCertificadoRepository ?? throw new ArgumentNullException(nameof(prestadorCertificadoRepository));
             _certificateStoreService = certificateStoreService ?? throw new ArgumentNullException(nameof(certificateStoreService));
+            _certificateFileStorage = certificateFileStorage ?? throw new ArgumentNullException(nameof(certificateFileStorage));
+            _cryptographyService = cryptographyService ?? throw new ArgumentNullException(nameof(cryptographyService));
             _sefinHttpClient = sefinHttpClient ?? throw new ArgumentNullException(nameof(sefinHttpClient));
             _responseParser = responseParser ?? throw new ArgumentNullException(nameof(responseParser));
             _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
+            _xmlSignatureService = xmlSignatureService ?? throw new ArgumentNullException(nameof(xmlSignatureService));
         }
 
         public async Task<IReadOnlyCollection<CertificateInfoDto>> ListarCertificadosAsync(string usuarioReferencia, Guid? prestadorId, bool listarTodosCertificados)
@@ -334,6 +347,52 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             return _responseParser.ParseDanfseResponse(response.StatusCode, response.ContentType, response.Content, chaveNormalizada);
         }
 
+        public async Task<string> AssinarAsync(Guid prestadorId, SignXmlRequestDto request, CancellationToken cancellationToken)
+        {
+            if (prestadorId == Guid.Empty)
+            {
+                throw new ArgumentException("Prestador inválido.", nameof(prestadorId));
+            }
+
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Xml))
+            {
+                throw new ArgumentException("XML a ser assinado é obrigatório.", nameof(request.Xml));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Tag))
+            {
+                throw new ArgumentException("Tag alvo da assinatura é obrigatória.", nameof(request.Tag));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CertificateId))
+            {
+                throw new ArgumentException("Identificador do certificado é obrigatório.", nameof(request.CertificateId));
+            }
+
+            var prestador = await ObterPrestadorAtivoAsync(prestadorId);
+            var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
+
+            var certificado = await ObterCertificadoPrestadorAsync(prestadorCnpj, request.CertificateId, cancellationToken);
+
+            var now = DateTime.UtcNow;
+            if (certificado.NotAfter.ToUniversalTime() < now)
+            {
+                throw new InvalidOperationException("O certificado informado está expirado.");
+            }
+
+            if (certificado.NotBefore.ToUniversalTime() > now)
+            {
+                throw new InvalidOperationException("O certificado informado ainda não está válido.");
+            }
+
+            return _xmlSignatureService.SignXml(request.Xml, request.Tag, certificado);
+        }
+
         private static string SomenteDigitos(string valor)
         {
             if (string.IsNullOrWhiteSpace(valor))
@@ -373,25 +432,39 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 throw new InvalidOperationException("Identificador de certificado inválido.");
             }
 
-            var certificadoInfo = await _certificateStoreService.GetInfoAsync(certificadoId, cancellationToken);
-
-            if (certificadoInfo is null)
+            var certificado = await _prestadorCertificadoRepository.ObterPorIdAsync(certificadoId);
+            if (certificado is null)
             {
-                throw new InvalidOperationException("Certificado não encontrado no repositório local.");
+                throw new InvalidOperationException("Certificado não encontrado para o prestador informado.");
             }
 
-            if (!string.Equals(SomenteDigitos(certificadoInfo.Value.Cnpj), prestadorCnpj, StringComparison.Ordinal))
+            if (!string.Equals(SomenteDigitos(certificado.Cnpj), prestadorCnpj, StringComparison.Ordinal))
             {
                 throw new UnauthorizedAccessException("O certificado informado não pertence ao prestador autenticado.");
             }
 
-            var certificado = await _certificateStoreService.LoadAsync(certificadoId, cancellationToken);
-            if (certificado is null)
+            var conteudo = await _certificateFileStorage.ReadAsync(certificado.CaminhoRelativo, cancellationToken);
+            var senha = string.IsNullOrWhiteSpace(certificado.SenhaProtegida)
+                ? ReadOnlySpan<char>.Empty
+                : _cryptographyService.Decrypt(certificado.SenhaProtegida).AsSpan();
+
+            var certificadoX509 = X509CertificateLoader.LoadPkcs12(
+                conteudo,
+                senha,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
+
+            var agoraUtc = DateTime.UtcNow;
+            if (certificadoX509.NotAfter.ToUniversalTime() < agoraUtc)
             {
-                throw new InvalidOperationException("Não foi possível carregar o certificado informado.");
+                throw new InvalidOperationException("O certificado informado está expirado.");
             }
 
-            return certificado;
+            if (certificadoX509.NotBefore.ToUniversalTime() > agoraUtc)
+            {
+                throw new InvalidOperationException("O certificado informado ainda não está válido.");
+            }
+
+            return certificadoX509;
         }
 
         private static bool AmbienteValido(int ambiente) => ambiente is 1 or 2;

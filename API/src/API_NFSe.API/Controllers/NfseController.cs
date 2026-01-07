@@ -1,4 +1,6 @@
 using System;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Nfse;
 using API_NFSe.Application.Interfaces;
@@ -90,6 +92,26 @@ namespace API_NFSe.API.Controllers
 
             var resposta = await _nfseSefinService.EmitirAsync(usuarioReferencia, prestadorId.Value, request, cancellationToken);
             return Ok(resposta);
+        }
+
+        [HttpPost("assinatura")]
+        [Authorize(Policy = "Scopes.Nfse.Emitir")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+        public async Task<IActionResult> AssinarAsync([FromBody] SignXmlRequestDto request, CancellationToken cancellationToken)
+        {
+            if (request is null)
+            {
+                return BadRequest("Payload inválido.");
+            }
+
+            var prestadorId = _currentUserService.ObterPrestadorId();
+            if (!prestadorId.HasValue)
+            {
+                return Unauthorized(new { mensagem = "Prestador não associado ao usuário autenticado." });
+            }
+
+            var xmlAssinado = await _nfseSefinService.AssinarAsync(prestadorId.Value, request, cancellationToken);
+            return Content(xmlAssinado, "application/xml; charset=utf-8", Encoding.UTF8);
         }
 
         [HttpPost("cancelar")]

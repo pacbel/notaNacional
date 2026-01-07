@@ -86,9 +86,14 @@ export interface PrestadorCertificadoDto {
   id: string;
   alias?: string | null;
   cnpj: string;
-  validadeInicio: string;
-  validadeFim: string;
-  criadoEm: string;
+  validadeInicio?: string | null;
+  validadeFim?: string | null;
+  notBefore?: string | null;
+  notAfter?: string | null;
+  dataEnvio?: string | null;
+  thumbprint?: string | null;
+  tamanhoBytes?: number | null;
+  criadoEm?: string | null;
   atualizadoEm?: string | null;
   ativo: boolean;
   prestadorId?: string;
