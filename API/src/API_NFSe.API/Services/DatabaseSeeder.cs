@@ -86,7 +86,7 @@ namespace API_NFSe.API.Services
                         Cnpj = cnpjPadrao,
                         RazaoSocial = "Pacbel Sistemas Eireli",
                         NomeFantasia = "Sistema Virtual",
-                        InscricaoMunicipal = null,
+                        InscricaoMunicipal = "3106200015",
                         InscricaoEstadual = null,
                         Cnae = null,
                         TipoEmissao = 1,
