@@ -53,7 +53,7 @@ export function Sidebar() {
   return (
     <aside
       className={clsx(
-        "relative flex h-full flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] transition-all duration-300",
+        "relative flex min-h-screen flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] transition-all duration-300",
         collapsed ? "w-[76px]" : "w-64",
         mobileOpen
           ? "fixed inset-y-0 left-0 z-40 w-64 shadow-lg md:relative"
@@ -224,7 +224,7 @@ export function Sidebar() {
 
       <footer
         className={clsx(
-          "border-t border-[hsl(var(--border))] px-4 py-3 text-[10px] text-[hsl(var(--muted-foreground))]",
+          "mt-auto w-full border-t border-[hsl(var(--border))] px-4 py-3 text-[10px] text-[hsl(var(--muted-foreground))]",
           collapsed && "px-2 text-center"
         )}
       >
