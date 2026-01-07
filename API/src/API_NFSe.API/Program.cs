@@ -11,6 +11,7 @@ using API_NFSe.Infra.Data.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
@@ -33,7 +34,7 @@ public static class Program
         var enableSwagger = ShouldEnableSwagger(builder.Environment, builder.Configuration);
 
         var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase))
-                         || ShouldSeedFromEnvironment();
+                         || ShouldSeedFromEnvironment(builder.Configuration);
 
         var app = builder.Build();
 
@@ -243,12 +244,56 @@ public static class Program
         return configuration.GetValue("Swagger:EnableInProduction", false);
     }
 
-    private static bool ShouldSeedFromEnvironment()
+    private static bool ShouldSeedFromEnvironment(IConfiguration configuration)
     {
-        var envValue = Environment.GetEnvironmentVariable("ASPNETCORE_SEED_ON_STARTUP")
-                       ?? Environment.GetEnvironmentVariable("SEED_ON_STARTUP");
+        var candidates = new[]
+        {
+            Environment.GetEnvironmentVariable("ASPNETCORE_SEED_ON_STARTUP"),
+            Environment.GetEnvironmentVariable("SEED_ON_STARTUP"),
+            configuration["ASPNETCORE_SEED_ON_STARTUP"],
+            configuration["SEED_ON_STARTUP"],
+        };
 
-        return bool.TryParse(envValue, out var result) && result;
+        foreach (var candidate in candidates)
+        {
+            if (TryParseBoolean(candidate, out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryParseBoolean(string? value, out bool result)
+    {
+        result = false;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var sanitizedValue = value.Trim();
+
+        if (bool.TryParse(sanitizedValue, out result))
+        {
+            return true;
+        }
+
+        if (string.Equals(sanitizedValue, "1", StringComparison.OrdinalIgnoreCase))
+        {
+            result = true;
+            return true;
+        }
+
+        if (string.Equals(sanitizedValue, "0", StringComparison.OrdinalIgnoreCase))
+        {
+            result = false;
+            return true;
+        }
+
+        return false;
     }
 
     private static async Task AplicarMigracoesAsync(WebApplication app, bool executarSeed)
