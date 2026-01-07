@@ -211,7 +211,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
 
-            var certificado = await ObterCertificadoPrestadorAsync(prestadorCnpj, request.CertificateId, cancellationToken);
+            var certificado = await ObterCertificadoPrestadorAsync(prestadorId, prestadorCnpj, request.CertificateId, cancellationToken);
 
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.XmlAssinado), "application/xml", "request");
 
@@ -273,7 +273,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             _ = Convert.FromBase64String(request.EventoXmlGZipBase64); // lança exceção caso inválido
 
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
-            var certificado = await ObterCertificadoPrestadorAsync(SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
+            var certificado = await ObterCertificadoPrestadorAsync(prestadorId, SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
 
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.EventoXmlGZipBase64), "application/json", "request");
 
@@ -329,7 +329,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             X509Certificate2? certificado = null;
             if (!string.IsNullOrWhiteSpace(request.CertificateId))
             {
-                certificado = await ObterCertificadoPrestadorAsync(SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
+                certificado = await ObterCertificadoPrestadorAsync(prestadorId, SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
             }
 
             var response = await _sefinHttpClient.DownloadDanfseAsync(chaveNormalizada, request.Ambiente, certificado, cancellationToken);
@@ -425,7 +425,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             return prestador;
         }
 
-        private async Task<X509Certificate2> ObterCertificadoPrestadorAsync(string prestadorCnpj, string certificateId, CancellationToken cancellationToken)
+        private async Task<X509Certificate2> ObterCertificadoPrestadorAsync(Guid prestadorId, string prestadorCnpj, string certificateId, CancellationToken cancellationToken)
         {
             if (!Guid.TryParse(certificateId, out var certificadoId))
             {
@@ -435,7 +435,13 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var certificado = await _prestadorCertificadoRepository.ObterPorIdAsync(certificadoId);
             if (certificado is null)
             {
-                throw new InvalidOperationException("Certificado não encontrado para o prestador informado.");
+                var certificadosPrestador = await _prestadorCertificadoRepository.ObterPorPrestadorAsync(prestadorId);
+                certificado = certificadosPrestador.FirstOrDefault(c => c.Id == certificadoId);
+
+                if (certificado is null)
+                {
+                    throw new InvalidOperationException($"Certificado com Id '{certificateId}' não encontrado para o prestador informado.");
+                }
             }
 
             if (!string.Equals(SomenteDigitos(certificado.Cnpj), prestadorCnpj, StringComparison.Ordinal))
