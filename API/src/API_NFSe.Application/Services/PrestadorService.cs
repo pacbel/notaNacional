@@ -437,7 +437,7 @@ namespace API_NFSe.Application.Services
                 certificado = X509CertificateLoader.LoadPkcs12(
                     dto.Conteudo,
                     senhaSpan,
-                    X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
+                    ObterKeyStorageFlags());
             }
             catch (CryptographicException ex)
             {
@@ -566,6 +566,22 @@ namespace API_NFSe.Application.Services
             }
         }
 
+        private static X509KeyStorageFlags ObterKeyStorageFlags()
+        {
+            var flags = X509KeyStorageFlags.Exportable;
+
+            if (OperatingSystem.IsWindows())
+            {
+                flags |= X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet;
+            }
+            else
+            {
+                flags |= X509KeyStorageFlags.EphemeralKeySet;
+            }
+
+            return flags;
+        }
+
         private static void AtualizarCertificadoExistente(
             PrestadorCertificado certificado,
             string alias,
@@ -636,7 +652,7 @@ namespace API_NFSe.Application.Services
                     certificadoArquivo = X509CertificateLoader.LoadPkcs12(
                         conteudo,
                         senhaSpan,
-                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
+                        ObterKeyStorageFlags());
                 }
                 catch (CryptographicException ex)
                 {

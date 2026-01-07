@@ -451,7 +451,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var certificadoX509 = X509CertificateLoader.LoadPkcs12(
                 conteudo,
                 senha,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
+                ObterKeyStorageFlags());
 
             var agoraUtc = DateTime.UtcNow;
             if (certificadoX509.NotAfter.ToUniversalTime() < agoraUtc)
@@ -468,6 +468,22 @@ namespace API_NFSe.Infra.Data.Services.Nfse
         }
 
         private static bool AmbienteValido(int ambiente) => ambiente is 1 or 2;
+
+        private static X509KeyStorageFlags ObterKeyStorageFlags()
+        {
+            var flags = X509KeyStorageFlags.Exportable;
+
+            if (OperatingSystem.IsWindows())
+            {
+                flags |= X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet;
+            }
+            else
+            {
+                flags |= X509KeyStorageFlags.EphemeralKeySet;
+            }
+
+            return flags;
+        }
 
         private static string NormalizarChaveAcesso(string chave)
         {

@@ -65,7 +65,23 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             return X509CertificateLoader.LoadPkcs12(
                 conteudo,
                 senha,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet);
+                ObterKeyStorageFlags());
+        }
+
+        private static X509KeyStorageFlags ObterKeyStorageFlags()
+        {
+            var flags = X509KeyStorageFlags.Exportable;
+
+            if (OperatingSystem.IsWindows())
+            {
+                flags |= X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet;
+            }
+            else
+            {
+                flags |= X509KeyStorageFlags.EphemeralKeySet;
+            }
+
+            return flags;
         }
 
         private static CertificateInfo Mapear(PrestadorCertificado certificado)
