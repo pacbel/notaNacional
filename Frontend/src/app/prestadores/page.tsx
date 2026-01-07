@@ -166,6 +166,7 @@ export default function PrestadoresPage() {
 
   const [configPrestador, setConfigPrestador] = useState<PrestadorDto | null>(null);
   const [configData, setConfigData] = useState<PrestadorConfiguracaoDto | null>(null);
+  const [configTab, setConfigTab] = useState<"fiscal" | "certificados">("fiscal");
   const [isConfigLoading, setIsConfigLoading] = useState(false);
   const [ufs, setUfs] = useState<IbgeUf[]>([]);
   const [municipioOptions, setMunicipioOptions] = useState<MunicipioOption[]>([]);
@@ -930,6 +931,7 @@ export default function PrestadoresPage() {
   const openConfigModal = async (prestador: PrestadorDto) => {
     setConfigPrestador(prestador);
     setConfigData(null);
+    setConfigTab("fiscal");
     setIsConfigLoading(true);
     setCertificados([]);
     setAliasEdits({});
@@ -1016,6 +1018,7 @@ export default function PrestadoresPage() {
   const closeConfigModal = () => {
     setConfigPrestador(null);
     setConfigData(null);
+    setConfigTab("fiscal");
   };
 
   const onSubmitConfiguracao = configForm.handleSubmit(async (values) => {
@@ -1588,178 +1591,421 @@ export default function PrestadoresPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={onSubmitConfiguracao} className="space-y-4 px-4 py-5 sm:px-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="ambiente">
-                    Ambiente
-                  </label>
-                  <Select id="ambiente" {...configForm.register("ambiente")}>
-                    {ambienteOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.value} - {option.label}
-                      </option>
-                    ))}
-                  </Select>
-                  {configForm.formState.errors.ambiente && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.ambiente.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="versaoAplicacao">
-                    Versão da aplicação
-                  </label>
-                  <Input id="versaoAplicacao" {...configForm.register("versaoAplicacao")} />
-                  {configForm.formState.errors.versaoAplicacao && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.versaoAplicacao.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="seriePadrao">
-                    Série padrão
-                  </label>
-                  <Input id="seriePadrao" maxLength={5} {...configForm.register("seriePadrao")} />
-                  {configForm.formState.errors.seriePadrao && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.seriePadrao.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="numeroAtual">
-                    Número atual
-                  </label>
-                  <Input
-                    id="numeroAtual"
-                    type="number"
-                    min={1}
-                    {...configForm.register("numeroAtual", { valueAsNumber: true })}
-                  />
-                  {configForm.formState.errors.numeroAtual && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.numeroAtual.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="enviaEmailAutomatico">
-                    Enviar e-mail automático
-                  </label>
-                  <Controller
-                    control={configForm.control}
-                    name="enviaEmailAutomatico"
-                    render={({ field }) => (
-                      <Select
-                        id="enviaEmailAutomatico"
-                        value={field.value ? "true" : "false"}
-                        onChange={(event) => field.onChange(event.target.value === "true")}
-                      >
-                        <option value="true">Sim</option>
-                        <option value="false">Não</option>
-                      </Select>
+
+            <div className="px-4 pt-4 sm:px-6">
+              <div className="mb-4 flex flex-wrap gap-2 text-sm font-medium text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setConfigTab("fiscal")}
+                  className={`flex-1 rounded-lg border px-3 py-2 transition-colors ${
+                    configTab === "fiscal"
+                      ? "border-slate-200 bg-white text-slate-900 shadow"
+                      : "border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Configuração fiscal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfigTab("certificados")}
+                  className={`flex-1 rounded-lg border px-3 py-2 transition-colors ${
+                    configTab === "certificados"
+                      ? "border-slate-200 bg-white text-slate-900 shadow"
+                      : "border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Certificados digitais
+                </button>
+              </div>
+            </div>
+
+            {configTab === "fiscal" ? (
+              <form onSubmit={onSubmitConfiguracao} className="space-y-4 px-4 pb-5 sm:px-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="ambiente">
+                      Ambiente
+                    </label>
+                    <Select id="ambiente" {...configForm.register("ambiente")}>
+                      {ambienteOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.value} - {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                    {configForm.formState.errors.ambiente && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.ambiente.message}
+                      </span>
                     )}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpHost">
-                    SMTP Host
-                  </label>
-                  <Input id="smtpHost" {...configForm.register("smtpHost")} />
-                  {configForm.formState.errors.smtpHost && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.smtpHost.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpPort">
-                    SMTP Port
-                  </label>
-                  <Input
-                    id="smtpPort"
-                    type="number"
-                    min={1}
-                    max={65535}
-                    {...configForm.register("smtpPort", { valueAsNumber: true })}
-                  />
-                  {configForm.formState.errors.smtpPort && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.smtpPort.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpSecure">
-                    SMTP usa TLS/SSL
-                  </label>
-                  <Controller
-                    control={configForm.control}
-                    name="smtpSecure"
-                    render={({ field }) => (
-                      <Select
-                        id="smtpSecure"
-                        value={field.value ? "true" : "false"}
-                        onChange={(event) => field.onChange(event.target.value === "true")}
-                      >
-                        <option value="false">Não</option>
-                        <option value="true">Sim</option>
-                      </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="versaoAplicacao">
+                      Versão da aplicação
+                    </label>
+                    <Input id="versaoAplicacao" {...configForm.register("versaoAplicacao")} />
+                    {configForm.formState.errors.versaoAplicacao && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.versaoAplicacao.message}
+                      </span>
                     )}
-                  />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="seriePadrao">
+                      Série padrão
+                    </label>
+                    <Input id="seriePadrao" maxLength={5} {...configForm.register("seriePadrao")} />
+                    {configForm.formState.errors.seriePadrao && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.seriePadrao.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="numeroAtual">
+                      Número atual
+                    </label>
+                    <Input
+                      id="numeroAtual"
+                      type="number"
+                      min={1}
+                      {...configForm.register("numeroAtual", { valueAsNumber: true })}
+                    />
+                    {configForm.formState.errors.numeroAtual && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.numeroAtual.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="enviaEmailAutomatico">
+                      Enviar e-mail automático
+                    </label>
+                    <Controller
+                      control={configForm.control}
+                      name="enviaEmailAutomatico"
+                      render={({ field }) => (
+                        <Select
+                          id="enviaEmailAutomatico"
+                          value={field.value ? "true" : "false"}
+                          onChange={(event) => field.onChange(event.target.value === "true")}
+                        >
+                          <option value="true">Sim</option>
+                          <option value="false">Não</option>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpHost">
+                      SMTP Host
+                    </label>
+                    <Input id="smtpHost" {...configForm.register("smtpHost")} />
+                    {configForm.formState.errors.smtpHost && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.smtpHost.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpPort">
+                      SMTP Port
+                    </label>
+                    <Input
+                      id="smtpPort"
+                      type="number"
+                      min={1}
+                      max={65535}
+                      {...configForm.register("smtpPort", { valueAsNumber: true })}
+                    />
+                    {configForm.formState.errors.smtpPort && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.smtpPort.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpSecure">
+                      SMTP usa TLS/SSL
+                    </label>
+                    <Controller
+                      control={configForm.control}
+                      name="smtpSecure"
+                      render={({ field }) => (
+                        <Select
+                          id="smtpSecure"
+                          value={field.value ? "true" : "false"}
+                          onChange={(event) => field.onChange(event.target.value === "true")}
+                        >
+                          <option value="false">Não</option>
+                          <option value="true">Sim</option>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpUser">
+                      SMTP User
+                    </label>
+                    <Input id="smtpUser" {...configForm.register("smtpUser")} />
+                    {configForm.formState.errors.smtpUser && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.smtpUser.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpPassword">
+                      SMTP Password
+                    </label>
+                    <Input id="smtpPassword" type="password" {...configForm.register("smtpPassword")} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpFrom">
+                      SMTP From (e-mail)
+                    </label>
+                    <Input id="smtpFrom" type="email" {...configForm.register("smtpFrom")} />
+                    {configForm.formState.errors.smtpFrom && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.smtpFrom.message}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="smtpFromName">
+                      SMTP From (nome)
+                    </label>
+                    <Input id="smtpFromName" {...configForm.register("smtpFromName")} />
+                    {configForm.formState.errors.smtpFromName && (
+                      <span className="text-sm text-red-600">
+                        {configForm.formState.errors.smtpFromName.message}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpUser">
-                    SMTP User
-                  </label>
-                  <Input id="smtpUser" {...configForm.register("smtpUser")} />
-                  {configForm.formState.errors.smtpUser && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.smtpUser.message}
-                    </span>
-                  )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="ghost" onClick={closeConfigModal}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={configMutation.isPending || isConfigLoading}>
+                    Salvar configuração
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpPassword">
-                    SMTP Password
-                  </label>
-                  <Input id="smtpPassword" type="password" {...configForm.register("smtpPassword")} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpFrom">
-                    SMTP From (e-mail)
-                  </label>
-                  <Input id="smtpFrom" type="email" {...configForm.register("smtpFrom")} />
-                  {configForm.formState.errors.smtpFrom && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.smtpFrom.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="smtpFromName">
-                    SMTP From (nome)
-                  </label>
-                  <Input id="smtpFromName" {...configForm.register("smtpFromName")} />
-                  {configForm.formState.errors.smtpFromName && (
-                    <span className="text-sm text-red-600">
-                      {configForm.formState.errors.smtpFromName.message}
-                    </span>
-                  )}
+              </form>
+            ) : (
+              <div className="space-y-4 px-4 pb-5 sm:px-6">
+                <section className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Certificados digitais A1</h3>
+                      <p className="text-sm text-slate-500">
+                        Gerencie o arquivo .pfx do prestador e mantenha alias e senha atualizados.
+                      </p>
+                    </div>
+                    <Badge className="whitespace-nowrap">
+                      {isCertificadosLoading
+                        ? "Carregando..."
+                        : `${certificados.length} certificado${certificados.length === 1 ? "" : "s"}`}
+                    </Badge>
+                  </header>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-600" htmlFor="certificadoAlias">
+                        Alias (opcional)
+                      </label>
+                      <Input
+                        id="certificadoAlias"
+                        value={novoCertificadoAlias}
+                        onChange={(event) => setNovoCertificadoAlias(event.target.value)}
+                        placeholder="Ex.: Matriz 2025"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-600" htmlFor="certificadoSenha">
+                        Senha do certificado
+                      </label>
+                      <Input
+                        id="certificadoSenha"
+                        type="password"
+                        value={novoCertificadoSenha}
+                        onChange={(event) => setNovoCertificadoSenha(event.target.value)}
+                        placeholder="Informe a senha do arquivo"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-sm font-medium text-slate-600" htmlFor="certificadoArquivo">
+                        Arquivo do certificado (.pfx ou .p12)
+                      </label>
+                      <Input
+                        id="certificadoArquivo"
+                        ref={certificadoFileInputRef}
+                        type="file"
+                        accept=".pfx,.p12"
+                        onChange={handleCertificadoFileChange}
+                      />
+                      {arquivoCertificadoNome && (
+                        <span className="text-xs text-slate-500">Arquivo selecionado: {arquivoCertificadoNome}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleUploadCertificado}
+                      disabled={
+                        uploadCertificadoMutation.isPending ||
+                        !arquivoCertificadoBase64 ||
+                        !novoCertificadoSenha.trim()
+                      }
+                    >
+                      {uploadCertificadoMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Enviar certificado
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setArquivoCertificadoBase64(null);
+                        setArquivoCertificadoNome("");
+                        setNovoCertificadoAlias("");
+                        setNovoCertificadoSenha("");
+                        if (certificadoFileInputRef.current) {
+                          certificadoFileInputRef.current.value = "";
+                        }
+                      }}
+                      disabled={uploadCertificadoMutation.isPending && Boolean(arquivoCertificadoBase64)}
+                    >
+                      Limpar seleção
+                    </Button>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Alias</TableHead>
+                          <TableHead>CNPJ</TableHead>
+                          <TableHead>Validade</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-48 text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isCertificadosLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">
+                              Carregando certificados...
+                            </TableCell>
+                          </TableRow>
+                        ) : certificados.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">
+                              Nenhum certificado cadastrado.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          certificados.map((certificado) => {
+                            const aliasValue = aliasEdits[certificado.id] ?? certificado.alias ?? "";
+                            const senhaValue = senhaEdits[certificado.id] ?? "";
+
+                            return (
+                              <TableRow key={certificado.id}>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      value={aliasValue}
+                                      onChange={(event) => handleAliasChange(certificado.id, event.target.value)}
+                                      placeholder="Alias do certificado"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => void handleSalvarAlias(certificado)}
+                                      disabled={
+                                        atualizarAliasCertificadoMutation.isPending ||
+                                        aliasValue.trim() === (certificado.alias ?? "").trim()
+                                      }
+                                    >
+                                      {atualizarAliasCertificadoMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Save className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-mono text-sm text-slate-600">{certificado.cnpj}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col text-xs text-slate-600">
+                                    <span>Início: {formatDate(certificado.validadeInicio)}</span>
+                                    <span>Fim: {formatDate(certificado.validadeFim)}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={certificado.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}>
+                                    {certificado.ativo ? "Ativo" : "Inativo"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-end gap-2">
+                                    <Input
+                                      type="password"
+                                      value={senhaValue}
+                                      onChange={(event) => handleSenhaChange(certificado.id, event.target.value)}
+                                      placeholder="Nova senha"
+                                      className="h-9 w-32"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => void handleAtualizarSenha(certificado)}
+                                      disabled={
+                                        atualizarSenhaCertificadoMutation.isPending ||
+                                        senhaValue.trim().length === 0
+                                      }
+                                    >
+                                      {atualizarSenhaCertificadoMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <KeyRound className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:bg-red-50"
+                                      onClick={() => void handleRemoverCertificado(certificado)}
+                                      disabled={removerCertificadoMutation.isPending}
+                                    >
+                                      {removerCertificadoMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </section>
+                <div className="flex justify-end">
+                  <Button type="button" variant="ghost" onClick={closeConfigModal}>
+                    Fechar
+                  </Button>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="ghost" onClick={closeConfigModal}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={configMutation.isPending || isConfigLoading}>
-                  Salvar configuração
-                </Button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}

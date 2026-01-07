@@ -87,8 +87,8 @@ namespace API_NFSe.API.Services
                         RazaoSocial = "Pacbel Sistemas Eireli",
                         NomeFantasia = "Sistema Virtual",
                         InscricaoMunicipal = "3106200015",
-                        InscricaoEstadual = null,
-                        Cnae = null,
+                        InscricaoEstadual = "49728840071",
+                        Cnae = "6203100",
                         TipoEmissao = 1,
                         CodigoMunicipioIbge = "3205309",
                         OptanteSimplesNacional = 1,
@@ -98,7 +98,7 @@ namespace API_NFSe.API.Services
                         Website = "https://www.pacbel.com.br",
                         Endereco = new EnderecoDto
                         {
-                            Logradouro = "Rua hudson Magalhães Marques",
+                            Logradouro = "Rua Hudson Magalhães Marques",
                             Numero = "208",
                             Complemento = "A",
                             Bairro = "Serrano",

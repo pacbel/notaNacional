@@ -395,13 +395,15 @@ namespace API_NFSe.Application.Services
 
         public async Task<IEnumerable<PrestadorCertificadoDto>> ListarCertificadosAsync(Guid prestadorId, CancellationToken cancellationToken = default)
         {
-            var prestador = await _prestadorRepository.ObterPorIdComRelacoesAsync(prestadorId);
+            var prestador = await _prestadorRepository.ObterPorIdAsync(prestadorId);
             if (prestador is null)
             {
                 throw new InvalidOperationException("Prestador não encontrado.");
             }
 
-            return prestador.Certificados
+            var certificados = await _certificadoRepository.ObterPorPrestadorAsync(prestadorId);
+
+            return certificados
                 .Where(c => c.Ativo)
                 .OrderBy(c => c.Alias, StringComparer.OrdinalIgnoreCase)
                 .Select(MapearCertificado)
@@ -470,6 +472,7 @@ namespace API_NFSe.Application.Services
             var senhaProtegida = string.IsNullOrWhiteSpace(dto.Senha)
                 ? null
                 : _cryptographyService.Encrypt(dto.Senha);
+            var commonName = certificado.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty;
 
             var existente = await _certificadoRepository.ObterPorThumbprintAsync(thumbprint);
             var dataEnvio = DateTime.UtcNow;
@@ -486,15 +489,15 @@ namespace API_NFSe.Application.Services
                     certificado.NotBefore.ToUniversalTime(),
                     certificado.NotAfter.ToUniversalTime(),
                     thumbprint,
-                    certificado.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty,
+                    commonName,
                     certificado.Subject,
                     certificado.Issuer,
                     certificadoCnpj,
                     usuarioId,
                     dataEnvio);
 
-                prestador.Certificados.Add(novoCertificado);
-                await _prestadorRepository.SaveChangesAsync();
+                await _certificadoRepository.AdicionarAsync(novoCertificado);
+                await _certificadoRepository.SaveChangesAsync();
                 return MapearCertificado(novoCertificado);
             }
 
@@ -503,30 +506,99 @@ namespace API_NFSe.Application.Services
                 throw new InvalidOperationException("O certificado informado já está vinculado a outro prestador.");
             }
 
-            existente.AtualizarAlias(alias, usuarioId);
-            existente.AtualizarArquivo(
+            AtualizarCertificadoExistente(
+                existente,
+                alias,
                 relativePath,
                 hashConteudo,
                 dto.Conteudo.LongLength,
                 certificado.NotBefore.ToUniversalTime(),
                 certificado.NotAfter.ToUniversalTime(),
                 thumbprint,
-                certificado.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty,
+                commonName,
                 certificado.Subject,
                 certificado.Issuer,
                 certificadoCnpj,
+                dataEnvio,
+                senhaProtegida,
+                usuarioId);
+
+            try
+            {
+                _certificadoRepository.Atualizar(existente);
+                await _certificadoRepository.SaveChangesAsync();
+                return MapearCertificado(existente);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(ex, "Falha de concorrência ao atualizar certificado {CertificadoId} do prestador {PrestadorId}", existente.Id, prestadorId);
+
+                var certificadoAtual = await _certificadoRepository.ObterPorIdAsync(existente.Id);
+                if (certificadoAtual is null)
+                {
+                    throw new InvalidOperationException("O certificado informado não está mais disponível para atualização. Tente reenviar o arquivo.", ex);
+                }
+
+                AtualizarCertificadoExistente(
+                    certificadoAtual,
+                    alias,
+                    relativePath,
+                    hashConteudo,
+                    dto.Conteudo.LongLength,
+                    certificado.NotBefore.ToUniversalTime(),
+                    certificado.NotAfter.ToUniversalTime(),
+                    thumbprint,
+                    commonName,
+                    certificado.Subject,
+                    certificado.Issuer,
+                    certificadoCnpj,
+                    dataEnvio,
+                    senhaProtegida,
+                    usuarioId);
+
+                _certificadoRepository.Atualizar(certificadoAtual);
+                await _certificadoRepository.SaveChangesAsync();
+
+                return MapearCertificado(certificadoAtual);
+            }
+        }
+
+        private static void AtualizarCertificadoExistente(
+            PrestadorCertificado certificado,
+            string alias,
+            string relativePath,
+            string hashConteudo,
+            long tamanhoBytes,
+            DateTime notBefore,
+            DateTime notAfter,
+            string thumbprint,
+            string commonName,
+            string subject,
+            string issuer,
+            string cnpj,
+            DateTime dataEnvio,
+            string? senhaProtegida,
+            Guid usuarioId)
+        {
+            certificado.AtualizarAlias(alias, usuarioId);
+            certificado.AtualizarArquivo(
+                relativePath,
+                hashConteudo,
+                tamanhoBytes,
+                notBefore,
+                notAfter,
+                thumbprint,
+                commonName,
+                subject,
+                issuer,
+                cnpj,
                 dataEnvio,
                 usuarioId);
 
             if (!string.IsNullOrWhiteSpace(senhaProtegida))
             {
-                existente.AtualizarSenha(senhaProtegida, usuarioId);
+                certificado.AtualizarSenha(senhaProtegida, usuarioId);
             }
-
-            _certificadoRepository.Atualizar(existente);
-            await _prestadorRepository.SaveChangesAsync();
-
-            return MapearCertificado(existente);
         }
 
         public async Task<PrestadorCertificadoDto?> AtualizarCertificadoAsync(Guid prestadorId, Guid certificadoId, PrestadorCertificadoUpdateDto dto, Guid usuarioId, CancellationToken cancellationToken = default)
@@ -544,7 +616,7 @@ namespace API_NFSe.Application.Services
 
             certificado.AtualizarAlias(dto.Alias, usuarioId);
             _certificadoRepository.Atualizar(certificado);
-            await _prestadorRepository.SaveChangesAsync();
+            await _certificadoRepository.SaveChangesAsync();
 
             return MapearCertificado(certificado);
         }
@@ -565,7 +637,7 @@ namespace API_NFSe.Application.Services
 
             certificado.AtualizarSenha(senhaProtegida, usuarioId);
             _certificadoRepository.Atualizar(certificado);
-            await _prestadorRepository.SaveChangesAsync();
+            await _certificadoRepository.SaveChangesAsync();
         }
 
         public async Task RemoverCertificadoAsync(Guid prestadorId, Guid certificadoId, Guid usuarioId, CancellationToken cancellationToken = default)
@@ -576,7 +648,7 @@ namespace API_NFSe.Application.Services
             certificado.Desativar();
             certificado.AtualizarSenha(null, usuarioId);
             _certificadoRepository.Atualizar(certificado);
-            await _prestadorRepository.SaveChangesAsync();
+            await _certificadoRepository.SaveChangesAsync();
 
             await _fileStorage.DeleteAsync(certificado.CaminhoRelativo, cancellationToken);
         }
