@@ -69,7 +69,7 @@ namespace API_NFSe.API.Services
 
         private async Task<PrestadorDto> GarantirPrestadorPadraoAsync()
         {
-            const string cnpjPadrao = "12345678000199";
+            const string cnpjPadrao = "05065736000161";
 
             var existente = await _prestadorService.ObterPorCnpjAsync(cnpjPadrao);
             if (existente != null)
@@ -84,27 +84,27 @@ namespace API_NFSe.API.Services
                     new CreatePrestadorDto
                     {
                         Cnpj = cnpjPadrao,
-                        RazaoSocial = "Pacbel Sistemas Ltda",
-                        NomeFantasia = "Pacbel",
-                        InscricaoMunicipal = "123456",
+                        RazaoSocial = "Pacbel Sistemas Eireli",
+                        NomeFantasia = "Sistema Virtual",
+                        InscricaoMunicipal = null,
                         InscricaoEstadual = null,
                         Cnae = null,
                         TipoEmissao = 1,
                         CodigoMunicipioIbge = "3205309",
                         OptanteSimplesNacional = 1,
                         RegimeEspecialTributario = 1,
-                        Telefone = "+55 (27) 3333-0000",
-                        Email = "contato@pontobrsistemas.com.br",
-                        Website = "https://www.pontobrsistemas.com.br",
+                        Telefone = "+55 (31) 3191-9870",
+                        Email = "carlos.pacheco@pacbel.com.br",
+                        Website = "https://www.pacbel.com.br",
                         Endereco = new EnderecoDto
                         {
-                            Logradouro = "Rua Projetada",
-                            Numero = "100",
-                            Complemento = null,
-                            Bairro = "Centro",
+                            Logradouro = "Rua hudson Magalhães Marques",
+                            Numero = "208",
+                            Complemento = 'A',
+                            Bairro = "Serrano",
                             CodigoMunicipioIbge = "3205309",
-                            Uf = "ES",
-                            Cep = "29000000",
+                            Uf = "MG",
+                            Cep = "30882360",
                         }
                     },
                     Guid.Empty
