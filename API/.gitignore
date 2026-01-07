@@ -18,8 +18,6 @@ TestResults/
 *.suo
 *.userosscache
 *.sln.docstates
-appsettings.Development.json
-appsettings.Local.json
 .env
 launchSettings.json
 

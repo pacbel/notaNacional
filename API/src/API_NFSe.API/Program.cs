@@ -33,17 +33,21 @@ public static class Program
 
         var enableSwagger = ShouldEnableSwagger(builder.Environment, builder.Configuration);
 
-        var shouldSeed = args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase))
-                         || ShouldSeedFromEnvironment(builder.Configuration);
+        var (shouldSeed, seedSource) = DeterminarExecucaoSeed(args, builder.Configuration);
 
         var app = builder.Build();
 
+        var startupLogger = app.Logger;
+        startupLogger.LogInformation("Seed on startup flag: {ShouldSeed} (source: {SeedSource})", shouldSeed, seedSource);
+
         if (shouldSeed)
         {
+            startupLogger.LogInformation("Aplicando migrações com seed.");
             await AplicarMigracoesAsync(app, executarSeed: true);
         }
         else
         {
+            startupLogger.LogInformation("Aplicando migrações sem seed.");
             await AplicarMigracoesAsync(app, executarSeed: false);
         }
 
@@ -244,25 +248,43 @@ public static class Program
         return configuration.GetValue("Swagger:EnableInProduction", false);
     }
 
-    private static bool ShouldSeedFromEnvironment(IConfiguration configuration)
+    private static (bool ShouldSeed, string SeedSource) DeterminarExecucaoSeed(string[] args, IConfiguration configuration)
     {
-        var candidates = new[]
+        if (args.Any(arg => string.Equals(arg, "--seed", StringComparison.OrdinalIgnoreCase)))
         {
-            Environment.GetEnvironmentVariable("ASPNETCORE_SEED_ON_STARTUP"),
-            Environment.GetEnvironmentVariable("SEED_ON_STARTUP"),
-            configuration["ASPNETCORE_SEED_ON_STARTUP"],
-            configuration["SEED_ON_STARTUP"],
+            return (true, "command-line argument --seed");
+        }
+
+        var resolved = ResolverFonteSeed(configuration);
+        if (resolved.ShouldSeed.HasValue)
+        {
+            return (resolved.ShouldSeed.Value, $"{resolved.Source}='{resolved.RawValue}'");
+        }
+
+        return (false, "nenhuma fonte de configuração");
+    }
+
+    private static (bool? ShouldSeed, string Source, string? RawValue) ResolverFonteSeed(IConfiguration configuration)
+    {
+        var candidates = new (string Source, string? Value)[]
+        {
+            ("Environment:ASPNETCORE_SEED_ON_STARTUP", Environment.GetEnvironmentVariable("ASPNETCORE_SEED_ON_STARTUP")),
+            ("Environment:SEED_ON_STARTUP", Environment.GetEnvironmentVariable("SEED_ON_STARTUP")),
+            ("Configuration:ASPNETCORE_SEED_ON_STARTUP", configuration["ASPNETCORE_SEED_ON_STARTUP"]),
+            ("Configuration:SEED_ON_STARTUP", configuration["SEED_ON_STARTUP"]),
+            ("Configuration:Seed:OnStartup", configuration["Seed:OnStartup"]),
+            ("Configuration:Seed:Enabled", configuration["Seed:Enabled"]),
         };
 
-        foreach (var candidate in candidates)
+        foreach (var (source, value) in candidates)
         {
-            if (TryParseBoolean(candidate, out var parsed))
+            if (TryParseBoolean(value, out var parsed))
             {
-                return parsed;
+                return (parsed, source, value);
             }
         }
 
-        return false;
+        return (null, string.Empty, null);
     }
 
     private static bool TryParseBoolean(string? value, out bool result)
@@ -301,8 +323,12 @@ public static class Program
         using var scope = app.Services.CreateScope();
         var services = scope.ServiceProvider;
 
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger("Program");
+
         try
         {
+            logger.LogInformation("Aplicando migrações do banco de dados. executarSeed={ExecutarSeed}", executarSeed);
             var context = services.GetRequiredService<ApiContext>();
             await context.Database.MigrateAsync();
 
@@ -310,13 +336,16 @@ public static class Program
             {
                 var seeder = services.GetRequiredService<DatabaseSeeder>();
                 await seeder.SeedAsync();
+                logger.LogInformation("Seed executado com sucesso.");
+            }
+            else
+            {
+                logger.LogInformation("Seed não executado (executarSeed=false).");
             }
         }
         catch (Exception ex)
         {
-            var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger("Program");
-            logger.LogError(ex, "Ocorreu um erro ao migrar o banco de dados");
+            logger.LogError(ex, "Ocorreu um erro ao migrar o banco de dados ou executar o seed.");
         }
     }
 }
