@@ -13,5 +13,6 @@ namespace API_NFSe.Application.DTOs.Prestadores
         public DateTime NotAfter { get; set; }
         public DateTime DataEnvio { get; set; }
         public long TamanhoBytes { get; set; }
+        public bool Ativo { get; set; }
     }
 }

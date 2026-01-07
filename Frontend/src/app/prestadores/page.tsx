@@ -4,18 +4,8 @@ import { useMemo, useState, useEffect, useRef, useCallback, ChangeEvent } from "
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  SlidersHorizontal,
-  Search,
-  X,
-  Upload,
-  Save,
-  KeyRound,
-  Loader2,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, SlidersHorizontal, Search, X, Upload, Loader2 } from "lucide-react";
+
 import { useAuth } from "@/contexts/auth-context";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { useApiMutation } from "@/hooks/use-api-mutation";
@@ -175,8 +165,7 @@ export default function PrestadoresPage() {
   const [certificados, setCertificados] = useState<PrestadorCertificadoDto[]>([]);
   const [isCertificadosLoading, setIsCertificadosLoading] = useState(false);
   const [certificadoSelecionadoId, setCertificadoSelecionadoId] = useState<string | null>(null);
-  const [aliasEdits, setAliasEdits] = useState<Record<string, string>>({});
-  const [senhaEdits, setSenhaEdits] = useState<Record<string, string>>({});
+  const [modoEdicao, setModoEdicao] = useState<"criacao" | "edicao">("criacao");
   const [novoCertificadoAlias, setNovoCertificadoAlias] = useState("");
   const [novoCertificadoSenha, setNovoCertificadoSenha] = useState("");
   const [arquivoCertificadoBase64, setArquivoCertificadoBase64] = useState<string | null>(null);
@@ -306,13 +295,6 @@ export default function PrestadoresPage() {
       try {
         const data = await listarCertificadosPrestador(prestadorId);
         setCertificados(data);
-        setAliasEdits(
-          data.reduce<Record<string, string>>((accumulator, certificado) => {
-            accumulator[certificado.id] = certificado.alias ?? "";
-            return accumulator;
-          }, {})
-        );
-        setSenhaEdits({});
         setCertificadoSelecionadoId((current) => {
           if (destaqueCertificadoId && data.some((item) => item.id === destaqueCertificadoId)) {
             return destaqueCertificadoId;
@@ -461,63 +443,85 @@ export default function PrestadoresPage() {
     uploadCertificadoMutation,
   ]);
 
-  const handleCertificadoSelecionado = useCallback((certificadoId: string) => {
-    setCertificadoSelecionadoId(certificadoId);
-  }, []);
-
-  const handleAliasChange = useCallback((certificadoId: string, value: string) => {
-    setAliasEdits((previous) => ({ ...previous, [certificadoId]: value }));
-  }, []);
-
-  const handleSalvarAlias = useCallback(
-    async (certificado: PrestadorCertificadoDto) => {
-      if (!configPrestador) {
-        toast.error("Selecione um prestador.");
+  const handleCertificadoSelecionado = useCallback(
+    (certificadoId: string) => {
+      setCertificadoSelecionadoId(certificadoId);
+      const selecionado = certificados.find((item) => item.id === certificadoId);
+      if (!selecionado) {
         return;
       }
 
-      const currentValue = aliasEdits[certificado.id] ?? "";
-      const normalizedValue = currentValue.trim();
-      const currentAlias = certificado.alias ?? "";
-
-      if (normalizedValue === currentAlias.trim()) {
-        toast.message("Nenhuma alteração no alias para salvar.");
-        return;
+      setModoEdicao("edicao");
+      setNovoCertificadoAlias(selecionado.alias ?? "");
+      setNovoCertificadoSenha("");
+      setArquivoCertificadoBase64(null);
+      setArquivoCertificadoNome("");
+      if (certificadoFileInputRef.current) {
+        certificadoFileInputRef.current.value = "";
       }
-
-      await atualizarAliasCertificadoMutation.mutateAsync({
-        prestadorId: configPrestador.id,
-        certificadoId: certificado.id,
-        alias: normalizedValue.length > 0 ? normalizedValue : null,
-      });
     },
-    [aliasEdits, atualizarAliasCertificadoMutation, configPrestador]
+    [certificados]
   );
 
-  const handleSenhaChange = useCallback((certificadoId: string, value: string) => {
-    setSenhaEdits((previous) => ({ ...previous, [certificadoId]: value }));
-  }, []);
-
-  const handleAtualizarSenha = useCallback(
-    async (certificado: PrestadorCertificadoDto) => {
-      if (!configPrestador) {
-        toast.error("Selecione um prestador.");
+  const handleSalvarEdicao = useCallback(
+    async () => {
+      if (!configPrestador || !certificadoSelecionadoId) {
+        toast.error("Selecione um certificado para editar.");
         return;
       }
 
-      const senha = (senhaEdits[certificado.id] ?? "").trim();
-      if (!senha) {
-        toast.error("Informe a nova senha do certificado.");
+      const selecionado = certificados.find((item) => item.id === certificadoSelecionadoId);
+      if (!selecionado) {
+        toast.error("Certificado selecionado não encontrado.");
         return;
       }
 
-      await atualizarSenhaCertificadoMutation.mutateAsync({
-        prestadorId: configPrestador.id,
-        certificadoId: certificado.id,
-        senha,
-      });
+      const aliasNormalizado = novoCertificadoAlias.trim();
+      const senhaNormalizada = novoCertificadoSenha.trim();
+
+      const updates: Promise<unknown>[] = [];
+
+      if ((selecionado.alias ?? "") !== aliasNormalizado) {
+        updates.push(
+          atualizarAliasCertificadoMutation.mutateAsync({
+            prestadorId: configPrestador.id,
+            certificadoId: selecionado.id,
+            alias: aliasNormalizado.length > 0 ? aliasNormalizado : null,
+          })
+        );
+      }
+
+      if (senhaNormalizada.length > 0) {
+        updates.push(
+          atualizarSenhaCertificadoMutation.mutateAsync({
+            prestadorId: configPrestador.id,
+            certificadoId: selecionado.id,
+            senha: senhaNormalizada,
+          })
+        );
+      }
+
+      if (updates.length === 0) {
+        toast.message("Nenhuma alteração para salvar.");
+        return;
+      }
+
+      await Promise.all(updates);
+
+      setModoEdicao("criacao");
+      setCertificadoSelecionadoId(null);
+      setNovoCertificadoAlias("");
+      setNovoCertificadoSenha("");
     },
-    [atualizarSenhaCertificadoMutation, configPrestador, senhaEdits]
+    [
+      atualizarAliasCertificadoMutation,
+      atualizarSenhaCertificadoMutation,
+      certificadoSelecionadoId,
+      certificados,
+      configPrestador,
+      novoCertificadoAlias,
+      novoCertificadoSenha,
+    ]
   );
 
   const handleRemoverCertificado = useCallback(
@@ -1813,73 +1817,115 @@ export default function PrestadoresPage() {
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-slate-600" htmlFor="certificadoAlias">
-                        Alias (opcional)
+                        Alias {modoEdicao === "edicao" ? "do certificado" : "(opcional)"}
                       </label>
                       <Input
                         id="certificadoAlias"
                         value={novoCertificadoAlias}
                         onChange={(event) => setNovoCertificadoAlias(event.target.value)}
-                        placeholder="Ex.: Matriz 2025"
+                        placeholder={modoEdicao === "edicao" ? "Alias do certificado selecionado" : "Ex.: Matriz 2025"}
+                        disabled={modoEdicao === "criacao" && !configPrestador}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-slate-600" htmlFor="certificadoSenha">
-                        Senha do certificado
-                      </label>
-                      <Input
-                        id="certificadoSenha"
-                        type="password"
-                        value={novoCertificadoSenha}
-                        onChange={(event) => setNovoCertificadoSenha(event.target.value)}
-                        placeholder="Informe a senha do arquivo"
-                      />
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <label className="text-sm font-medium text-slate-600" htmlFor="certificadoArquivo">
-                        Arquivo do certificado (.pfx ou .p12)
-                      </label>
-                      <Input
-                        id="certificadoArquivo"
-                        ref={certificadoFileInputRef}
-                        type="file"
-                        accept=".pfx,.p12"
-                        onChange={handleCertificadoFileChange}
-                      />
-                      {arquivoCertificadoNome && (
-                        <span className="text-xs text-slate-500">Arquivo selecionado: {arquivoCertificadoNome}</span>
-                      )}
-                    </div>
+                    {modoEdicao === "criacao" && (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-600" htmlFor="certificadoSenha">
+                          Senha do certificado
+                        </label>
+                        <Input
+                          id="certificadoSenha"
+                          type="password"
+                          value={novoCertificadoSenha}
+                          onChange={(event) => setNovoCertificadoSenha(event.target.value)}
+                          placeholder="Informe a senha do arquivo"
+                        />
+                      </div>
+                    )}
+                    {modoEdicao === "criacao" && (
+                      <div className="space-y-1 md:col-span-2">
+                        <label className="text-sm font-medium text-slate-600" htmlFor="certificadoArquivo">
+                          Arquivo do certificado (.pfx ou .p12)
+                        </label>
+                        <Input
+                          id="certificadoArquivo"
+                          ref={certificadoFileInputRef}
+                          type="file"
+                          accept=".pfx,.p12"
+                          onChange={handleCertificadoFileChange}
+                        />
+                        {arquivoCertificadoNome && (
+                          <span className="text-xs text-slate-500">Arquivo selecionado: {arquivoCertificadoNome}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      onClick={handleUploadCertificado}
-                      disabled={
-                        uploadCertificadoMutation.isPending ||
-                        !arquivoCertificadoBase64 ||
-                        !novoCertificadoSenha.trim()
-                      }
-                    >
-                      {uploadCertificadoMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Enviar certificado
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setArquivoCertificadoBase64(null);
-                        setArquivoCertificadoNome("");
-                        setNovoCertificadoAlias("");
-                        setNovoCertificadoSenha("");
-                        if (certificadoFileInputRef.current) {
-                          certificadoFileInputRef.current.value = "";
-                        }
-                      }}
-                      disabled={uploadCertificadoMutation.isPending && Boolean(arquivoCertificadoBase64)}
-                    >
-                      Limpar seleção
-                    </Button>
+                    {modoEdicao === "criacao" ? (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={handleUploadCertificado}
+                          disabled={
+                            uploadCertificadoMutation.isPending ||
+                            !arquivoCertificadoBase64 ||
+                            !novoCertificadoSenha.trim()
+                          }
+                        >
+                          {uploadCertificadoMutation.isPending && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Enviar certificado
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setArquivoCertificadoBase64(null);
+                            setArquivoCertificadoNome("");
+                            setNovoCertificadoAlias("");
+                            setNovoCertificadoSenha("");
+                            if (certificadoFileInputRef.current) {
+                              certificadoFileInputRef.current.value = "";
+                            }
+                          }}
+                          disabled={uploadCertificadoMutation.isPending && Boolean(arquivoCertificadoBase64)}
+                        >
+                          Limpar seleção
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={async () => {
+                            if (!modoEdicao) return;
+                            await handleSalvarAlias();
+                          }}
+                          disabled={
+                            atualizarAliasCertificadoMutation.isPending ||
+                            !novoCertificadoAlias.trim() ||
+                            !certificadoSelecionadoId
+                          }
+                        >
+                          {atualizarAliasCertificadoMutation.isPending && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Salvar alias
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setModoEdicao("criacao");
+                            setCertificadoSelecionadoId(null);
+                            setNovoCertificadoAlias("");
+                          }}
+                        >
+                          Cancelar edição
+                        </Button>
+                      </>
+                    )}
                   </div>
 
                   <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -1908,34 +1954,20 @@ export default function PrestadoresPage() {
                           </TableRow>
                         ) : (
                           certificados.map((certificado) => {
-                            const aliasValue = aliasEdits[certificado.id] ?? certificado.alias ?? "";
-                            const senhaValue = senhaEdits[certificado.id] ?? "";
+                            const selecionado = certificadoSelecionadoId === certificado.id;
 
                             return (
-                              <TableRow key={certificado.id}>
+                              <TableRow key={certificado.id} className={selecionado ? "bg-slate-50" : undefined}>
                                 <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      value={aliasValue}
-                                      onChange={(event) => handleAliasChange(certificado.id, event.target.value)}
-                                      placeholder="Alias do certificado"
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="radio"
+                                      aria-label="Selecionar certificado"
+                                      checked={selecionado}
+                                      onChange={() => handleCertificadoSelecionado(certificado.id)}
+                                      className="h-4 w-4 border-slate-300 text-slate-600 focus:ring-slate-400"
                                     />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => void handleSalvarAlias(certificado)}
-                                      disabled={
-                                        atualizarAliasCertificadoMutation.isPending ||
-                                        aliasValue.trim() === (certificado.alias ?? "").trim()
-                                      }
-                                    >
-                                      {atualizarAliasCertificadoMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Save className="h-4 w-4" />
-                                      )}
-                                    </Button>
+                                    <span className="text-sm text-slate-700">{certificado.alias ?? "(sem alias)"}</span>
                                   </div>
                                 </TableCell>
                                 <TableCell className="font-mono text-sm text-slate-600">{certificado.cnpj}</TableCell>
@@ -1952,28 +1984,13 @@ export default function PrestadoresPage() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex justify-end gap-2">
-                                    <Input
-                                      type="password"
-                                      value={senhaValue}
-                                      onChange={(event) => handleSenhaChange(certificado.id, event.target.value)}
-                                      placeholder="Nova senha"
-                                      className="h-9 w-32"
-                                    />
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => void handleAtualizarSenha(certificado)}
-                                      disabled={
-                                        atualizarSenhaCertificadoMutation.isPending ||
-                                        senhaValue.trim().length === 0
-                                      }
+                                      onClick={() => handleCertificadoSelecionado(certificado.id)}
                                     >
-                                      {atualizarSenhaCertificadoMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <KeyRound className="h-4 w-4" />
-                                      )}
+                                      Editar
                                     </Button>
                                     <Button
                                       type="button"

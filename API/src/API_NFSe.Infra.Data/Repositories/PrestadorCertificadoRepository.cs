@@ -46,4 +46,15 @@ public class PrestadorCertificadoRepository : RepositoryBase<PrestadorCertificad
             .AsNoTracking()
             .ToListAsync();
     }
+
+    public override void Remover(Guid id)
+    {
+        var entity = _dbSet.FirstOrDefault(c => c.Id == id);
+        if (entity is null)
+        {
+            return;
+        }
+
+        _dbSet.Remove(entity);
+    }
 }

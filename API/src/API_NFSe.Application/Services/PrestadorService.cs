@@ -614,7 +614,96 @@ namespace API_NFSe.Application.Services
                 return null;
             }
 
-            certificado.AtualizarAlias(dto.Alias, usuarioId);
+            var aliasAtualizado = string.IsNullOrWhiteSpace(dto.Alias)
+                ? certificado.Alias
+                : dto.Alias.Trim();
+
+            byte[]? conteudo = dto.Conteudo;
+            string? senhaProtegida = null;
+
+            if (conteudo != null && conteudo.Length > 0)
+            {
+                X509Certificate2 certificadoArquivo;
+
+                try
+                {
+                    certificadoArquivo = new X509Certificate2(
+                        conteudo,
+                        dto.Senha,
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+                }
+                catch (CryptographicException ex)
+                {
+                    throw new InvalidOperationException("Não foi possível abrir o certificado. Verifique a senha informada.", ex);
+                }
+
+                if (!certificadoArquivo.HasPrivateKey)
+                {
+                    throw new InvalidOperationException("O certificado informado não possui chave privada.");
+                }
+
+                var prestador = await _prestadorRepository.ObterPorIdAsync(prestadorId)
+                    ?? throw new InvalidOperationException("Prestador não encontrado.");
+
+                var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
+                var certificadoCnpj = ExtrairCnpjCertificado(certificadoArquivo);
+                if (!string.Equals(prestadorCnpj, certificadoCnpj, StringComparison.Ordinal))
+                {
+                    throw new UnauthorizedAccessException("O certificado informado não pertence ao prestador.");
+                }
+
+                var thumbprint = certificadoArquivo.Thumbprint?.Trim().ToUpperInvariant();
+                if (string.IsNullOrWhiteSpace(thumbprint))
+                {
+                    throw new InvalidOperationException("Não foi possível determinar o thumbprint do certificado.");
+                }
+
+                if (!string.Equals(thumbprint, certificado.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Não é permitido alterar o thumbprint do certificado. Reenvie utilizando o endpoint de upload.");
+                }
+
+                var fileName = thumbprint + ".pfx";
+                var relativePath = _fileStorage.BuildRelativePath(prestadorCnpj, fileName);
+
+                await _fileStorage.SaveAsync(relativePath, conteudo, cancellationToken);
+
+                var hashConteudo = _cryptographyService.ComputeSha256(Convert.ToBase64String(conteudo));
+                var commonName = certificadoArquivo.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty;
+                var dataEnvio = DateTime.UtcNow;
+
+                senhaProtegida = string.IsNullOrWhiteSpace(dto.Senha)
+                    ? null
+                    : _cryptographyService.Encrypt(dto.Senha);
+
+                AtualizarCertificadoExistente(
+                    certificado,
+                    aliasAtualizado,
+                    relativePath,
+                    hashConteudo,
+                    conteudo.LongLength,
+                    certificadoArquivo.NotBefore.ToUniversalTime(),
+                    certificadoArquivo.NotAfter.ToUniversalTime(),
+                    thumbprint,
+                    commonName,
+                    certificadoArquivo.Subject,
+                    certificadoArquivo.Issuer,
+                    certificadoCnpj,
+                    dataEnvio,
+                    senhaProtegida,
+                    usuarioId);
+            }
+            else
+            {
+                certificado.AtualizarAlias(aliasAtualizado, usuarioId);
+
+                if (!string.IsNullOrWhiteSpace(dto.Senha))
+                {
+                    senhaProtegida = _cryptographyService.Encrypt(dto.Senha);
+                    certificado.AtualizarSenha(senhaProtegida, usuarioId);
+                }
+            }
+
             _certificadoRepository.Atualizar(certificado);
             await _certificadoRepository.SaveChangesAsync();
 
@@ -645,9 +734,7 @@ namespace API_NFSe.Application.Services
             var certificado = await BuscarCertificadoDoPrestador(prestadorId, certificadoId)
                 ?? throw new InvalidOperationException("Certificado não encontrado.");
 
-            certificado.Desativar();
-            certificado.AtualizarSenha(null, usuarioId);
-            _certificadoRepository.Atualizar(certificado);
+            _certificadoRepository.Remover(certificado.Id);
             await _certificadoRepository.SaveChangesAsync();
 
             await _fileStorage.DeleteAsync(certificado.CaminhoRelativo, cancellationToken);
@@ -713,7 +800,8 @@ namespace API_NFSe.Application.Services
                 NotBefore = certificado.NotBefore,
                 NotAfter = certificado.NotAfter,
                 DataEnvio = certificado.DataEnvio,
-                TamanhoBytes = certificado.TamanhoBytes
+                TamanhoBytes = certificado.TamanhoBytes,
+                Ativo = certificado.Ativo
             };
         }
     }
