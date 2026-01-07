@@ -36,7 +36,7 @@ public sealed class DesignTimeApiContextFactory : IDesignTimeDbContextFactory<Ap
         optionsBuilder.UseMySql(
             connectionString,
             serverVersion,
-            b => b.MigrationsAssembly("API_NFSe.API"));
+            b => b.MigrationsAssembly("API_NFSe.Infra.Data"));
 
         return new ApiContext(optionsBuilder.Options);
     }

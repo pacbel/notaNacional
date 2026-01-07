@@ -7,6 +7,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { navigationItems, type NavigationItem } from "@/constants/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
+import { buildInfo } from "@/utils/build-info";
 import clsx from "clsx";
 
 function isItemVisible(item: NavigationItem, userRoles: string[]) {
@@ -220,6 +221,20 @@ export function Sidebar() {
           onClick={() => setMobileOpen(false)}
         />
       )}
+
+      <footer
+        className={clsx(
+          "border-t border-[hsl(var(--border))] px-4 py-3 text-[10px] text-[hsl(var(--muted-foreground))]",
+          collapsed && "px-2 text-center"
+        )}
+      >
+        <div className="truncate">
+          {buildInfo.timestampLabel ? `Atualizado ${buildInfo.timestampLabel}` : "Versão em desenvolvimento"}
+        </div>
+        {!collapsed && buildInfo.commit && (
+          <div className="truncate uppercase">Commit {buildInfo.commit}</div>
+        )}
+      </footer>
     </aside>
   );
 }

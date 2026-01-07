@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace API_NFSe.Infra.Data.Migrations
 {
     [DbContext(typeof(ApiContext))]
-    [Migration("20251223140015_InitialCreate")]
+    [Migration("20260107001439_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -19,6 +19,7 @@ namespace API_NFSe.Infra.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .UseCollation("utf8mb4_general_ci")
                 .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
@@ -285,14 +286,28 @@ namespace API_NFSe.Infra.Data.Migrations
                         .HasColumnType("varchar(100)");
 
                     b.Property<bool>("Ativo")
-                        .HasColumnType("tinyint(1)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
 
                     b.Property<Guid>("AtualizadoPorUsuarioId")
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("DadosCertificado")
+                    b.Property<string>("CaminhoRelativo")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(260)
+                        .HasColumnType("varchar(260)")
+                        .HasColumnName("DadosCertificado");
+
+                    b.Property<string>("Cnpj")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("varchar(14)");
+
+                    b.Property<string>("CommonName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
 
                     b.Property<DateTime?>("DataAtualizacao")
                         .HasColumnType("datetime(6)");
@@ -300,7 +315,26 @@ namespace API_NFSe.Infra.Data.Migrations
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime>("DataEnvio")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("DataValidade")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("HashConteudo")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
+                    b.Property<string>("Issuer")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<DateTime>("NotAfter")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("NotBefore")
                         .HasColumnType("datetime(6)");
 
                     b.Property<Guid>("PrestadorId")
@@ -310,6 +344,19 @@ namespace API_NFSe.Infra.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
 
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<long>("TamanhoBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Thumbprint")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)");
+
                     b.Property<string>("TipoArmazenamento")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -317,7 +364,16 @@ namespace API_NFSe.Infra.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PrestadorId");
+                    b.HasIndex("Alias");
+
+                    b.HasIndex("CaminhoRelativo")
+                        .IsUnique();
+
+                    b.HasIndex("Thumbprint")
+                        .IsUnique();
+
+                    b.HasIndex("PrestadorId", "Cnpj", "Thumbprint")
+                        .IsUnique();
 
                     b.ToTable("PrestadorCertificados", (string)null);
                 });
