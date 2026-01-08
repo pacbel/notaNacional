@@ -3,6 +3,8 @@ import { appConfig, buildApiUrl } from "@/lib/config";
 interface ApiFetchOptions extends RequestInit {
   parse?: "json" | "text" | "blob" | "raw";
   retryOnUnauthorized?: boolean;
+  authorizationToken?: string | null;
+  useSessionToken?: boolean;
 }
 
 interface AuthHandlers {
@@ -59,7 +61,13 @@ export async function apiFetch<T = unknown>(
   loadingHandlers?.onStart();
 
   const url = path.startsWith("http") ? path : buildApiUrl(path);
-  const { parse = "json", retryOnUnauthorized = true, ...init } = options;
+  const {
+    parse = "json",
+    retryOnUnauthorized = true,
+    authorizationToken,
+    useSessionToken = true,
+    ...init
+  } = options;
   const headers = new Headers(init.headers);
 
   if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
@@ -70,9 +78,15 @@ export async function apiFetch<T = unknown>(
     headers.set("Accept", "application/json");
   }
 
-  const token = authHandlers?.getAccessToken();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (authorizationToken) {
+    headers.set("Authorization", `Bearer ${authorizationToken}`);
+  }
+
+  if (!headers.has("Authorization") && useSessionToken) {
+    const token = authHandlers?.getAccessToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   try {

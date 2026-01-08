@@ -31,3 +31,16 @@ export interface ListarNotasEmitidasResponse {
   items: NotaEmitidaDto[];
   total: number;
 }
+
+export interface NfseEmailAttachment {
+  fileName: string;
+  contentBase64: string;
+  contentType: string;
+}
+
+export interface EnviarNfseEmailRequest {
+  destinatarios: string[];
+  assunto: string;
+  corpoHtml: string;
+  anexos?: NfseEmailAttachment[];
+}

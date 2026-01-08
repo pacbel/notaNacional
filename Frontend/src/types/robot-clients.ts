@@ -2,6 +2,7 @@ export interface RobotClientDto {
   id: string;
   nome: string;
   clientId: string;
+  clientSecret?: string | null;
   role: string;
   prestadorId: string;
   prestadorNome: string;

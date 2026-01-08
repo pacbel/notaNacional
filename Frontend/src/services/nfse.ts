@@ -1,5 +1,10 @@
 import { apiFetch } from "@/services/http";
-import { CertificateInfo, ListarNotasEmitidasRequest, ListarNotasEmitidasResponse } from "@/types/nfse";
+import {
+  CertificateInfo,
+  EnviarNfseEmailRequest,
+  ListarNotasEmitidasRequest,
+  ListarNotasEmitidasResponse,
+} from "@/types/nfse";
 
 export function listarCertificados() {
   return apiFetch<CertificateInfo[]>("/api/nfse/certificados");
@@ -20,4 +25,13 @@ export function listarNotasEmitidas(params: ListarNotasEmitidasRequest) {
   searchParams.set("pageSize", String(params.pageSize));
 
   return apiFetch<ListarNotasEmitidasResponse>(`/api/nfse/notas?${searchParams.toString()}`);
+}
+
+export function enviarNfseEmail(payload: EnviarNfseEmailRequest, token?: string) {
+  return apiFetch<void>("/api/nfse/emails", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    authorizationToken: token,
+    useSessionToken: !token,
+  });
 }

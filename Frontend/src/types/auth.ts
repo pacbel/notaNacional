@@ -37,7 +37,13 @@ export interface ResetPasswordRequest {
 export interface RobotAuthRequest {
   clientId: string;
   clientSecret: string;
-  scopes: string[];
+  scope: string;
+}
+
+export interface RobotAuthResponse {
+  accessToken: string;
+  expiresIn: number;
+  tokenType: string;
 }
 
 export type RoleName = "Administrador" | "Gestao" | "Operacao" | "Robot";

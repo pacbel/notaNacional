@@ -1,5 +1,5 @@
 import type { RoleName } from "@/types/auth";
-import { BarChart3, Building2, LockKeyhole, ServerCog, Users, Workflow } from "lucide-react";
+import { BarChart3, Building2, LockKeyhole, Mail, ServerCog, Users, Workflow } from "lucide-react";
 
 export interface NavigationItem {
   label: string;
@@ -38,6 +38,12 @@ export const navigationItems: NavigationItem[] = [
     label: "Certificados",
     href: "/nfse/certificados",
     icon: LockKeyhole,
+    roles: ["Administrador", "Gestao", "Operacao", "Robot"],
+  },
+  {
+    label: "Envio de e-mails",
+    href: "/nfse/emails",
+    icon: Mail,
     roles: ["Administrador", "Gestao", "Operacao", "Robot"],
   },
   // {
