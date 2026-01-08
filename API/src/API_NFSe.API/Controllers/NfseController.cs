@@ -47,32 +47,6 @@ namespace API_NFSe.API.Controllers
             }
         }
 
-        [HttpGet("notas")]
-        [Authorize(Policy = "Scopes.Nfse.Notas")]
-        [ProducesResponseType(typeof(ListarNotasEmitidasResponseDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> ListarNotasEmitidasAsync([FromQuery] ListarNotasEmitidasRequestDto request)
-        {
-            if (request is null)
-            {
-                return BadRequest("Filtros inválidos.");
-            }
-
-            if (request.Page <= 0 || request.PageSize <= 0 || request.PageSize > 100)
-            {
-                return BadRequest("Parâmetros de paginação inválidos.");
-            }
-
-            var usuarioReferencia = _currentUserService.ObterIdentificador();
-            var prestadorId = _currentUserService.ObterPrestadorId();
-            if (!prestadorId.HasValue)
-            {
-                return Unauthorized(new { mensagem = "Prestador não associado ao usuário autenticado." });
-            }
-
-            var resposta = await _nfseSefinService.ListarNotasEmitidasAsync(usuarioReferencia, prestadorId.Value, request);
-            return Ok(resposta);
-        }
-
         [HttpPost("emitir")]
         [Authorize(Policy = "Scopes.Nfse.Emitir")]
         [ProducesResponseType(typeof(EmitirNfseResponseDto), StatusCodes.Status200OK)]

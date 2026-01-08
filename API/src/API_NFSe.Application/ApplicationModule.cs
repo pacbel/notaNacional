@@ -39,7 +39,6 @@ namespace API_NFSe.Application
             services.AddScoped<IUsuarioService, UsuarioService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IPrestadorService, PrestadorService>();
-            services.AddScoped<IDpsService, DpsService>();
             services.AddScoped<IRobotClientService, RobotClientService>();
 
             return services;

@@ -116,10 +116,6 @@ public static class Program
                 "Scopes.Nfse.Certificados",
                 new[] { "nfse.certificados" },
                 new[] { RoleNames.Administrador });
-            options.AddRobotScopePolicy(
-                "Scopes.Nfse.Notas",
-                new[] { "nfse.notas" },
-                new[] { RoleNames.Administrador });
             options.AddRobotScopePolicy("Scopes.Nfse.Emitir", "nfse.emitir");
             options.AddRobotScopePolicy("Scopes.Nfse.Cancelar", "nfse.cancelar");
             options.AddRobotScopePolicy("Scopes.Nfse.Danfse", "nfse.danfse");

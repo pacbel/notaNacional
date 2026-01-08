@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -8,16 +7,12 @@ using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Nfse;
 using API_NFSe.Application.Interfaces;
 using API_NFSe.Application.Services;
-using API_NFSe.Domain.Entities;
-using API_NFSe.Domain.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
-using Microsoft.EntityFrameworkCore;
 
 namespace API_NFSe.Infra.Data.Services.Nfse
 {
     public class NfseSefinService : INfseSefinService
     {
-        private readonly IDpsRepository _dpsRepository;
         private readonly IPrestadorRepository _prestadorRepository;
         private readonly IPrestadorCertificadoRepository _prestadorCertificadoRepository;
         private readonly ICertificateStoreService _certificateStoreService;
@@ -29,7 +24,6 @@ namespace API_NFSe.Infra.Data.Services.Nfse
         private readonly INfseStorageService _storageService;
 
         public NfseSefinService(
-            IDpsRepository dpsRepository,
             IPrestadorRepository prestadorRepository,
             IPrestadorCertificadoRepository prestadorCertificadoRepository,
             ICertificateStoreService certificateStoreService,
@@ -40,7 +34,6 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             INfseStorageService storageService,
             IXmlSignatureService xmlSignatureService)
         {
-            _dpsRepository = dpsRepository ?? throw new ArgumentNullException(nameof(dpsRepository));
             _prestadorRepository = prestadorRepository ?? throw new ArgumentNullException(nameof(prestadorRepository));
             _prestadorCertificadoRepository = prestadorCertificadoRepository ?? throw new ArgumentNullException(nameof(prestadorCertificadoRepository));
             _certificateStoreService = certificateStoreService ?? throw new ArgumentNullException(nameof(certificateStoreService));
@@ -94,87 +87,6 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                     TamanhoBytes = c.TamanhoBytes
                 })
                 .ToArray();
-        }
-
-        public async Task<ListarNotasEmitidasResponseDto> ListarNotasEmitidasAsync(string usuarioReferencia, Guid prestadorId, ListarNotasEmitidasRequestDto request)
-        {
-            if (string.IsNullOrWhiteSpace(usuarioReferencia))
-            {
-                throw new ArgumentException("Usuário inválido.", nameof(usuarioReferencia));
-            }
-
-            if (prestadorId == Guid.Empty)
-            {
-                throw new ArgumentException("Prestador inválido.", nameof(prestadorId));
-            }
-
-            if (request is null)
-            {
-                throw new ArgumentNullException(nameof(request));
-            }
-
-            request.EnsureValidPagination();
-
-            if (!string.IsNullOrWhiteSpace(request.PrestadorId) && Guid.TryParse(request.PrestadorId, out var prestadorSolicitado) && prestadorSolicitado != prestadorId)
-            {
-                throw new UnauthorizedAccessException("Prestador informado não corresponde ao usuário autenticado.");
-            }
-
-            var prestador = await _prestadorRepository.ObterPorIdAsync(prestadorId);
-            if (prestador is null)
-            {
-                throw new UnauthorizedAccessException("Prestador não encontrado ou inativo para o usuário informado.");
-            }
-
-            var query = _dpsRepository.QueryAtivos()
-                .Where(d => d.PrestadorId == prestadorId);
-
-            if (!string.IsNullOrWhiteSpace(request.ChaveAcesso))
-            {
-                var chave = request.ChaveAcesso.Trim();
-                query = query.Where(d => d.Identificador.Contains(chave));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Numero))
-            {
-                var numero = request.Numero.Trim();
-                query = query.Where(d => d.NumeroDps.Contains(numero));
-            }
-
-            var total = await query.CountAsync();
-            var skip = (request.Page - 1) * request.PageSize;
-
-            var items = await query
-                .OrderByDescending(d => d.DataHoraEmissao)
-                .ThenByDescending(d => d.Id)
-                .Skip(skip)
-                .Take(request.PageSize)
-                .Select(d => new
-                {
-                    d.PrestadorId,
-                    PrestadorNome = d.Prestador != null ? d.Prestador.NomeFantasia : string.Empty,
-                    d.Identificador,
-                    d.Status,
-                    d.DataHoraEmissao,
-                    d.NumeroDps
-                })
-                .ToListAsync();
-
-            var response = new ListarNotasEmitidasResponseDto
-            {
-                Total = total,
-                Items = items.Select(d => new NotaEmitidaDto
-                {
-                    PrestadorId = d.PrestadorId.ToString(),
-                    PrestadorNome = d.PrestadorNome,
-                    ChaveAcesso = d.Identificador,
-                    Numero = d.NumeroDps,
-                    Situacao = d.Status,
-                    EmitidaEm = d.DataHoraEmissao.ToString("O")
-                }).ToList()
-            };
-
-            return response;
         }
 
         public async Task<EmitirNfseResponseDto> EmitirAsync(string usuarioReferencia, Guid prestadorId, EmitirNfseRequestDto request, CancellationToken cancellationToken)
