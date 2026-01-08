@@ -84,24 +84,9 @@ const copySecret = async (value: string) => {
 
 const scopeOptions = [
   {
-    value: "dps.read",
-    label: "DPS - Leitura",
-    description: "Permite listar e consultar DPS do prestador associado.",
-  },
-  {
-    value: "dps.write",
-    label: "DPS - Criação",
-    description: "Permite criar DPS em nome do prestador.",
-  },
-  {
     value: "nfse.certificados",
     label: "NFSe - Certificados",
     description: "Permite consultar certificados do prestador na SEFIN.",
-  },
-  {
-    value: "nfse.notas",
-    label: "NFSe - Notas",
-    description: "Permite consultar notas emitidas pelo prestador.",
   },
   {
     value: "nfse.emitir",
@@ -112,6 +97,11 @@ const scopeOptions = [
     value: "nfse.cancelar",
     label: "NFSe - Cancelamento",
     description: "Permite cancelar NFSe do prestador.",
+  },
+  {
+    value: "nfse.email",
+    label: "NFSe - E-mail",
+    description: "Permite enviar NFSe por e-mail em nome do prestador.",
   },
   {
     value: "nfse.danfse",

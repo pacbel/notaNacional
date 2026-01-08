@@ -1,14 +1,5 @@
 import type { RoleName } from "@/types/auth";
-import {
-  BarChart3,
-  Building2,
-  FileSignature,
-  LockKeyhole,
-  ReceiptText,
-  ServerCog,
-  Users,
-  Workflow,
-} from "lucide-react";
+import { BarChart3, Building2, LockKeyhole, ServerCog, Users, Workflow } from "lucide-react";
 
 export interface NavigationItem {
   label: string;
@@ -44,27 +35,15 @@ export const navigationItems: NavigationItem[] = [
     roles: ["Administrador"],
   },
   {
-    label: "NFSe",
-    href: "/nfse",
-    icon: FileSignature,
-    roles: ["Administrador", "Gestao", "Operacao", "Robot"],
-    children: [
-      {
-        label: "Certificados",
-        href: "/nfse/certificados",
-        icon: LockKeyhole,
-      },
-      {
-        label: "Notas Emitidas",
-        href: "/nfse/notas",
-        icon: ReceiptText,
-      },
-    ],
-  },
-  {
-    label: "Swagger",
-    href: "/nfse/swagger",
-    icon: Workflow,
+    label: "Certificados",
+    href: "/nfse/certificados",
+    icon: LockKeyhole,
     roles: ["Administrador", "Gestao", "Operacao", "Robot"],
   },
+  // {
+  //   label: "Swagger",
+  //   href: "/nfse/swagger",
+  //   icon: Workflow,
+  //   roles: ["Administrador", "Gestao", "Operacao", "Robot"],
+  // },
 ];

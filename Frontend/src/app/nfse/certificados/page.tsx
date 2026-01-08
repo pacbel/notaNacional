@@ -7,7 +7,6 @@ import { listarCertificados } from "@/services/nfse";
 import { CertificateInfo } from "@/types/nfse";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("pt-BR");
@@ -54,8 +53,6 @@ export default function CertificadosPage() {
                 <TableHead>Common Name</TableHead>
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Período de validade</TableHead>
-                <TableHead>Autoridade emissora</TableHead>
-                <TableHead>Local</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -69,15 +66,11 @@ export default function CertificadosPage() {
                       <span>Fim: {formatDate(certificado.notAfter)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{certificado.issuer}</TableCell>
-                  <TableCell>
-                    <Badge>{certificado.storeLocation}</Badge>
-                  </TableCell>
                 </TableRow>
               ))}
               {certificados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-sm text-slate-500">
+                  <TableCell colSpan={3} className="text-center text-sm text-slate-500">
                     Nenhum certificado encontrado.
                   </TableCell>
                 </TableRow>
