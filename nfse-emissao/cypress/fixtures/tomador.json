@@ -1,0 +1,35 @@
+{
+  "novo": {
+    "razaoSocial": "Tomador Teste Cypress",
+    "nomeFantasia": "Tomador Cypress",
+    "cnpj": "98765432101234",
+    "inscricaoMunicipal": "987654321",
+    "email": "tomador_novo@cypress.com",
+    "telefone": "11988888888",
+    "endereco": {
+      "logradouro": "Avenida de Teste Novo",
+      "numero": "456",
+      "complemento": "Andar Novo",
+      "bairro": "Vila Nova Novo",
+      "codigoMunicipio": "3550308",
+      "uf": "SP",
+      "cep": "04001000"
+    }
+  },
+  "edicao": {
+    "razaoSocial": "Tomador Teste Cypress Editado",
+    "nomeFantasia": "Tomador Cypress Editado",
+    "inscricaoMunicipal": "112233445",
+    "email": "tomador_editado@cypress.com",
+    "telefone": "11977777777",
+    "endereco": {
+      "logradouro": "Rua de Teste Editada",
+      "numero": "789",
+      "complemento": "Bloco Editado",
+      "bairro": "Centro Editado",
+      "codigoMunicipio": "3304557",
+      "uf": "RJ",
+      "cep": "20001000"
+    }
+  }
+}

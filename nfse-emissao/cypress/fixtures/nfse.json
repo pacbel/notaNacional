@@ -1,0 +1,23 @@
+{
+  "nova": {
+    "itens": [
+      {
+        "quantidade": "1",
+        "valorUnitario": "120,50",
+        "aliquota": "5,00"
+      }
+    ],
+    "valoresGerais": {
+      "issRetido": "true",
+      "descontoCondicionado": "10,00",
+      "descontoIncondicionado": "5,00",
+      "outrasRetencoes": "2,50",
+      "valorPis": "1,65",
+      "valorCofins": "7,60",
+      "valorInss": "11,00",
+      "valorIr": "15,00",
+      "valorCsll": "9,00"
+    },
+    "informacoesComplementares": "Nota fiscal emitida via teste automatizado Cypress. Contém um item de serviço e valores de retenção e desconto."
+  }
+}

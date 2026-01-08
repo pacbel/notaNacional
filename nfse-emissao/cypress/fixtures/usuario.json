@@ -1,0 +1,14 @@
+{
+  "admin": {
+    "username": "admin",
+    "password": "admin"
+  },
+  "usuario": {
+    "username": "usuario",
+    "password": "usuario"
+  },
+  "master": {
+    "username": "master",
+    "password": "master123"
+  }
+}
