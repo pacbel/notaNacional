@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "npx prisma migrate deploy && npm run seed",
     "dev": "next dev",
     "build": "npx prisma generate && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
     "build:alt": "npx prisma generate && next build --no-lint",
@@ -17,6 +16,8 @@
     "seed:lista-servicos": "ts-node prisma/seed-lista-servicos.ts",
     "db:reset": "node prisma/reset-db-and-seed.js",
     "db:push": "npx prisma db push --accept-data-loss",
+    "deploy:migrate": "npx prisma migrate deploy",
+    "deploy:seed": "npm run seed",
     "postinstall": "npx prisma generate",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
