@@ -190,7 +190,12 @@ namespace API_NFSe.Application.Services
 <p>Este token expira em {validade:dd/MM/yyyy HH:mm} (UTC).</p>
 <p>Se você não solicitou essa alteração, ignore este e-mail.</p>";
 
-            await _emailService.EnviarAsync(smtpSettings, email, ResetSubject, corpo);
+            await _emailService.EnviarAsync(
+                smtpSettings,
+                new[] { email },
+                ResetSubject,
+                corpo
+            );
         }
 
         public async Task<bool> RedefinirSenhaAsync(string token, string novaSenha)

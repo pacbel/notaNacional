@@ -72,7 +72,12 @@ namespace API_NFSe.Application.Services
             {
                 var smtpSettings = await ObterSmtpSettingsAsync(usuario);
                 var corpoEmail = await MontarCorpoEmailAsync(nomeUsuario, codigo, validade);
-                await _emailService.EnviarAsync(smtpSettings, emailDestinatario, _mfaSettings.AssuntoEmail, corpoEmail);
+                await _emailService.EnviarAsync(
+                    smtpSettings,
+                    new[] { emailDestinatario },
+                    _mfaSettings.AssuntoEmail,
+                    corpoEmail
+                );
                 codigoEnviado = true;
             }
 
