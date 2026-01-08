@@ -24,6 +24,7 @@ import { Select } from "@/components/ui/select";
 import { useApiQuery } from "@/hooks/use-api-query";
 
 const MAX_ATTACHMENTS = 3;
+const MAX_TOTAL_ATTACHMENTS_SIZE = 4 * 1024 * 1024; // 4 MB
 const allowedRoles = new Set(["Administrador", "Gestao", "Operacao", "Robot"]);
 const DEFAULT_EMAIL_HTML =
   '<html><body style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333;"><p>Olá,</p><p>Este é um e-mail enviado via API.</p><p>Atenciosamente,<br><strong>Pacbel Sistemas</strong></p></body></html>';
@@ -137,6 +138,10 @@ export default function NfseEmailsPage() {
   };
 
   const anexos = form.watch("anexos");
+  const totalAttachmentsSize = useMemo(
+    () => anexos.reduce((total, anexo) => total + (anexo.size ?? 0), 0),
+    [anexos]
+  );
 
   const mutation = useApiMutation<void, unknown, MutationVariables>(
     async ({ prestadorId, robotClientId, robotSecret, payload }) => {
@@ -177,9 +182,18 @@ export default function NfseEmailsPage() {
     }
 
     const currentAttachments = form.getValues("anexos");
-
     if (currentAttachments.length + files.length > MAX_ATTACHMENTS) {
       toast.error(`Selecione no máximo ${MAX_ATTACHMENTS} arquivos.`);
+      event.target.value = "";
+      return;
+    }
+
+    const currentTotalSize = currentAttachments.reduce((sum, anexo) => sum + (anexo.size ?? 0), 0);
+    const incomingTotalSize = Array.from(files).reduce((sum, file) => sum + file.size, 0);
+    if (currentTotalSize + incomingTotalSize > MAX_TOTAL_ATTACHMENTS_SIZE) {
+      toast.error(
+        `O tamanho total dos anexos não pode ultrapassar ${formatFileSize(MAX_TOTAL_ATTACHMENTS_SIZE)}. Selecione arquivos menores.`
+      );
       event.target.value = "";
       return;
     }
@@ -383,6 +397,10 @@ export default function NfseEmailsPage() {
               </label>
               <span className="text-xs text-slate-400">Máximo de {MAX_ATTACHMENTS} arquivos</span>
             </div>
+            <p className="text-xs text-slate-400">
+              Tamanho total permitido: {formatFileSize(totalAttachmentsSize)} / {formatFileSize(MAX_TOTAL_ATTACHMENTS_SIZE)}. Considere que o envio em
+              base64 aumenta o tamanho final em ~33%.
+            </p>
             <Input
               ref={fileInputRef}
               id="anexos"
