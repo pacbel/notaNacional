@@ -1,0 +1,297 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UsuarioRole {
+  ADMIN
+  OPERADOR
+}
+
+enum MfaChallengeMotivo {
+  LOGIN
+  RECUPERACAO_SENHA
+}
+
+enum Ambiente {
+  PRODUCAO
+  HOMOLOGACAO
+}
+
+enum DpsStatus {
+  RASCUNHO
+  ASSINADO
+  ENVIADO
+  CANCELADO
+}
+
+enum NotaDocumentoTipo {
+  XML_ASSINADO
+  XML_NFSE
+  NFSE_GZIP
+  DANFSE_PDF
+  OUTRO
+}
+
+enum LogNivel {
+  INFO
+  AVISO
+  ERRO
+}
+
+enum TokenIntegracaoTipo {
+  ROBOT
+}
+
+enum TipoDocumento {
+  CPF
+  CNPJ
+}
+
+model Usuario {
+  id            String         @id @default(uuid()) @db.Char(36)
+  nome          String         @db.VarChar(191)
+  email         String         @unique @db.VarChar(191)
+  senhaHash     String         @db.VarChar(255)
+  role          UsuarioRole    @default(ADMIN)
+  ativo         Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessoes       Sessao[]
+  mfaChallenges MfaChallenge[]
+  logs          LogSistema[]
+}
+
+model Sessao {
+  id        String   @id @default(uuid()) @db.Char(36)
+  usuarioId String   @db.Char(36)
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  tokenHash String   @db.VarChar(255)
+  expiresAt DateTime
+  userAgent String?  @db.VarChar(255)
+  ip        String?  @db.VarChar(45)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([usuarioId, ativo])
+}
+
+model MfaChallenge {
+  id         String             @id @default(uuid()) @db.Char(36)
+  usuarioId  String             @db.Char(36)
+  usuario    Usuario            @relation(fields: [usuarioId], references: [id])
+  token      String             @unique @db.VarChar(191)
+  codeHash   String             @db.VarChar(255)
+  motivo     MfaChallengeMotivo @default(LOGIN)
+  expiresAt  DateTime
+  resolvedAt DateTime?
+  ativo      Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([usuarioId])
+  @@index([expiresAt])
+}
+
+model ConfiguracaoDps {
+  id                              Int      @id @default(1)
+  nomeSistema                     String   @db.VarChar(191)
+  versaoAplicacao                 String   @db.VarChar(50)
+  ambientePadrao                  Ambiente @default(HOMOLOGACAO)
+  seriePadrao                     Int      @default(1)
+  verAplic                        String   @db.VarChar(60)
+  emailRemetente                  String?  @db.VarChar(191)
+  robotClientId                   String?  @db.VarChar(191)
+  robotClientSecret               String?  @db.VarChar(191)
+  robotTokenCacheMinutos          Int      @default(50)
+  mfaCodigoExpiracaoMinutos       Int      @default(10)
+  enviarNotificacaoEmailPrestador Boolean  @default(true)
+  ativo                           Boolean  @default(true)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+}
+
+model Prestador {
+  id                 String   @id @default(uuid()) @db.Char(36)
+  nomeFantasia       String   @db.VarChar(191)
+  razaoSocial        String   @db.VarChar(191)
+  cnpj               String   @unique @db.VarChar(14)
+  inscricaoMunicipal String?  @db.VarChar(30)
+  email              String   @db.VarChar(191)
+  telefone           String?  @db.VarChar(20)
+  codigoMunicipio    String   @db.VarChar(7)
+  cidade             String   @db.VarChar(191)
+  estado             String   @db.VarChar(2)
+  cep                String   @db.VarChar(8)
+  logradouro         String   @db.VarChar(191)
+  numero             String   @db.VarChar(20)
+  complemento        String?  @db.VarChar(60)
+  bairro             String   @db.VarChar(120)
+  observacoes        String?  @db.LongText
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  dps                Dps[]
+  notas              NotaFiscal[]
+
+  @@index([ativo])
+}
+
+model Tomador {
+  id                 String        @id @default(uuid()) @db.Char(36)
+  tipoDocumento      TipoDocumento
+  documento          String        @unique @db.VarChar(14)
+  nomeRazaoSocial    String        @db.VarChar(191)
+  email              String        @db.VarChar(191)
+  telefone           String?       @db.VarChar(20)
+  inscricaoMunicipal String?       @db.VarChar(30)
+  codigoMunicipio    String        @db.VarChar(7)
+  cidade             String        @db.VarChar(191)
+  estado             String        @db.VarChar(2)
+  cep                String        @db.VarChar(8)
+  logradouro         String        @db.VarChar(191)
+  numero             String        @db.VarChar(20)
+  complemento        String?       @db.VarChar(60)
+  bairro             String        @db.VarChar(120)
+  ativo              Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  dps                Dps[]
+  notas              NotaFiscal[]
+
+  @@index([documento])
+  @@index([ativo])
+}
+
+model Servico {
+  id                        String   @id @default(uuid()) @db.Char(36)
+  descricao                 String   @db.VarChar(191)
+  codigoTributacaoMunicipal String   @db.VarChar(20)
+  codigoTributacaoNacional  String   @db.VarChar(20)
+  codigoNbs                 String?  @db.VarChar(20)
+  codigoMunicipioPrestacao  String   @db.VarChar(7)
+  municipioPrestacao        String   @db.VarChar(191)
+  informacoesComplementares String?  @db.LongText
+  valorUnitario             Decimal  @db.Decimal(12, 2)
+  aliquotaIss               Decimal? @db.Decimal(5, 2)
+  issRetido                 Boolean  @default(false)
+  ativo                     Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  dps                       Dps[]
+
+  @@index([ativo])
+}
+
+model Dps {
+  id            String      @id @default(uuid()) @db.Char(36)
+  numero        Int
+  serie         Int
+  competencia   DateTime
+  dataEmissao   DateTime
+  ambiente      Ambiente    @default(HOMOLOGACAO)
+  status        DpsStatus   @default(RASCUNHO)
+  prestadorId   String      @db.Char(36)
+  prestador     Prestador   @relation(fields: [prestadorId], references: [id])
+  tomadorId     String      @db.Char(36)
+  tomador       Tomador     @relation(fields: [tomadorId], references: [id])
+  servicoId     String      @db.Char(36)
+  servico       Servico     @relation(fields: [servicoId], references: [id])
+  xmlGerado     String?     @db.LongText
+  observacoes   String?     @db.LongText
+  certificadoId String?     @db.VarChar(191)
+  ativo         Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  notaFiscal    NotaFiscal?
+
+  @@index([numero, serie])
+  @@index([prestadorId])
+  @@index([tomadorId])
+  @@index([ativo])
+}
+
+model NotaFiscal {
+  id                     String          @id @default(uuid()) @db.Char(36)
+  dpsId                  String          @unique @db.Char(36)
+  dps                    Dps             @relation(fields: [dpsId], references: [id])
+  prestadorId            String          @db.Char(36)
+  prestador              Prestador       @relation(fields: [prestadorId], references: [id])
+  tomadorId              String          @db.Char(36)
+  tomador                Tomador         @relation(fields: [tomadorId], references: [id])
+  ambiente               Ambiente        @default(HOMOLOGACAO)
+  certificateId          String          @db.VarChar(191)
+  chaveAcesso            String          @db.VarChar(60)
+  numero                 String          @db.VarChar(30)
+  codigoVerificacao      String?         @db.VarChar(60)
+  urlNfse                String?         @db.VarChar(255)
+  statusCode             Int?
+  rawResponseContentType String?         @db.VarChar(120)
+  rawResponseContent     String?         @db.LongText
+  ativo                  Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  documentos             NotaDocumento[]
+
+  @@index([chaveAcesso])
+  @@index([ambiente])
+  @@index([ativo])
+}
+
+model NotaDocumento {
+  id           String            @id @default(uuid()) @db.Char(36)
+  notaFiscalId String            @db.Char(36)
+  notaFiscal   NotaFiscal        @relation(fields: [notaFiscalId], references: [id])
+  tipo         NotaDocumentoTipo
+  conteudo     String            @db.LongText
+  contentType  String?           @db.VarChar(120)
+  nomeArquivo  String?           @db.VarChar(191)
+  ativo        Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([notaFiscalId])
+}
+
+model TokenIntegracao {
+  id        String              @id @default(uuid()) @db.Char(36)
+  tipo      TokenIntegracaoTipo
+  token     String              @db.VarChar(255)
+  expiresAt DateTime
+  ativo     Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([tipo])
+  @@index([expiresAt])
+}
+
+model LogSistema {
+  id        String   @id @default(uuid()) @db.Char(36)
+  usuarioId String?  @db.Char(36)
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  nivel     LogNivel @default(INFO)
+  origem    String   @db.VarChar(120)
+  acao      String   @db.VarChar(120)
+  mensagem  String   @db.VarChar(255)
+  detalhes  Json?
+  ip        String?  @db.VarChar(45)
+  userAgent String?  @db.VarChar(255)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nivel])
+  @@index([createdAt])
+}
