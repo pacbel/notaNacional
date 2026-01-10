@@ -17,19 +17,53 @@ async function withAuthorization<T>(callback: () => Promise<T>): Promise<T> {
   return callback();
 }
 
+function logApiRequest(method: string, url: string, payload?: unknown, params?: unknown) {
+  const context: Record<string, unknown> = { url };
+
+  if (payload !== undefined) {
+    context.payload = payload;
+  }
+
+  if (params !== undefined) {
+    context.params = params;
+  }
+
+  console.info(`[NFSe][API] ${method} ${url}`, context);
+}
+
+function logApiResponse(method: string, url: string, status: number, data?: unknown) {
+  const context: Record<string, unknown> = { url, status };
+
+  if (data !== undefined) {
+    context.data = data;
+  }
+
+  console.info(`[NFSe][API] ${method} ${url} <- resposta`, context);
+}
+
 export async function emitirNfse(payload: EmitirNfseRequest): Promise<EmitirNfseResponse> {
   return withAuthorization(async () => {
-    const { data } = await notaApi.post<EmitirNfseResponse>(`${NFSE_BASE_PATH}/emitir`, payload);
+    const url = `${NFSE_BASE_PATH}/emitir`;
+    logApiRequest("POST", url, payload);
 
-    return data;
+    const response = await notaApi.post<EmitirNfseResponse>(url, payload);
+
+    logApiResponse("POST", url, response.status, response.data);
+
+    return response.data;
   });
 }
 
 export async function cancelarNfse(payload: CancelarNfseRequest): Promise<CancelarNfseResponse> {
   return withAuthorization(async () => {
-    const { data } = await notaApi.post<CancelarNfseResponse>(`${NFSE_BASE_PATH}/cancelar`, payload);
+    const url = `${NFSE_BASE_PATH}/cancelar`;
+    logApiRequest("POST", url, payload);
 
-    return data;
+    const response = await notaApi.post<CancelarNfseResponse>(url, payload);
+
+    logApiResponse("POST", url, response.status, response.data);
+
+    return response.data;
   });
 }
 
@@ -38,13 +72,17 @@ export async function gerarDanfse(
   params: { ambiente?: number; certificateId: string }
 ): Promise<Buffer> {
   return withAuthorization(async () => {
-    const response = await notaApi.get<ArrayBuffer>(
-      `${NFSE_BASE_PATH}/danfse/${encodeURIComponent(chaveAcesso)}`,
-      {
-        params,
-        responseType: "arraybuffer",
-      }
-    );
+    const url = `${NFSE_BASE_PATH}/danfse/${encodeURIComponent(chaveAcesso)}`;
+    logApiRequest("GET", url, undefined, params);
+
+    const response = await notaApi.get<ArrayBuffer>(url, {
+      params,
+      responseType: "arraybuffer",
+    });
+
+    logApiResponse("GET", url, response.status, {
+      byteLength: response.data.byteLength,
+    });
 
     return Buffer.from(response.data);
   });
@@ -52,16 +90,26 @@ export async function gerarDanfse(
 
 export async function assinarXml(payload: AssinarXmlRequest): Promise<AssinarXmlResponse> {
   return withAuthorization(async () => {
-    const { data } = await notaApi.post<AssinarXmlResponse>(`${NFSE_BASE_PATH}/assinatura`, payload);
+    const url = `${NFSE_BASE_PATH}/assinatura`;
+    logApiRequest("POST", url, payload);
 
-    return data;
+    const response = await notaApi.post<AssinarXmlResponse>(url, payload);
+
+    logApiResponse("POST", url, response.status, response.data);
+
+    return response.data;
   });
 }
 
 export async function listarCertificados(): Promise<CertificadoDto[]> {
   return withAuthorization(async () => {
-    const { data } = await notaApi.get<CertificadoDto[]>(`${NFSE_BASE_PATH}/certificados`);
+    const url = `${NFSE_BASE_PATH}/certificados`;
+    logApiRequest("GET", url);
 
-    return data;
+    const response = await notaApi.get<CertificadoDto[]>(url);
+
+    logApiResponse("GET", url, response.status, response.data);
+
+    return response.data;
   });
 }

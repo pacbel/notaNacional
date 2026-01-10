@@ -47,7 +47,6 @@ export interface CreateDpsPayload {
   dataEmissao: string;
   tipoEmissao?: number;
   observacoes?: string | null;
-  certificadoId?: string;
 }
 
 export interface AssinarDpsPayload {

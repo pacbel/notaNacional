@@ -8,7 +8,6 @@ export const dpsCreateSchema = z.object({
   dataEmissao: z.string().datetime({ message: "Data de emissão inválida" }),
   tipoEmissao: z.number().int().min(0).max(9).default(1),
   observacoes: z.union([z.string(), z.literal("")]).optional(),
-  certificadoId: z.string().optional().or(z.literal("")).transform((value) => (value ? value : undefined)),
 });
 
 export type DpsCreateInput = z.infer<typeof dpsCreateSchema>;

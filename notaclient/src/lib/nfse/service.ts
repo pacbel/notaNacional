@@ -1,5 +1,15 @@
-import type { Ambiente, Prisma } from "@prisma/client";
-import { Ambiente as AmbienteEnum, DpsStatus, NotaDocumentoTipo } from "@prisma/client";
+import {
+  Ambiente as AmbienteEnum,
+  DpsStatus,
+  NotaDocumentoTipo,
+  Prisma,
+  type Ambiente,
+  type ConfiguracaoDps,
+  type Prestador,
+  type Servico,
+  type Tomador,
+} from "@prisma/client";
+import type { AxiosError } from "axios";
 import { z } from "zod";
 
 import { AppError } from "@/lib/errors";
@@ -19,12 +29,28 @@ import type {
   CertificadoDto,
   EmitirNfseResponse,
 } from "./types";
+import {
+  generateDpsXml,
+  type ConfiguracaoBase,
+  type PartyBase,
+  type ServicoBase,
+  type TomadorBase,
+} from "./xml/dps-xml";
+import { resolveCertificateId } from "./certificado-service";
 
 type Nullable<T> = T | null | undefined;
 
 type DpsWithPrestador = Prisma.DpsGetPayload<{
   include: {
     prestador: true;
+  };
+}>;
+
+type DpsWithRelations = Prisma.DpsGetPayload<{
+  include: {
+    prestador: true;
+    tomador: true;
+    servico: true;
   };
 }>;
 
@@ -35,6 +61,74 @@ type NotaWithRelations = Prisma.NotaFiscalGetPayload<{
   };
 }>;
 
+function logInfo(message: string, context?: Record<string, unknown>) {
+  if (context) {
+    console.info(`[NFSe] ${message}`, context);
+    return;
+  }
+
+  console.info(`[NFSe] ${message}`);
+}
+
+function logError(message: string, context?: Record<string, unknown>) {
+  if (context) {
+    console.error(`[NFSe] ${message}`, context);
+    return;
+  }
+
+  console.error(`[NFSe] ${message}`);
+}
+
+function parseNotaApiError(error: unknown): { message: string; statusCode?: number; details?: unknown } {
+  if (typeof error === "object" && error !== null && "isAxiosError" in error) {
+    const axiosError = error as AxiosError;
+    const statusCode = axiosError.response?.status;
+    const data = axiosError.response?.data;
+    let message = axiosError.message;
+
+    if (typeof data === "string" && data.trim()) {
+      message = data;
+    } else if (data && typeof data === "object" && "message" in data && typeof (data as { message: unknown }).message === "string") {
+      message = (data as { message: string }).message;
+    }
+
+    return {
+      message,
+      statusCode,
+      details: {
+        statusCode,
+        data,
+      },
+    };
+  }
+
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  return { message: String(error) };
+}
+
+function resolveSefinErrorMessage(content?: unknown, fallbackStatus?: number): string {
+  if (typeof content === "string" && content.trim()) {
+    return content;
+  }
+
+  if (content && typeof content === "object") {
+    try {
+      return JSON.stringify(content);
+    } catch {
+      // ignore json stringify issues
+    }
+  }
+
+  if (fallbackStatus) {
+    return `SEFIN retornou status ${fallbackStatus}`;
+  }
+
+  return "SEFIN retornou resposta sem detalhes.";
+}
+
 function mapAmbienteToApi(ambiente: Ambiente | null | undefined, override?: Nullable<number>): number {
   if (override === 1 || override === 2) {
     return override;
@@ -42,6 +136,7 @@ function mapAmbienteToApi(ambiente: Ambiente | null | undefined, override?: Null
 
   return ambiente === AmbienteEnum.PRODUCAO ? 1 : 2;
 }
+
 
 export const createDpsSchema = dpsCreateSchema;
 
@@ -98,6 +193,9 @@ export async function createDps(payload: CreateDpsInput) {
       valorUnitario: servico.valorUnitario.toNumber(),
       codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
       codigoTributacaoNacional: servico.codigoTributacaoNacional,
+      codigoNbs: servico.codigoNbs,
+      codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
+      informacoesComplementares: servico.informacoesComplementares,
     },
     competencia: competencia.toISOString(),
     dataEmissao: emissao.toISOString(),
@@ -121,33 +219,63 @@ export async function createDps(payload: CreateDpsInput) {
     observacoes: data.observacoes ?? undefined,
   };
 
-  const createdDps = await prisma.dps.create({
-    data: {
-      identificador,
-      numero,
-      serie,
-      prestadorId: prestador.id,
-      tomadorId: tomador.id,
-      servicoId: servico.id,
+  const jsonEntradaString = JSON.stringify(jsonEntrada);
+
+  const { record, xmlGerado } = await prisma.$transaction(async (tx) => {
+    const created: DpsWithRelations = await tx.dps.create({
+      data: {
+        identificador,
+        numero,
+        serie,
+        prestadorId: prestador.id,
+        tomadorId: tomador.id,
+        servicoId: servico.id,
+        competencia,
+        dataEmissao: emissao,
+        tipoEmissao: data.tipoEmissao ?? 1,
+        codigoLocalEmissao: prestador.codigoMunicipio,
+        versao: "1.00",
+        versaoAplicacao: configuracao.verAplic,
+        ambiente: configuracao.ambientePadrao,
+        jsonEntrada: jsonEntradaString,
+        observacoes: data.observacoes ?? configuracao.xTribNac,
+      },
+      include: {
+        prestador: true,
+        tomador: true,
+        servico: true,
+      },
+    });
+
+    const xml = generateDpsXml({
+      identificador: created.identificador,
+      numero: created.numero,
+      serie: created.serie,
       competencia,
-      dataEmissao: emissao,
-      tipoEmissao: data.tipoEmissao ?? 1,
-      codigoLocalEmissao: prestador.codigoMunicipio,
-      versao: "1.00",
-      versaoAplicacao: configuracao.verAplic,
-      ambiente: configuracao.ambientePadrao,
-      certificadoId: data.certificadoId,
-      jsonEntrada: JSON.stringify(jsonEntrada),
-      observacoes: data.observacoes ?? configuracao.xTribNac,
-    },
-    include: {
-      prestador: true,
-      tomador: true,
-      servico: true,
-    },
+      emissao,
+      prestador: mapPrestadorToXmlInput(prestador),
+      tomador: mapTomadorToXmlInput(created.tomador),
+      servico: mapServicoToXmlInput(created.servico),
+      configuracao: mapConfiguracaoToXmlInput(configuracao),
+      observacoes: data.observacoes,
+    });
+
+    await tx.dps.update({
+      where: { id: created.id },
+      data: {
+        xmlGerado: xml,
+        mensagemErro: null,
+      },
+    });
+
+    return { record: created, xmlGerado: xml };
   });
 
-  return createdDps;
+  return {
+    ...record,
+    jsonEntrada: jsonEntradaString,
+    xmlGerado,
+  };
 }
 
 async function resolveDps(dpsId: string): Promise<DpsWithPrestador> {
@@ -163,25 +291,6 @@ async function resolveDps(dpsId: string): Promise<DpsWithPrestador> {
   }
 
   return dps;
-}
-
-function resolveCertificadoId(options: {
-  provided?: Nullable<string>;
-  dpsCertificado?: Nullable<string>;
-  prestadorCertificado?: Nullable<string>;
-  notaCertificado?: Nullable<string>;
-}): string {
-  const certificateId =
-    options.provided?.trim() ||
-    options.dpsCertificado?.trim() ||
-    options.notaCertificado?.trim() ||
-    options.prestadorCertificado?.trim();
-
-  if (!certificateId) {
-    throw new AppError("Certificado não configurado para esta operação", 400);
-  }
-
-  return certificateId;
 }
 
 export async function obterCertificados(): Promise<CertificadoDto[]> {
@@ -206,6 +315,55 @@ function buildIdentificador(prestadorId: string): string {
   return `${prestadorId.slice(0, 8)}-${serial}`;
 }
 
+function mapPrestadorToXmlInput(prestador: Prestador): PartyBase {
+  return {
+    cnpj: prestador.cnpj,
+    codigoMunicipio: prestador.codigoMunicipio,
+  };
+}
+
+function mapTomadorToXmlInput(tomador: Tomador): TomadorBase {
+  return {
+    tipoDocumento: tomador.tipoDocumento,
+    documento: tomador.documento,
+    nomeRazaoSocial: tomador.nomeRazaoSocial,
+    codigoMunicipio: tomador.codigoMunicipio,
+    logradouro: tomador.logradouro,
+    numero: tomador.numero,
+    bairro: tomador.bairro,
+    complemento: tomador.complemento,
+    cep: tomador.cep,
+    telefone: tomador.telefone,
+    email: tomador.email,
+  };
+}
+
+function mapServicoToXmlInput(servico: Servico): ServicoBase {
+  return {
+    descricao: servico.descricao,
+    valorUnitario: servico.valorUnitario,
+    codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
+    codigoTributacaoNacional: servico.codigoTributacaoNacional,
+    codigoNbs: servico.codigoNbs,
+    codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
+    informacoesComplementares: servico.informacoesComplementares,
+  };
+}
+
+function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
+  return {
+    ambGer: config.ambGer,
+    verAplic: config.verAplic,
+    tpEmis: config.tpEmis,
+    tribISSQN: config.tribISSQN,
+    tpImunidade: config.tpImunidade,
+    tpRetISSQN: config.tpRetISSQN,
+    pTotTribFed: config.pTotTribFed,
+    pTotTribEst: config.pTotTribEst,
+    pTotTribMun: config.pTotTribMun,
+  };
+}
+
 export const assinarDpsSchema = z.object({
   dpsId: z.string().uuid(),
   tag: z.string().min(1),
@@ -225,23 +383,44 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
 
   const prestadorCertificadoPadrao = (dps.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null;
 
-  const resolvedCertificate = resolveCertificadoId({
+  logInfo("Resolvendo certificado para assinatura", { dpsId, prestadorId: dps.prestadorId });
+
+  const resolvedCertificate = await resolveCertificateId({
+    prestadorCnpj: dps.prestador.cnpj,
     provided: certificateId,
     dpsCertificado: dps.certificadoId,
     prestadorCertificado: prestadorCertificadoPadrao,
   });
 
-  const xmlAssinado = await assinarXml({
-    prestadorId: dps.prestadorId,
-    xml: xmlGerado,
-    tag,
-    certificateId: resolvedCertificate,
-  });
+  logInfo("Certificado resolvido para assinatura", { dpsId, certificateId: resolvedCertificate });
+
+  let xmlAssinado: string;
+
+  try {
+    xmlAssinado = await assinarXml({
+      prestadorId: dps.prestadorId,
+      xml: xmlGerado,
+      tag,
+      certificateId: resolvedCertificate,
+    });
+  } catch (error) {
+    const notaError = parseNotaApiError(error);
+    logError("Falha ao assinar DPS", {
+      dpsId,
+      prestadorId: dps.prestadorId,
+      certificateId: resolvedCertificate,
+      statusCode: notaError.statusCode,
+      detalhes: notaError.details,
+    });
+
+    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+  }
+
+  logInfo("DPS assinada com sucesso", { dpsId, prestadorId: dps.prestadorId });
 
   await prisma.dps.update({
     where: { id: dpsId },
     data: {
-      certificadoId: resolvedCertificate,
       xmlAssinado,
       status: DpsStatus.ASSINADO,
       mensagemErro: null,
@@ -271,7 +450,8 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
 
   const prestadorCertificadoPadrao = (dps.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null;
 
-  const resolvedCertificate = resolveCertificadoId({
+  const resolvedCertificate = await resolveCertificateId({
+    prestadorCnpj: dps.prestador.cnpj,
     provided: certificateId,
     dpsCertificado: dps.certificadoId,
     prestadorCertificado: prestadorCertificadoPadrao,
@@ -279,17 +459,65 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
 
   const ambienteApi = mapAmbienteToApi(dps.ambiente, ambiente);
 
-  const response = await emitirNfse({
-    xmlAssinado,
+  logInfo("Solicitando emissão da NFSe", {
+    dpsId,
+    prestadorId: dps.prestadorId,
     ambiente: ambienteApi,
     certificateId: resolvedCertificate,
   });
 
+  let response: EmitirNfseResponse;
+
+  try {
+    response = await emitirNfse({
+      xmlAssinado,
+      ambiente: ambienteApi,
+      certificateId: resolvedCertificate,
+    });
+  } catch (error) {
+    const notaError = parseNotaApiError(error);
+    logError("Falha ao enviar solicitação de emissão para SEFIN", {
+      dpsId,
+      prestadorId: dps.prestadorId,
+      ambiente: ambienteApi,
+      statusCode: notaError.statusCode,
+      detalhes: notaError.details,
+    });
+
+    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+  }
+
+  logInfo("Resposta da SEFIN recebida", {
+    dpsId,
+    prestadorId: dps.prestadorId,
+    statusCode: response.statusCode,
+    rawResponseContentType: response.rawResponseContentType,
+  });
+
   const chaveAcesso = response.chaveAcesso;
 
-  if (!chaveAcesso) {
-    throw new AppError("Resposta da emissão não retornou chave de acesso", 502, response);
+  if (!chaveAcesso || (response.statusCode && response.statusCode >= 400)) {
+    const message = resolveSefinErrorMessage(response.rawResponseContent, response.statusCode);
+
+    logError("SEFIN retornou erro ao emitir NFSe", {
+      dpsId,
+      prestadorId: dps.prestadorId,
+      statusCode: response.statusCode,
+      rawResponseContent: response.rawResponseContent,
+    });
+
+    throw new AppError(message, 502, {
+      statusCode: response.statusCode,
+      rawResponseContentType: response.rawResponseContentType,
+      rawResponseContent: response.rawResponseContent,
+    });
   }
+
+  logInfo("NFSe emitida com sucesso", {
+    dpsId,
+    prestadorId: dps.prestadorId,
+    chaveAcesso,
+  });
 
   const now = new Date();
 
@@ -297,7 +525,6 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     await tx.dps.update({
       where: { id: dpsId },
       data: {
-        certificadoId: resolvedCertificate,
         status: DpsStatus.ENVIADO,
         dataEnvio: now,
         dataRetorno: now,
@@ -313,7 +540,6 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
         prestadorId: dps.prestadorId,
         tomadorId: dps.tomadorId,
         ambiente: dps.ambiente,
-        certificateId: resolvedCertificate,
         chaveAcesso,
         numero: response.numero ?? "",
         codigoVerificacao: response.codigoVerificacao,
@@ -323,7 +549,6 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
         rawResponseContent: response.rawResponseContent,
       },
       update: {
-        certificateId: resolvedCertificate,
         ambiente: dps.ambiente,
         chaveAcesso,
         numero: response.numero ?? "",
@@ -405,7 +630,8 @@ export async function cancelarNota({
     throw new AppError("NFSe não encontrada", 404);
   }
 
-  const resolvedCertificate = resolveCertificadoId({
+  const resolvedCertificate = await resolveCertificateId({
+    prestadorCnpj: nota.prestador.cnpj,
     provided: certificateId,
     notaCertificado: nota.certificateId,
     dpsCertificado: nota.dps?.certificadoId,
@@ -414,18 +640,44 @@ export async function cancelarNota({
 
   const ambienteApi = mapAmbienteToApi(nota.ambiente, ambiente);
 
-  const response = await cancelarNfse({
+  logInfo("Solicitando cancelamento de NFSe", {
     chaveAcesso,
-    eventoXmlGZipBase64,
+    prestadorId: nota.prestadorId,
     ambiente: ambienteApi,
     certificateId: resolvedCertificate,
+  });
+
+  let response: CancelarNfseResponse;
+
+  try {
+    response = await cancelarNfse({
+      chaveAcesso,
+      eventoXmlGZipBase64,
+      ambiente: ambienteApi,
+      certificateId: resolvedCertificate,
+    });
+  } catch (error) {
+    const notaError = parseNotaApiError(error);
+    logError("Falha ao solicitar cancelamento à SEFIN", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
+      statusCode: notaError.statusCode,
+      detalhes: notaError.details,
+    });
+
+    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+  }
+
+  logInfo("Resposta de cancelamento recebida", {
+    chaveAcesso,
+    prestadorId: nota.prestadorId,
+    statusCode: response.statusCode,
   });
 
   await prisma.$transaction(async (tx) => {
     await tx.notaFiscal.update({
       where: { id: nota.id },
       data: {
-        certificateId: resolvedCertificate,
         statusCode: response.statusCode,
         rawResponseContentType: response.contentType,
         rawResponseContent: response.content,
@@ -438,7 +690,6 @@ export async function cancelarNota({
         where: { id: nota.dpsId },
         data: {
           status: DpsStatus.CANCELADO,
-          certificadoId: resolvedCertificate,
           mensagemErro: null,
           dataRetorno: new Date(),
         },
@@ -475,7 +726,8 @@ export async function gerarDanfse(
     throw new AppError("NFSe não encontrada", 404);
   }
 
-  const resolvedCertificate = resolveCertificadoId({
+  const resolvedCertificate = await resolveCertificateId({
+    prestadorCnpj: nota.prestador.cnpj,
     provided: options.certificateId,
     notaCertificado: nota.certificateId,
     dpsCertificado: nota.dps?.certificadoId,
@@ -484,9 +736,35 @@ export async function gerarDanfse(
 
   const ambienteApi = mapAmbienteToApi(nota.ambiente, options.ambiente);
 
-  const buffer = await gerarDanfseApi(chaveAcesso, {
+  logInfo("Solicitando DANFSE", {
+    chaveAcesso,
+    prestadorId: nota.prestadorId,
     ambiente: ambienteApi,
     certificateId: resolvedCertificate,
+  });
+
+  let buffer: Buffer;
+
+  try {
+    buffer = await gerarDanfseApi(chaveAcesso, {
+      ambiente: ambienteApi,
+      certificateId: resolvedCertificate,
+    });
+  } catch (error) {
+    const notaError = parseNotaApiError(error);
+    logError("Falha ao gerar DANFSE", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
+      statusCode: notaError.statusCode,
+      detalhes: notaError.details,
+    });
+
+    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+  }
+
+  logInfo("DANFSE gerada com sucesso", {
+    chaveAcesso,
+    prestadorId: nota.prestadorId,
   });
 
   const filename = `NFSe-${nota.numero || chaveAcesso}.pdf`;

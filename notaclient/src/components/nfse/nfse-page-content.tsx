@@ -77,7 +77,6 @@ interface CreateFormState {
   competencia: string;
   dataEmissao: string;
   observacoes: string;
-  certificadoId: string;
 }
 
 interface CertificatesResponseItem {
@@ -123,17 +122,6 @@ const AMBIENTE_OPTIONS = [
 
 const SELECT_LOADING_VALUE = "__loading__";
 const SELECT_EMPTY_VALUE = "__empty__";
-const CERTIFICATE_DEFAULT_VALUE = "__certificate_default__";
-
-const INVALID_SELECT_VALUES = [SELECT_LOADING_VALUE, SELECT_EMPTY_VALUE];
-
-function normalizeOptionalSelectValue(value: string | undefined) {
-  if (!value || value === CERTIFICATE_DEFAULT_VALUE || INVALID_SELECT_VALUES.includes(value)) {
-    return undefined;
-  }
-
-  return value;
-}
 
 function normalizeOptionalText(value: string | null | undefined) {
   if (value === null || value === undefined) {
@@ -179,7 +167,7 @@ export default function NfsePageContent() {
   const [selectedStatuses, setSelectedStatuses] = useState<DpsStatus[]>(["RASCUNHO", "ASSINADO"]);
   const [actionState, setActionState] = useState<ActionState | null>(null);
   const [selectedCertificateId, setSelectedCertificateId] = useState<string>("");
-  const [selectedTag, setSelectedTag] = useState("infDPS");
+  const DEFAULT_SIGNATURE_TAG = "infDPS";
   const [selectedAmbiente, setSelectedAmbiente] = useState<string>("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState>(() => ({
@@ -189,7 +177,6 @@ export default function NfsePageContent() {
     competencia: new Date().toISOString(),
     dataEmissao: new Date().toISOString(),
     observacoes: "",
-    certificadoId: "",
   }));
   const [cancelState, setCancelState] = useState<{
     nota: NotaDto;
@@ -256,7 +243,6 @@ export default function NfsePageContent() {
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps", statusKey] });
       setActionState(null);
-      setSelectedTag("infDPS");
       setSelectedCertificateId(variables.certificateId ?? "");
     },
     onError: (error) => {
@@ -335,7 +321,6 @@ export default function NfsePageContent() {
 
     const firstCertificate = certificados[0]?.id ?? "";
     setSelectedCertificateId(actionState.dps.certificadoId ?? firstCertificate);
-    setSelectedTag("infDPS");
     setSelectedAmbiente(actionState.dps.ambiente === "PRODUCAO" ? "1" : "2");
   }, [actionState, certificados]);
 
@@ -404,7 +389,6 @@ export default function NfsePageContent() {
       competencia: new Date().toISOString(),
       dataEmissao: new Date().toISOString(),
       observacoes: "",
-      certificadoId: "",
     });
   };
 
@@ -416,7 +400,6 @@ export default function NfsePageContent() {
       competencia: createForm.competencia,
       dataEmissao: createForm.dataEmissao,
       observacoes: normalizeOptionalText(createForm.observacoes),
-      certificadoId: normalizeOptionalSelectValue(createForm.certificadoId),
     });
   };
 
@@ -426,15 +409,21 @@ export default function NfsePageContent() {
     }
 
     if (!selectedCertificateId) {
-      toast.error("Selecione um certificado para continuar");
+      try {
+        await assinarMutation.mutateAsync({
+          dpsId: actionState.dps.id,
+          tag: DEFAULT_SIGNATURE_TAG,
+        });
+      } catch {
+        // handled by mutation
+      }
       return;
     }
 
     if (actionState.type === "sign") {
       await assinarMutation.mutateAsync({
         dpsId: actionState.dps.id,
-        certificateId: selectedCertificateId,
-        tag: selectedTag,
+        tag: DEFAULT_SIGNATURE_TAG,
       });
       return;
     }
@@ -443,7 +432,6 @@ export default function NfsePageContent() {
 
     await emitirMutation.mutateAsync({
       dpsId: actionState.dps.id,
-      certificateId: selectedCertificateId,
       ambiente: ambienteNumber,
     });
   };
@@ -723,8 +711,8 @@ export default function NfsePageContent() {
             <DialogTitle>{actionState?.type === "sign" ? "Assinar DPS" : "Emitir NFSe"}</DialogTitle>
             <DialogDescription>
               {actionState?.type === "sign"
-                ? "Selecione o certificado que será utilizado para assinar o XML desta DPS."
-                : "Confirme os dados para envio da NFSe e escolha o certificado."}
+                ? "O certificado será resolvido automaticamente. Confirme para assinar a DPS."
+                : "O certificado será resolvido automaticamente. Informe apenas o ambiente se necessário."}
             </DialogDescription>
           </DialogHeader>
 
@@ -737,42 +725,7 @@ export default function NfsePageContent() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="certificateId">
-                  Certificado A1
-                </label>
-                <Select value={selectedCertificateId} onValueChange={setSelectedCertificateId}>
-                  <SelectTrigger id="certificateId">
-                    <SelectValue placeholder="Selecione o certificado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {certificadosQuery.isLoading ? (
-                      <SelectItem value={SELECT_LOADING_VALUE} disabled>
-                        Carregando certificados...
-                      </SelectItem>
-                    ) : certificados.length > 0 ? (
-                      certificados.map((certificado) => (
-                        <SelectItem key={certificado.id} value={certificado.id}>
-                          {resolveCertificateLabel(certificado)}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value={SELECT_EMPTY_VALUE} disabled>
-                        Nenhum certificado disponível
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {actionState.type === "sign" ? (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="tag">
-                    Tag XML a assinar
-                  </label>
-                  <Input id="tag" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)} />
-                </div>
-              ) : (
+              {actionState.type === "sign" ? null : (
                 <div className="space-y-2">
                   <label className="text-sm font-medium" htmlFor="ambiente">
                     Ambiente de emissão
@@ -791,12 +744,9 @@ export default function NfsePageContent() {
                   </Select>
                 </div>
               )}
-
-              {selectedCertificate && selectedCertificate.validadeFim && (
-                <p className="text-xs text-muted-foreground">
-                  Validade do certificado: {formatDate(selectedCertificate.validadeFim)}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                O certificado A1 será obtido automaticamente pela API Nota.
+              </p>
             </div>
           ) : null}
 
@@ -1065,32 +1015,7 @@ export default function NfsePageContent() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="createCertificateId">Certificado A1</Label>
-              <Select
-                value={createForm.certificadoId}
-                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, certificadoId: value }))}
-                disabled={certificadosQuery.isLoading || createDpsMutation.isPending}
-              >
-                <SelectTrigger id="createCertificateId">
-                  <SelectValue placeholder="Usar padrão" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={CERTIFICATE_DEFAULT_VALUE}>Usar padrão</SelectItem>
-                  {certificados.length > 0 ? (
-                    certificados.map((certificado) => (
-                      <SelectItem key={certificado.id} value={certificado.id}>
-                        {resolveCertificateLabel(certificado)}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
-                      Nenhum certificado disponível
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="space-y-2">&nbsp;</div>
           </div>
 
           <DialogFooter>
