@@ -250,9 +250,14 @@ export async function downloadDanfse(chaveAcesso: string, params: { ambiente?: n
     searchParams.size ? `?${searchParams.toString()}` : ""
   }`;
 
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  const newWindow = window.open("", "_blank");
 
-  if (!opened) {
-    throw new Error("Não foi possível abrir a DANFSE em uma nova guia. Verifique se o bloqueador de pop-ups está desativado.");
+  if (newWindow) {
+    newWindow.opener = null;
+    newWindow.location.href = url;
+    newWindow.focus?.();
+    return;
   }
+
+  window.location.href = url;
 }
