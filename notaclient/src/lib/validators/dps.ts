@@ -7,11 +7,7 @@ export const dpsCreateSchema = z.object({
   competencia: z.string().datetime({ message: "Competência inválida" }),
   dataEmissao: z.string().datetime({ message: "Data de emissão inválida" }),
   tipoEmissao: z.number().int().min(0).max(9).default(1),
-  observacoes: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value ?? null)),
+  observacoes: z.union([z.string(), z.literal("")]).optional(),
   certificadoId: z.string().optional().or(z.literal("")).transform((value) => (value ? value : undefined)),
 });
 

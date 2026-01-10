@@ -122,14 +122,16 @@ async function main() {
     },
   });
 
+  const servicoId = "6f5c0eac-5a44-4aa4-bc71-2df42d4a9f8a";
+
   const servico = await prisma.servico.upsert({
-    where: { id: "default-servico" },
+    where: { id: servicoId },
     update: {
       descricao: "Serviço de tecnologia",
       valorUnitario: 152.3,
     },
     create: {
-      id: "default-servico",
+      id: servicoId,
       descricao: "Serviço de tecnologia",
       codigoTributacaoMunicipal: "001",
       codigoTributacaoNacional: "040101",

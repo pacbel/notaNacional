@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { ServicoToolbar } from "@/components/servicos/servico-toolbar";
 import { ServicoTable } from "@/components/servicos/servico-table";
 import { ServicoFormDialog } from "@/components/servicos/servico-form-dialog";
-import { ServicoDetailsDrawer } from "@/components/servicos/servico-details-drawer";
+import { ServicoDetailsDrawer } from "./servico-details-drawer";
 
 interface ServicosFilters {
   search: string;

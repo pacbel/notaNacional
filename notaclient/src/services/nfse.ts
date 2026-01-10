@@ -148,6 +148,18 @@ export async function listDps(params: { statuses?: DpsStatus[] } = {}): Promise<
   return handleResponse<DpsDto[]>(response);
 }
 
+export async function createDps(payload: CreateDpsPayload): Promise<DpsDto> {
+  const response = await fetch("/api/nfse/dps", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<DpsDto>(response);
+}
+
 export async function listCertificados() {
   const response = await fetch("/api/nfse", {
     method: "GET",

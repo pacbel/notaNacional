@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -51,17 +52,33 @@ import StatisticsSummary from "@/components/nfse/statistics-summary";
 import {
   assinarDps,
   cancelarNfse,
+  createDps,
   downloadDanfse,
   emitirNfse,
   listCertificados,
   listDps,
   listNotas,
   type AssinarDpsPayload,
+  type CreateDpsPayload,
   type DpsDto,
   type DpsStatus,
   type EmitirNfsePayload,
   type NotaDto,
 } from "@/services/nfse";
+import { listPrestadores, type PrestadorDto } from "@/services/prestadores";
+import { listTomadores, type TomadorDto } from "@/services/tomadores";
+import { listServicos, type ServicoDto } from "@/services/servicos";
+import { dpsCreateSchema } from "@/lib/validators/dps";
+
+interface CreateFormState {
+  prestadorId: string;
+  tomadorId: string;
+  servicoId: string;
+  competencia: string;
+  dataEmissao: string;
+  observacoes: string;
+  certificadoId: string;
+}
 
 interface CertificatesResponseItem {
   id: string;
@@ -104,6 +121,28 @@ const AMBIENTE_OPTIONS = [
   { value: "2", label: "Homologação" },
 ];
 
+const SELECT_LOADING_VALUE = "__loading__";
+const SELECT_EMPTY_VALUE = "__empty__";
+const CERTIFICATE_DEFAULT_VALUE = "__certificate_default__";
+
+const INVALID_SELECT_VALUES = [SELECT_LOADING_VALUE, SELECT_EMPTY_VALUE];
+
+function normalizeOptionalSelectValue(value: string | undefined) {
+  if (!value || value === CERTIFICATE_DEFAULT_VALUE || INVALID_SELECT_VALUES.includes(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function normalizeOptionalText(value: string | null | undefined) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return value;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -142,6 +181,16 @@ export default function NfsePageContent() {
   const [selectedCertificateId, setSelectedCertificateId] = useState<string>("");
   const [selectedTag, setSelectedTag] = useState("infDPS");
   const [selectedAmbiente, setSelectedAmbiente] = useState<string>("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateFormState>(() => ({
+    prestadorId: "",
+    tomadorId: "",
+    servicoId: "",
+    competencia: new Date().toISOString(),
+    dataEmissao: new Date().toISOString(),
+    observacoes: "",
+    certificadoId: "",
+  }));
   const [cancelState, setCancelState] = useState<{
     nota: NotaDto;
     eventoXml: string;
@@ -156,6 +205,33 @@ export default function NfsePageContent() {
   const certificadosQuery = useQuery<CertificatesResponseItem[]>({
     queryKey: ["nfse", "certificados"],
     queryFn: listCertificados,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const prestadoresQuery = useQuery<PrestadorDto[]>({
+    queryKey: ["nfse", "prestadores"],
+    queryFn: async () => {
+      const { data } = await listPrestadores({ perPage: 100, status: "ativos" });
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const tomadoresQuery = useQuery<TomadorDto[]>({
+    queryKey: ["nfse", "tomadores"],
+    queryFn: async () => {
+      const { data } = await listTomadores({ perPage: 100, status: "ativos" });
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const servicosQuery = useQuery<ServicoDto[]>({
+    queryKey: ["nfse", "servicos"],
+    queryFn: async () => {
+      const { data } = await listServicos({ perPage: 100, status: "ativos" });
+      return data;
+    },
     staleTime: 5 * 60 * 1000,
   });
 
@@ -211,6 +287,22 @@ export default function NfsePageContent() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Erro ao cancelar NFSe");
+    },
+  });
+
+  const createDpsMutation = useMutation({
+    mutationFn: async (values: CreateDpsPayload) => {
+      const parsed = dpsCreateSchema.parse(values);
+      return createDps(parsed);
+    },
+    onSuccess: () => {
+      toast.success("DPS criada com sucesso");
+      setShowCreateDialog(false);
+      resetCreateForm();
+      queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar DPS");
     },
   });
 
@@ -304,6 +396,30 @@ export default function NfsePageContent() {
     setActionState({ type, dps });
   };
 
+  const resetCreateForm = () => {
+    setCreateForm({
+      prestadorId: "",
+      tomadorId: "",
+      servicoId: "",
+      competencia: new Date().toISOString(),
+      dataEmissao: new Date().toISOString(),
+      observacoes: "",
+      certificadoId: "",
+    });
+  };
+
+  const handleSubmitCreate = () => {
+    createDpsMutation.mutate({
+      prestadorId: createForm.prestadorId,
+      tomadorId: createForm.tomadorId,
+      servicoId: createForm.servicoId,
+      competencia: createForm.competencia,
+      dataEmissao: createForm.dataEmissao,
+      observacoes: normalizeOptionalText(createForm.observacoes),
+      certificadoId: normalizeOptionalSelectValue(createForm.certificadoId),
+    });
+  };
+
   const handleConfirmAction = async () => {
     if (!actionState) {
       return;
@@ -370,12 +486,28 @@ export default function NfsePageContent() {
           </Button>
         </div>
 
-        <StatisticsSummary
-          totalNotas={statistics.totalNotas}
-          notasMes={statistics.notasMes}
-          dpsPendentes={statistics.dpsPendentes}
-          valorTotalMes={statistics.valorTotalMes}
-        />
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <StatisticsSummary
+            totalNotas={statistics.totalNotas}
+            notasMes={statistics.notasMes}
+            dpsPendentes={statistics.dpsPendentes}
+            valorTotalMes={statistics.valorTotalMes}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            onClick={() => {
+              setCreateForm((prev) => ({
+                ...prev,
+                competencia: new Date().toISOString(),
+                dataEmissao: new Date().toISOString(),
+              }));
+              setShowCreateDialog(true);
+            }}
+          >
+            Nova DPS
+          </Button>
+        </div>
       </section>
 
       <section className="rounded-lg border bg-card shadow-sm">
@@ -588,9 +720,7 @@ export default function NfsePageContent() {
       <Dialog open={actionState !== null} onOpenChange={(open) => !open && setActionState(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {actionState?.type === "sign" ? "Assinar DPS" : "Emitir NFSe"}
-            </DialogTitle>
+            <DialogTitle>{actionState?.type === "sign" ? "Assinar DPS" : "Emitir NFSe"}</DialogTitle>
             <DialogDescription>
               {actionState?.type === "sign"
                 ? "Selecione o certificado que será utilizado para assinar o XML desta DPS."
@@ -617,7 +747,7 @@ export default function NfsePageContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {certificadosQuery.isLoading ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value={SELECT_LOADING_VALUE} disabled>
                         Carregando certificados...
                       </SelectItem>
                     ) : certificados.length > 0 ? (
@@ -627,7 +757,7 @@ export default function NfsePageContent() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value={SELECT_EMPTY_VALUE} disabled>
                         Nenhum certificado disponível
                       </SelectItem>
                     )}
@@ -702,14 +832,16 @@ export default function NfsePageContent() {
                 </label>
                 <Select
                   value={cancelState.certificateId}
-                  onValueChange={(value) => setCancelState((state) => (state ? { ...state, certificateId: value } : state))}
+                  onValueChange={(value) =>
+                    setCancelState((state) => (state ? { ...state, certificateId: value } : state))
+                  }
                 >
                   <SelectTrigger id="cancelCertificateId">
                     <SelectValue placeholder="Selecione o certificado" />
                   </SelectTrigger>
                   <SelectContent>
                     {certificadosQuery.isLoading ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value={SELECT_LOADING_VALUE} disabled>
                         Carregando certificados...
                       </SelectItem>
                     ) : certificados.length > 0 ? (
@@ -719,7 +851,7 @@ export default function NfsePageContent() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value={SELECT_EMPTY_VALUE} disabled>
                         Nenhum certificado disponível
                       </SelectItem>
                     )}
@@ -728,14 +860,30 @@ export default function NfsePageContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="cancelAmbiente">
+                <label className="text-sm font-medium" htmlFor="xmlCancelamento">
+                  XML de cancelamento (GZip Base64)
+                </label>
+                <Textarea
+                  id="xmlCancelamento"
+                  value={cancelState.eventoXml}
+                  onChange={(event) =>
+                    setCancelState((state) => (state ? { ...state, eventoXml: event.target.value } : state))
+                  }
+                  rows={4}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="ambienteCancelamento">
                   Ambiente
                 </label>
                 <Select
                   value={cancelState.ambiente}
-                  onValueChange={(value) => setCancelState((state) => (state ? { ...state, ambiente: value } : state))}
+                  onValueChange={(value) =>
+                    setCancelState((state) => (state ? { ...state, ambiente: value } : state))
+                  }
                 >
-                  <SelectTrigger id="cancelAmbiente">
+                  <SelectTrigger id="ambienteCancelamento">
                     <SelectValue placeholder="Selecione o ambiente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -747,46 +895,225 @@ export default function NfsePageContent() {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="cancelEventoXml">
-                  XML do evento (Base64 GZip)
-                </label>
-                <Textarea
-                  id="cancelEventoXml"
-                  value={cancelState.eventoXml}
-                  onChange={(event) => setCancelState((state) => (state ? { ...state, eventoXml: event.target.value } : state))}
-                  rows={5}
-                />
-              </div>
-
-              {cancelSelectedCertificate && cancelSelectedCertificate.validadeFim && (
-                <p className="text-xs text-muted-foreground">
-                  Validade do certificado: {formatDate(cancelSelectedCertificate.validadeFim)}
-                </p>
-              )}
             </div>
           ) : null}
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setCancelState(null)} disabled={cancelarMutation.isPending}>
-              Fechar
+              Cancelar
             </Button>
             <Button
               type="button"
-              disabled={cancelarMutation.isPending || !cancelState?.eventoXml || !cancelState?.certificateId}
               onClick={() =>
                 cancelState &&
                 cancelarMutation.mutate({
                   chaveAcesso: cancelState.nota.chaveAcesso,
                   eventoXmlGZipBase64: cancelState.eventoXml,
-                  certificateId: cancelState.certificateId,
-                  ambiente: Number(cancelState.ambiente) ?? undefined,
+                  certificateId: cancelState.certificateId || undefined,
+                  ambiente: cancelState.ambiente ? Number(cancelState.ambiente) : undefined,
                 })
               }
+              disabled={cancelarMutation.isPending || !cancelState?.eventoXml}
             >
               {cancelarMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Cancelar NFSe
+              Confirmar cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) {
+            resetCreateForm();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova DPS</DialogTitle>
+            <DialogDescription>Informe os dados necessários para gerar uma nova declaração.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="prestadorId">Prestador</Label>
+              <Select
+                value={createForm.prestadorId}
+                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, prestadorId: value }))}
+                disabled={prestadoresQuery.isLoading || createDpsMutation.isPending}
+              >
+                <SelectTrigger id="prestadorId">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {prestadoresQuery.isLoading ? (
+                    <SelectItem value={SELECT_LOADING_VALUE} disabled>
+                      Carregando...
+                    </SelectItem>
+                  ) : (prestadoresQuery.data ?? []).length > 0 ? (
+                    prestadoresQuery.data?.map((prestador) => (
+                      <SelectItem key={prestador.id} value={prestador.id}>
+                        {prestador.nomeFantasia} · {prestador.cnpj}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
+                      Nenhum prestador disponível
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tomadorId">Tomador</Label>
+              <Select
+                value={createForm.tomadorId}
+                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, tomadorId: value }))}
+                disabled={tomadoresQuery.isLoading || createDpsMutation.isPending}
+              >
+                <SelectTrigger id="tomadorId">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tomadoresQuery.isLoading ? (
+                    <SelectItem value={SELECT_LOADING_VALUE} disabled>
+                      Carregando...
+                    </SelectItem>
+                  ) : (tomadoresQuery.data ?? []).length > 0 ? (
+                    tomadoresQuery.data?.map((tomador) => (
+                      <SelectItem key={tomador.id} value={tomador.id}>
+                        {tomador.nomeRazaoSocial} · {tomador.documento}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
+                      Nenhum tomador disponível
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="servicoId">Serviço</Label>
+              <Select
+                value={createForm.servicoId}
+                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, servicoId: value }))}
+                disabled={servicosQuery.isLoading || createDpsMutation.isPending}
+              >
+                <SelectTrigger id="servicoId">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {servicosQuery.isLoading ? (
+                    <SelectItem value={SELECT_LOADING_VALUE} disabled>
+                      Carregando...
+                    </SelectItem>
+                  ) : (servicosQuery.data ?? []).length > 0 ? (
+                    servicosQuery.data?.map((servico) => (
+                      <SelectItem key={servico.id} value={servico.id}>
+                        {servico.descricao}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
+                      Nenhum serviço disponível
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="competencia">Competência</Label>
+              <Input
+                id="competencia"
+                type="datetime-local"
+                value={createForm.competencia.slice(0, 16)}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, competencia: new Date(event.target.value).toISOString() }))
+                }
+                disabled={createDpsMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dataEmissao">Data de emissão</Label>
+              <Input
+                id="dataEmissao"
+                type="datetime-local"
+                value={createForm.dataEmissao.slice(0, 16)}
+                onChange={(event) =>
+                  setCreateForm((prev) => ({ ...prev, dataEmissao: new Date(event.target.value).toISOString() }))
+                }
+                disabled={createDpsMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea
+                id="observacoes"
+                value={createForm.observacoes}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, observacoes: event.target.value }))}
+                rows={3}
+                disabled={createDpsMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="createCertificateId">Certificado A1</Label>
+              <Select
+                value={createForm.certificadoId}
+                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, certificadoId: value }))}
+                disabled={certificadosQuery.isLoading || createDpsMutation.isPending}
+              >
+                <SelectTrigger id="createCertificateId">
+                  <SelectValue placeholder="Usar padrão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CERTIFICATE_DEFAULT_VALUE}>Usar padrão</SelectItem>
+                  {certificados.length > 0 ? (
+                    certificados.map((certificado) => (
+                      <SelectItem key={certificado.id} value={certificado.id}>
+                        {resolveCertificateLabel(certificado)}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
+                      Nenhum certificado disponível
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowCreateDialog(false)}
+              disabled={createDpsMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmitCreate}
+              disabled={
+                createDpsMutation.isPending ||
+                !createForm.prestadorId ||
+                !createForm.tomadorId ||
+                !createForm.servicoId
+              }
+            >
+              {createDpsMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Criar DPS
             </Button>
           </DialogFooter>
         </DialogContent>

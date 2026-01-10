@@ -7,15 +7,17 @@ import { servicoUpdateSchema } from "@/lib/validators/servico";
 import { servicoSelect, serializeServico } from "../utils";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export async function GET(_request: Request, context: RouteParams) {
+  const { id } = await context.params;
+
   try {
     const servico = await prisma.servico.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: servicoSelect,
     });
 
@@ -29,7 +31,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(request: Request, context: RouteParams) {
+  const { id } = await context.params;
+
   try {
     const payload = await request.json().catch(() => null);
     const result = servicoUpdateSchema.safeParse(payload);
@@ -78,7 +82,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     try {
       const servico = await prisma.servico.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData,
         select: servicoSelect,
       });
@@ -96,10 +100,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export async function DELETE(_request: Request, context: RouteParams) {
+  const { id } = await context.params;
+
   try {
     const servico = await prisma.servico.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ativo: false,
       },
