@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Phone, MapPin, Shield } from "lucide-react";
+import { z } from "zod";
+import { Loader2, MapPin, ClipboardList, Pencil } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 import {
   Sheet,
@@ -24,110 +26,100 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { formatCpfCnpj, formatPhone } from "@/lib/formatters";
-import { tomadorUpdateSchema, type TomadorUpdateInput } from "@/lib/validators/tomador";
-import type { TomadorDto } from "@/services/tomadores";
+import { formatCurrency } from "@/lib/formatters";
+import { servicoUpdateSchema, type ServicoUpdateInput } from "@/lib/validators/servico";
+import type { ServicoDto } from "@/services/servicos";
 
-interface TomadorDetailsDrawerProps {
-  tomador: TomadorDto | null;
+interface ServicoDetailsDrawerProps {
+  servico: ServicoDto | null;
   onClose: () => void;
-  onUpdate: (id: string, values: TomadorUpdateInput) => Promise<void>;
+  onUpdate: (id: string, values: ServicoUpdateInput) => Promise<void>;
   onInactivate: (id: string) => Promise<void>;
   onReactivate: (id: string) => Promise<void>;
   isMutating: boolean;
 }
 
-type TomadorFormValues = z.input<typeof tomadorUpdateSchema>;
+type ServicoFormValues = z.input<typeof servicoUpdateSchema>;
 
-const EMPTY_VALUES: TomadorFormValues = {
-  tipoDocumento: "CPF",
-  documento: "",
-  nomeRazaoSocial: "",
-  email: "",
-  telefone: "",
-  inscricaoMunicipal: "",
-  codigoMunicipio: "",
-  cidade: "",
-  estado: "",
-  cep: "",
-  logradouro: "",
-  numero: "",
-  complemento: "",
-  bairro: "",
+const EMPTY_VALUES: ServicoFormValues = {
+  descricao: "",
+  codigoTributacaoMunicipal: "",
+  codigoTributacaoNacional: "",
+  codigoNbs: "",
+  codigoMunicipioPrestacao: "",
+  municipioPrestacao: "",
+  informacoesComplementares: "",
+  valorUnitario: "",
+  aliquotaIss: "",
+  issRetido: false,
   ativo: true,
 };
 
-function mapTomadorToForm(tomador: TomadorDto): TomadorFormValues {
+function mapServicoToForm(servico: ServicoDto): ServicoFormValues {
   return {
-    tipoDocumento: tomador.tipoDocumento,
-    documento: tomador.documento,
-    nomeRazaoSocial: tomador.nomeRazaoSocial,
-    email: tomador.email,
-    telefone: tomador.telefone ?? "",
-    inscricaoMunicipal: tomador.inscricaoMunicipal ?? "",
-    codigoMunicipio: tomador.codigoMunicipio,
-    cidade: tomador.cidade,
-    estado: tomador.estado,
-    cep: tomador.cep,
-    logradouro: tomador.logradouro,
-    numero: tomador.numero,
-    complemento: tomador.complemento ?? "",
-    bairro: tomador.bairro,
-    ativo: tomador.ativo,
+    descricao: servico.descricao,
+    codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
+    codigoTributacaoNacional: servico.codigoTributacaoNacional,
+    codigoNbs: servico.codigoNbs ?? "",
+    codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
+    municipioPrestacao: servico.municipioPrestacao,
+    informacoesComplementares: servico.informacoesComplementares ?? "",
+    valorUnitario: String(servico.valorUnitario),
+    aliquotaIss: servico.aliquotaIss !== null ? String(servico.aliquotaIss) : "",
+    issRetido: servico.issRetido,
+    ativo: servico.ativo,
   };
 }
 
-export function TomadorDetailsDrawer({
-  tomador,
+export function ServicoDetailsDrawer({
+  servico,
   onClose,
   onUpdate,
   onInactivate,
   onReactivate,
   isMutating,
-}: TomadorDetailsDrawerProps) {
+}: ServicoDetailsDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const form = useForm<TomadorFormValues>({
-    resolver: zodResolver(tomadorUpdateSchema) as Resolver<TomadorFormValues>,
+  const form = useForm<ServicoFormValues>({
+    resolver: zodResolver(servicoUpdateSchema) as Resolver<ServicoFormValues>,
     defaultValues: EMPTY_VALUES,
   });
 
   useEffect(() => {
-    if (tomador) {
-      form.reset(mapTomadorToForm(tomador));
+    if (servico) {
+      form.reset(mapServicoToForm(servico));
       setIsEditing(false);
     }
-  }, [tomador, form]);
+  }, [servico, form]);
 
-  const address = useMemo(() => {
-    if (!tomador) return "";
+  const createdAt = useMemo(() => {
+    if (!servico) return "";
+    return format(new Date(servico.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
+  }, [servico]);
 
-    const parts = [
-      `${tomador.logradouro}, ${tomador.numero}`,
-      tomador.complemento,
-      tomador.bairro,
-      `${tomador.cidade} - ${tomador.estado}`,
-      tomador.cep,
-    ].filter(Boolean);
+  const updatedAt = useMemo(() => {
+    if (!servico) return "";
+    return format(new Date(servico.updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR });
+  }, [servico]);
 
-    return parts.join(" · ");
-  }, [tomador]);
-
-  if (!tomador) {
+  if (!servico) {
     return null;
   }
 
-  const handleSubmit = async (values: TomadorFormValues) => {
-    const parsed = tomadorUpdateSchema.parse(values);
-    await onUpdate(tomador.id, parsed);
+  const handleSubmit = async (values: ServicoFormValues) => {
+    const parsed = servicoUpdateSchema.parse(values);
+    await onUpdate(servico.id, parsed);
     setIsEditing(false);
   };
 
   return (
     <Sheet
-      open={Boolean(tomador)}
+      open={Boolean(servico)}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -136,38 +128,37 @@ export function TomadorDetailsDrawer({
     >
       <SheetContent className="flex w-full max-w-xl flex-col gap-6 overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-left text-2xl font-semibold">
-            {tomador.nomeRazaoSocial}
-          </SheetTitle>
+          <SheetTitle className="text-left text-2xl font-semibold">{servico.descricao}</SheetTitle>
           <SheetDescription className="text-left text-sm text-muted-foreground">
-            Documento: {formatCpfCnpj(tomador.documento)}
+            Código municipal {servico.codigoTributacaoMunicipal} · Código nacional {servico.codigoTributacaoNacional}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex items-center gap-2">
-          <Badge variant={tomador.ativo ? "default" : "outline"} className="gap-1">
-            <Shield className="h-3 w-3" />
-            {tomador.ativo ? "Tomador ativo" : "Tomador inativo"}
-          </Badge>
-          <Badge variant="secondary">Criado em {new Date(tomador.createdAt).toLocaleString("pt-BR")}</Badge>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <Badge variant={servico.ativo ? "default" : "outline"}>{servico.ativo ? "Ativo" : "Inativo"}</Badge>
+          <span>Atualizado em {updatedAt}</span>
+          <span>·</span>
+          <span>Criado em {createdAt}</span>
         </div>
 
         <Separator />
 
-        <div className="space-y-4 text-sm text-muted-foreground">
+        <div className="space-y-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            <span>{tomador.email}</span>
+            <MapPin className="h-4 w-4" />
+            <span>
+              {servico.municipioPrestacao} ({servico.codigoMunicipioPrestacao})
+            </span>
           </div>
-          {tomador.telefone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              <span>{formatPhone(tomador.telefone)}</span>
-            </div>
-          )}
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4" />
-            <span>{address}</span>
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" />
+            <span>{servico.informacoesComplementares ?? "Sem informações adicionais"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" />
+            <span>
+              Valor unitário {formatCurrency(servico.valorUnitario)} · ISS Retido {servico.issRetido ? "Sim" : "Não"}
+            </span>
           </div>
         </div>
 
@@ -187,10 +178,10 @@ export function TomadorDetailsDrawer({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="nomeRazaoSocial"
+                    name="descricao"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome / Razão social</FormLabel>
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Descrição</FormLabel>
                         <FormControl>
                           <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
@@ -201,10 +192,10 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="codigoTributacaoMunicipal"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>E-mail</FormLabel>
+                        <FormLabel>Código trib. municipal</FormLabel>
                         <FormControl>
                           <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
@@ -215,16 +206,12 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="telefone"
+                    name="codigoTributacaoNacional"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Telefone</FormLabel>
+                        <FormLabel>Código trib. nacional</FormLabel>
                         <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            disabled={isMutating}
-                          />
+                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -233,16 +220,12 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="inscricaoMunicipal"
+                    name="codigoNbs"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Inscrição municipal</FormLabel>
+                        <FormLabel>Código NBS</FormLabel>
                         <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            disabled={isMutating}
-                          />
+                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -251,14 +234,14 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="codigoMunicipio"
+                    name="codigoMunicipioPrestacao"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Código do município</FormLabel>
                         <FormControl>
                           <Input
                             value={field.value ?? ""}
-                            onChange={field.onChange}
+                            onChange={(event) => field.onChange(event.target.value.replace(/\D/g, ""))}
                             disabled={isMutating}
                           />
                         </FormControl>
@@ -269,10 +252,10 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="cidade"
+                    name="municipioPrestacao"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cidade</FormLabel>
+                        <FormLabel>Município</FormLabel>
                         <FormControl>
                           <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
@@ -283,12 +266,12 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="estado"
+                    name="valorUnitario"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>UF</FormLabel>
+                        <FormLabel>Valor unitário</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Input type="number" step="0.01" value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -297,12 +280,12 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="cep"
+                    name="aliquotaIss"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>CEP</FormLabel>
+                        <FormLabel>Alíquota ISS (%)</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Input type="number" step="0.01" value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -311,12 +294,30 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="logradouro"
+                    name="issRetido"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Logradouro</FormLabel>
+                      <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <FormLabel className="text-sm font-medium">ISS retido?</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Switch checked={field.value ?? false} onCheckedChange={field.onChange} disabled={isMutating} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="informacoesComplementares"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Informações complementares</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            disabled={isMutating}
+                            placeholder="Observações exibidas na NFSe"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -325,42 +326,13 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="numero"
+                    name="ativo"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número</FormLabel>
+                      <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <FormLabel className="text-sm font-medium">Serviço ativo?</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Switch checked={field.value ?? false} onCheckedChange={field.onChange} disabled={isMutating} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="complemento"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Complemento</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bairro"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -396,15 +368,15 @@ export function TomadorDetailsDrawer({
             Fechar
           </Button>
 
-          {tomador.ativo ? (
-            <Button variant="destructive" onClick={() => onInactivate(tomador.id)} disabled={isMutating}>
+          {servico.ativo ? (
+            <Button variant="destructive" onClick={() => onInactivate(servico.id)} disabled={isMutating}>
               {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Inativar tomador
+              Inativar serviço
             </Button>
           ) : (
-            <Button onClick={() => onReactivate(tomador.id)} disabled={isMutating}>
+            <Button onClick={() => onReactivate(servico.id)} disabled={isMutating}>
               {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Reativar tomador
+              Reativar serviço
             </Button>
           )}
         </SheetFooter>

@@ -1,10 +1,10 @@
-import { PrismaClient, UsuarioRole, Ambiente, TipoDocumento } from "@prisma/client";
+import { PrismaClient, UsuarioRole, Ambiente, TipoDocumento, Prisma } from "@prisma/client";
 import { hash } from "bcrypt";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const senhaPadrao = process.env.SEED_SENHA_PADRAO ?? "ChangeMe123!";
+  const senhaPadrao = process.env.SEED_SENHA_PADRAO ?? "Camgfv!@#2025";
   const senhaHash = await hash(senhaPadrao, 10);
 
   const usuario = await prisma.usuario.upsert({
@@ -25,16 +25,52 @@ async function main() {
       versaoAplicacao: "1.0.0",
       verAplic: "EmissorPontoBR1.0",
       ambientePadrao: Ambiente.HOMOLOGACAO,
+      seriePadrao: 1,
       robotClientId: process.env.ROBOT_CLIENT_ID ?? null,
       robotClientSecret: process.env.ROBOT_CLIENT_SECRET ?? null,
+      xLocEmi: "Belo Horizonte",
+      xLocPrestacao: "Belo Horizonte",
+      nNFSe: "40",
+      xTribNac: "Medicina.",
+      xNBS: "Serviços de clínica médica",
+      ambGer: 2,
+      tpEmis: 1,
+      procEmi: 1,
+      cStat: 100,
+      dhProc: new Date("2025-12-30T20:54:34-03:00"),
+      nDFSe: "778552",
+      tribISSQN: 2,
+      tpImunidade: 3,
+      tpRetISSQN: 1,
+      pTotTribFed: new Prisma.Decimal(0),
+      pTotTribEst: new Prisma.Decimal(0),
+      pTotTribMun: new Prisma.Decimal(0),
     },
     create: {
       nomeSistema: "NotaClient",
       versaoAplicacao: "1.0.0",
       verAplic: "EmissorPontoBR1.0",
       ambientePadrao: Ambiente.HOMOLOGACAO,
+      seriePadrao: 1,
       robotClientId: process.env.ROBOT_CLIENT_ID ?? null,
       robotClientSecret: process.env.ROBOT_CLIENT_SECRET ?? null,
+      xLocEmi: "Belo Horizonte",
+      xLocPrestacao: "Belo Horizonte",
+      nNFSe: "40",
+      xTribNac: "Medicina.",
+      xNBS: "Serviços de clínica médica",
+      ambGer: 2,
+      tpEmis: 1,
+      procEmi: 1,
+      cStat: 100,
+      dhProc: new Date("2025-12-30T20:54:34-03:00"),
+      nDFSe: "778552",
+      tribISSQN: 2,
+      tpImunidade: 3,
+      tpRetISSQN: 1,
+      pTotTribFed: new Prisma.Decimal(0),
+      pTotTribEst: new Prisma.Decimal(0),
+      pTotTribMun: new Prisma.Decimal(0),
     },
   });
 

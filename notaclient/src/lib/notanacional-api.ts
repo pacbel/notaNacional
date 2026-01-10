@@ -5,9 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { TokenIntegracaoTipo } from "@prisma/client";
 
 interface RobotTokenResponse {
-  access_token: string;
-  token_type: string;
+  access_token?: string;
+  accessToken?: string;
+  token_type?: string;
+  tokenType?: string;
   expires_in?: number;
+  expiraEm?: string;
 }
 
 const env = getEnv();
@@ -55,6 +58,10 @@ async function fetchStoredToken(): Promise<string | null> {
 }
 
 function decodeTokenExp(accessToken: string): number | null {
+  if (!accessToken) {
+    return null;
+  }
+
   const [, payload] = accessToken.split(".");
 
   if (!payload) return null;
@@ -92,10 +99,18 @@ async function requestRobotToken(): Promise<string> {
 
   const { data } = await notaApi.post<RobotTokenResponse>("/api/Auth/robot-token", body);
 
-  const expiresAt = resolveExpiration(data.access_token, data.expires_in);
-  await persistToken(data.access_token, expiresAt);
+  const accessToken = data?.access_token ?? data?.accessToken;
+  const expiresIn = data?.expires_in;
 
-  return data.access_token;
+  if (!accessToken) {
+    console.error("[NotaAPI] Resposta sem access_token", { data });
+    throw new Error("Token de robô não retornado pela API Nota");
+  }
+
+  const expiresAt = resolveExpiration(accessToken, expiresIn);
+  await persistToken(accessToken, expiresAt);
+
+  return accessToken;
 }
 
 export async function getRobotToken(): Promise<string> {

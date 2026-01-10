@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 
 const credentialsSchema = z.object({
   email: z.string().email("Informe um e-mail válido"),
@@ -52,7 +53,10 @@ export default function LoginView() {
   const [step, setStep] = useState<Step>("credentials");
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isCredentialsPending, setIsCredentialsPending] = useState(false);
+  const [isMfaPending, setIsMfaPending] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState<string | null>(null);
 
   const credentialsForm = useForm<CredentialsFormValues>({
     resolver: zodResolver(credentialsSchema),
@@ -62,24 +66,29 @@ export default function LoginView() {
     },
   });
 
-  const mfaForm = useForm<MfaFormValues>({
-    resolver: zodResolver(mfaSchema),
-    defaultValues: {
-      code: "",
-    },
-  });
+  useEffect(() => {
+    if (step === "mfa") {
+      setMfaCode("");
+      setMfaError(null);
+      const id = "mfa-code-input";
+      window.requestAnimationFrame(() => {
+        const input = document.getElementById(id) as HTMLInputElement | null;
+        input?.focus();
+      });
+    }
+  }, [step]);
 
   function handleCredentialsSubmit(values: CredentialsFormValues) {
-    startTransition(async () => {
-      try {
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(values),
-        });
+    setIsCredentialsPending(true);
 
+    fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(values),
+    })
+      .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => null);
           throw new Error(data?.message ?? "Não foi possível autenticar");
@@ -89,43 +98,58 @@ export default function LoginView() {
         setChallengeToken(data.challengeToken);
         setStep("mfa");
         toast.success("Código enviado para seu e-mail");
-      } catch (error) {
+      })
+      .catch((error) => {
         const message = error instanceof Error ? error.message : "Erro inesperado";
         toast.error(message);
-      }
-    });
+      })
+      .finally(() => {
+        setIsCredentialsPending(false);
+      });
   }
 
-  function handleMfaSubmit(values: MfaFormValues) {
+  function handleMfaSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (!challengeToken) {
       toast.error("Desafio MFA inválido. Tente novamente.");
       setStep("credentials");
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const response = await fetch("/api/auth/mfa/verify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ challengeToken, code: values.code }),
-        });
+    if (!mfaCode.trim()) {
+      setMfaError("Informe o código recebido");
+      return;
+    }
 
+    setIsMfaPending(true);
+
+    fetch("/api/auth/mfa/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ challengeToken, code: mfaCode }),
+    })
+      .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => null);
           throw new Error(data?.message ?? "Código inválido");
         }
 
+        setMfaError(null);
         toast.success("Autenticado com sucesso!");
         router.replace("/dashboard");
         router.refresh();
-      } catch (error) {
+      })
+      .catch((error) => {
         const message = error instanceof Error ? error.message : "Erro inesperado";
         toast.error(message);
-      }
-    });
+        setMfaError(message);
+      })
+      .finally(() => {
+        setIsMfaPending(false);
+      });
   }
 
   const isCredentialsStep = step === "credentials";
@@ -163,7 +187,7 @@ export default function LoginView() {
                           type="email"
                           placeholder="seu.email@empresa.com"
                           autoComplete="email"
-                          disabled={isPending}
+                          disabled={isCredentialsPending}
                           {...field}
                         />
                       </FormControl>
@@ -184,7 +208,7 @@ export default function LoginView() {
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
                             autoComplete="current-password"
-                            disabled={isPending}
+                            disabled={isCredentialsPending}
                             {...field}
                           />
                           <button
@@ -206,8 +230,8 @@ export default function LoginView() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? (
+                <Button type="submit" className="w-full" disabled={isCredentialsPending}>
+                  {isCredentialsPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Autenticando...
                     </>
@@ -224,63 +248,67 @@ export default function LoginView() {
               </form>
             </Form>
           ) : (
-            <Form {...mfaForm}>
-              <form
-                className="space-y-6"
-                onSubmit={mfaForm.handleSubmit(handleMfaSubmit)}
-              >
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>
-                    Enviamos um código de verificação para o e-mail informado. Digite-o abaixo para acessar o sistema.
-                  </p>
-                </div>
+            <form className="space-y-6" onSubmit={handleMfaSubmit}>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Enviamos um código de verificação para o e-mail informado. Digite-o abaixo para acessar o sistema.
+                </p>
+              </div>
 
-                <FormField
-                  control={mfaForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código MFA</FormLabel>
-                      <FormControl>
-                        <Input
-                          inputMode="numeric"
-                          placeholder="000000"
-                          disabled={isPending}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" className="w-full" disabled={isPending}>
-                  {isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validando código...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" /> Confirmar e acessar
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  disabled={isPending}
-                  onClick={() => {
-                    setStep("credentials");
-                    setChallengeToken(null);
-                    mfaForm.reset();
+              <div className="grid gap-2">
+                <Label htmlFor="mfa-code-input">Código MFA</Label>
+                <Input
+                  id="mfa-code-input"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="000000"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(event) => {
+                    const sanitized = event.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                    setMfaCode(sanitized);
+                    setMfaError(null);
                   }}
-                >
-                  Voltar e trocar e-mail
-                </Button>
-              </form>
-            </Form>
+                  disabled={isMfaPending}
+                />
+                {mfaError ? (
+                  <p className="text-sm text-destructive">{mfaError}</p>
+                ) : null}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isMfaPending || mfaCode.length === 0}
+              >
+                {isMfaPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validando código...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" /> Confirmar e acessar
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                disabled={isMfaPending}
+                onClick={() => {
+                  setIsMfaPending(false);
+                  setStep("credentials");
+                  setChallengeToken(null);
+                  setMfaCode("");
+                  setMfaError(null);
+                }}
+              >
+                Voltar e trocar e-mail
+              </Button>
+            </form>
           )}
         </CardContent>
 
