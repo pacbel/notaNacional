@@ -70,6 +70,67 @@ function logInfo(message: string, context?: Record<string, unknown>) {
   console.info(`[NFSe] ${message}`);
 }
 
+function normalizeSignedDpsXml(xml: string): string {
+  const infDpsId = extractInfDpsId(xml);
+
+  if (!infDpsId) {
+    return xml;
+  }
+
+  return repositionSignatureNode(xml, infDpsId);
+}
+
+function extractInfDpsId(xml: string): string | null {
+  const match = xml.match(/<infDPS\b[^>]*\bId="([^"]+)"/);
+  return match ? match[1] : null;
+}
+
+function repositionSignatureNode(xml: string, infDpsId: string): string {
+  const signaturePattern = /<Signature[\s\S]*?<\/Signature>/;
+  const match = signaturePattern.exec(xml);
+
+  if (!match) {
+    return xml;
+  }
+
+  const signatureBlock = ensureSignatureReference(match[0], infDpsId);
+  const normalizedSignature = signatureBlock.trim();
+  const withoutSignature = xml.slice(0, match.index) + xml.slice(match.index + match[0].length);
+
+  const closingInfDpsTag = "</infDPS>";
+  const closingInfDpsIndex = withoutSignature.lastIndexOf(closingInfDpsTag);
+
+  if (closingInfDpsIndex !== -1) {
+    const insertPosition = closingInfDpsIndex + closingInfDpsTag.length;
+    const before = withoutSignature.slice(0, insertPosition);
+    const after = withoutSignature.slice(insertPosition);
+
+    return minifyXml(`${before}${normalizedSignature}${after}`);
+  }
+
+  const closingDpsTag = "</DPS>";
+  const closingDpsIndex = withoutSignature.lastIndexOf(closingDpsTag);
+
+  if (closingDpsIndex !== -1) {
+    const before = withoutSignature.slice(0, closingDpsIndex);
+    const after = withoutSignature.slice(closingDpsIndex);
+
+    return minifyXml(`${before}${normalizedSignature}${after}`);
+  }
+
+  return ensureSignatureReference(xml, infDpsId);
+}
+
+function ensureSignatureReference(signature: string, infDpsId: string): string {
+  const referencePattern = /(<Reference\b[^>]*\bURI="#)([^"]*)(")/;
+
+  if (referencePattern.test(signature)) {
+    return signature.replace(referencePattern, `$1${infDpsId}$3`);
+  }
+
+  return signature;
+}
+
 function logError(message: string, context?: Record<string, unknown>) {
   if (context) {
     console.error(`[NFSe] ${message}`, context);
@@ -77,6 +138,10 @@ function logError(message: string, context?: Record<string, unknown>) {
   }
 
   console.error(`[NFSe] ${message}`);
+}
+
+function minifyXml(value: string): string {
+  return value.replace(/>\s+</g, "><").replace(/\r?\n/g, "");
 }
 
 function parseNotaApiError(error: unknown): { message: string; statusCode?: number; details?: unknown } {
@@ -347,6 +412,7 @@ function mapServicoToXmlInput(servico: Servico): ServicoBase {
     codigoNbs: servico.codigoNbs,
     codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
     informacoesComplementares: servico.informacoesComplementares,
+    aliquotaIss: servico.aliquotaIss,
   };
 }
 
@@ -403,6 +469,8 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
       tag,
       certificateId: resolvedCertificate,
     });
+
+    xmlAssinado = normalizeSignedDpsXml(xmlAssinado);
   } catch (error) {
     const notaError = parseNotaApiError(error);
     logError("Falha ao assinar DPS", {

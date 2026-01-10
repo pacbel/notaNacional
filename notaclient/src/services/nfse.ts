@@ -246,24 +246,13 @@ export async function downloadDanfse(chaveAcesso: string, params: { ambiente?: n
     searchParams.set("certificateId", params.certificateId);
   }
 
-  const response = await fetch(
-    `/api/nfse/notas/${encodeURIComponent(chaveAcesso)}/danfse${searchParams.size ? `?${searchParams.toString()}` : ""}`,
-    {
-      method: "GET",
-    }
-  );
+  const url = `/api/nfse/notas/${encodeURIComponent(chaveAcesso)}/danfse${
+    searchParams.size ? `?${searchParams.toString()}` : ""
+  }`;
 
-  if (!response.ok) {
-    throw new Error("Falha ao gerar DANFSE");
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+
+  if (!opened) {
+    throw new Error("Não foi possível abrir a DANFSE em uma nova guia. Verifique se o bloqueador de pop-ups está desativado.");
   }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = response.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ?? `DANFSE-${chaveAcesso}.pdf`;
-  link.click();
-
-  URL.revokeObjectURL(url);
 }

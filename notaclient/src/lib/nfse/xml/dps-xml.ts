@@ -1,5 +1,17 @@
 import { Prisma, type TipoDocumento } from "@prisma/client";
 
+const INF_DPS_ID_LENGTH = 45;
+const CODIGO_MUNICIPIO_LENGTH = 7;
+const CNPJ_LENGTH = 14;
+const SERIE_LENGTH = 5;
+const NDPS_LENGTH = 15;
+const XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+const DESCRIPTION_ALLOWED_CHARS = /[^0-9A-Za-zÀ-ÖØ-öø-ÿ .,;:!?'"()\-_/]/g;
+
+function compactXml(xml: string): string {
+  return xml.replace(/>\s+</g, "><").replace(/\r?\n/g, "");
+}
+
 export interface PartyBase {
   cnpj: string;
   codigoMunicipio: string;
@@ -27,6 +39,7 @@ export interface ServicoBase {
   codigoNbs?: string | null;
   codigoMunicipioPrestacao: string;
   informacoesComplementares?: string | null;
+  aliquotaIss?: Prisma.Decimal | number | null;
 }
 
 export interface ConfiguracaoBase {
@@ -55,7 +68,12 @@ export interface GenerateDpsXmlInput {
 }
 
 export function generateDpsXml(input: GenerateDpsXmlInput): string {
-  const infDpsId = resolveInfDpsId(input);
+  const tpAmb = resolveTpAmb(input.configuracao.ambGer);
+  const serieId = resolveSerie(input.serie);
+  const numeroId = resolveNumero(input.numero);
+  const infDpsId = resolveInfDpsId(input, tpAmb, serieId, numeroId);
+  const serie = serieId;
+  const numero = String(Math.trunc(input.numero));
   const competenciaData = formatDate(input.competencia);
   const dataEmissao = formatDateTimeOffset(input.emissao);
   const documentoTomadorTag = input.tomador.tipoDocumento === "CNPJ" ? "CNPJ" : "CPF";
@@ -65,18 +83,22 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   const totalTribFederal = formatMoney(input.configuracao.pTotTribFed ?? 0);
   const totalTribEstadual = formatMoney(input.configuracao.pTotTribEst ?? 0);
   const totalTribMunicipal = formatMoney(input.configuracao.pTotTribMun ?? 0);
-  const informacoesComplementares =
+  const aliquotaIss = formatPercentage(input.servico.aliquotaIss);
+  const tpImunidade = input.configuracao.tpImunidade;
+  const serviceDescription = sanitizeDescription(input.servico.descricao);
+  const informacoesComplementaresRaw =
     input.observacoes ?? input.servico.informacoesComplementares ?? "";
+  const informacoesComplementares = sanitizeDescription(informacoesComplementaresRaw);
 
   const lines: (string | null)[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<DPS versao="1.01">',
+    '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">',
     `  <infDPS Id="${escapeXml(infDpsId)}">`,
-    `    <tpAmb>${input.configuracao.ambGer ?? 2}</tpAmb>`,
+    `    <tpAmb>${tpAmb}</tpAmb>`,
     `    <dhEmi>${escapeXml(dataEmissao)}</dhEmi>`,
     `    <verAplic>${escapeXml(input.configuracao.verAplic)}</verAplic>`,
-    `    <serie>${input.serie}</serie>`,
-    `    <nDPS>${input.numero}</nDPS>`,
+    `    <serie>${escapeXml(serie)}</serie>`,
+    `    <nDPS>${escapeXml(numero)}</nDPS>`,
     `    <dCompet>${competenciaData}</dCompet>`,
     `    <tpEmit>${input.configuracao.tpEmis}</tpEmit>`,
     `    <cLocEmi>${escapeXml(input.prestador.codigoMunicipio)}</cLocEmi>`,
@@ -110,12 +132,16 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "      <cServ>",
     `        <cTribNac>${escapeXml(input.servico.codigoTributacaoNacional)}</cTribNac>`,
     `        <cTribMun>${escapeXml(input.servico.codigoTributacaoMunicipal)}</cTribMun>`,
-    `        <xDescServ>${escapeXml(input.servico.descricao)}</xDescServ>`,
+    `        <xDescServ>${escapeXml(serviceDescription)}</xDescServ>`,
     input.servico.codigoNbs ? `        <cNBS>${escapeXml(input.servico.codigoNbs)}</cNBS>` : null,
     "      </cServ>",
-    "      <infoCompl>",
-    `        <xInfComp>${escapeXml(informacoesComplementares)}</xInfComp>`,
-    "      </infoCompl>",
+    informacoesComplementares
+      ? "      <infoCompl>"
+      : null,
+    informacoesComplementares
+      ? `        <xInfComp>${escapeXml(informacoesComplementares)}</xInfComp>`
+      : null,
+    informacoesComplementares ? "      </infoCompl>" : null,
     "    </serv>",
     "    <valores>",
     "      <vServPrest>",
@@ -124,7 +150,8 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "      <trib>",
     "        <tribMun>",
     `          <tribISSQN>${input.configuracao.tribISSQN}</tribISSQN>`,
-    `          <tpImunidade>${input.configuracao.tpImunidade}</tpImunidade>`,
+    tpImunidade ? `          <tpImunidade>${tpImunidade}</tpImunidade>` : null,
+    aliquotaIss ? `          <pAliq>${aliquotaIss}</pAliq>` : null,
     `          <tpRetISSQN>${input.configuracao.tpRetISSQN}</tpRetISSQN>`,
     "        </tribMun>",
     "        <totTrib>",
@@ -140,21 +167,98 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "</DPS>",
   ];
 
-  return lines.filter((line): line is string => Boolean(line)).join("\n");
+  const rawXml = lines
+    .filter((line): line is string => Boolean(line))
+    .map((line) => line.trim())
+    .join("");
+
+  return compactXml(rawXml);
 }
 
-function resolveInfDpsId(input: GenerateDpsXmlInput): string {
-  if (input.identificador?.startsWith("DPS")) {
-    return input.identificador;
+function resolveInfDpsId(input: GenerateDpsXmlInput, tpAmb: string, serie: string, numero: string): string {
+  const provided = input.identificador?.trim();
+
+  if (provided?.startsWith("DPS") && provided.length === INF_DPS_ID_LENGTH) {
+    return provided;
   }
 
-  const serie = String(input.serie).padStart(3, "0");
-  const numero = String(input.numero).padStart(6, "0");
-  const ano = input.competencia.getFullYear();
-  const mes = String(input.competencia.getMonth() + 1).padStart(2, "0");
-  const dia = String(input.competencia.getDate()).padStart(2, "0");
+  const cLocEmi = resolveCodigoMunicipio(input.prestador.codigoMunicipio);
+  const cnpj = resolveCnpj(input.prestador.cnpj);
 
-  return `DPS${input.prestador.codigoMunicipio}${input.prestador.cnpj}${serie}${numero}${ano}${mes}${dia}`;
+  const id = `DPS${cLocEmi}${tpAmb}${cnpj}${serie}${numero}`;
+
+  if (id.length !== INF_DPS_ID_LENGTH) {
+    throw new Error(`Id calculado da infDPS possui tamanho ${id.length}, esperado ${INF_DPS_ID_LENGTH}.`);
+  }
+
+  return id;
+}
+
+function resolveTpAmb(ambGer: number | null | undefined): string {
+  const resolved = ambGer ?? 2;
+  const normalized = String(resolved);
+
+  if (normalized.length !== 1) {
+    throw new Error(`tpAmb inválido para geração do Id da infDPS: ${normalized}`);
+  }
+
+  return normalized;
+}
+
+function resolveCodigoMunicipio(value: string): string {
+  const digits = normalizeDigits(value) ?? "";
+
+  if (digits.length === 0) {
+    throw new Error("Código do município de emissão é obrigatório para geração do Id da infDPS.");
+  }
+
+  if (digits.length > CODIGO_MUNICIPIO_LENGTH) {
+    throw new Error(
+      `Código do município de emissão deve conter até ${CODIGO_MUNICIPIO_LENGTH} dígitos para geração do Id da infDPS.`,
+    );
+  }
+
+  return digits.padStart(CODIGO_MUNICIPIO_LENGTH, "0");
+}
+
+function resolveCnpj(value: string): string {
+  const digits = normalizeDigits(value) ?? "";
+
+  if (digits.length !== CNPJ_LENGTH) {
+    throw new Error(`CNPJ do prestador deve conter ${CNPJ_LENGTH} dígitos para geração do Id da infDPS.`);
+  }
+
+  return digits;
+}
+
+function resolveSerie(value: number): string {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Série inválida para geração do Id da infDPS.");
+  }
+
+  const parsed = Math.trunc(value);
+  const serie = String(parsed);
+
+  if (serie.length > SERIE_LENGTH) {
+    throw new Error(`Série deve conter no máximo ${SERIE_LENGTH} dígitos para geração do Id da infDPS.`);
+  }
+
+  return serie.padStart(SERIE_LENGTH, "0");
+}
+
+function resolveNumero(value: number): string {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Número da DPS inválido para geração do Id da infDPS.");
+  }
+
+  const parsed = Math.trunc(value);
+  const numero = String(parsed);
+
+  if (numero.length > NDPS_LENGTH) {
+    throw new Error(`Número da DPS deve conter no máximo ${NDPS_LENGTH} dígitos para geração do Id da infDPS.`);
+  }
+
+  return numero.padStart(NDPS_LENGTH, "0");
 }
 
 function formatDate(date: Date): string {
@@ -177,12 +281,35 @@ function formatMoney(value: Prisma.Decimal | number): string {
   return numeric.toFixed(2);
 }
 
+function formatPercentage(value: Prisma.Decimal | number | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numeric = value instanceof Prisma.Decimal ? value.toNumber() : value;
+
+  return numeric.toFixed(2);
+}
+
+function sanitizeDescription(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  const sanitized = trimmed.replace(XML_INVALID_CHARACTERS, "");
+
+  return sanitized.replace(DESCRIPTION_ALLOWED_CHARS, " ").replace(/\s{2,}/g, " ").trim();
+}
+
 function escapeXml(value: string | null | undefined): string {
   if (!value) {
     return "";
   }
 
-  return value
+  const sanitized = value.replace(XML_INVALID_CHARACTERS, "");
+
+  return sanitized
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

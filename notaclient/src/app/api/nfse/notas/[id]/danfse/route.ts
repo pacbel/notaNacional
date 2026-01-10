@@ -4,20 +4,21 @@ import { handleRouteError } from "@/lib/http";
 import { gerarDanfse } from "@/lib/nfse/service";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(request: Request, context: RouteParams) {
   try {
     const { searchParams } = new URL(request.url);
     const ambiente = searchParams.get("ambiente");
     const certificateId = searchParams.get("certificateId") ?? undefined;
 
     const parsedAmbiente = ambiente ? Number(ambiente) : undefined;
+    const { id } = await context.params;
 
-    const { buffer, filename, contentType } = await gerarDanfse(params.id, {
+    const { buffer, filename, contentType } = await gerarDanfse(id, {
       ambiente: parsedAmbiente,
       certificateId,
     });
@@ -26,7 +27,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `inline; filename="${filename}"`,
       },
     });
   } catch (error) {
