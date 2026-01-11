@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { prestadorUpdateSchema } from "@/lib/validators/prestador";
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(_request: Request, { params }: RouteParams) {
-  const prestador = await prisma.prestador.findUnique({ where: { id: params.id } });
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const prestador = await prisma.prestador.findUnique({ where: { id } });
 
   if (!prestador) {
     return NextResponse.json({ message: "Prestador não encontrado" }, { status: 404 });
@@ -20,7 +15,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return NextResponse.json(prestador);
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const payload = await request.json().catch(() => null);
   const parseResult = prestadorUpdateSchema.safeParse(payload);
 
@@ -30,7 +26,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   try {
     const prestador = await prisma.prestador.update({
-      where: { id: params.id },
+      where: { id },
       data: parseResult.data,
     });
 
@@ -51,10 +47,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   try {
     const prestador = await prisma.prestador.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ativo: false,
       },

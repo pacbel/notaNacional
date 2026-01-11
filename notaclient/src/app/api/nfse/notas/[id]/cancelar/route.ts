@@ -1,18 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { handleRouteError } from "@/lib/http";
-import { cancelarNota, cancelarNfseSchema } from "@/lib/nfse/service";
+import { cancelarNota } from "@/lib/nfse/service";
+import { CANCELAMENTO_MOTIVO_CODES } from "@/lib/nfse/cancelamento-motivos";
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
+const cancelarNfseRequestSchema = z.object({
+  chaveAcesso: z.string().min(1),
+  motivoCodigo: z.enum(CANCELAMENTO_MOTIVO_CODES),
+  justificativa: z.string().min(5),
+  ambiente: z.number().int().min(1).max(2).optional(),
+});
 
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
+    void id;
     const body = await request.json().catch(() => null);
-    const parseResult = cancelarNfseSchema.safeParse(body);
+    const parseResult = cancelarNfseRequestSchema.safeParse(body);
 
     if (!parseResult.success) {
       return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });

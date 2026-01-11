@@ -3,9 +3,9 @@ import { z } from "zod";
 const ambienteValues = ["PRODUCAO", "HOMOLOGACAO"] as const;
 
 export const tribMunSchema = z.object({
-  tribISSQN: z.number().int().min(0).max(9).default(2),
-  tpImunidade: z.number().int().min(0).max(9).default(3),
-  tpRetISSQN: z.number().int().min(0).max(9).default(1),
+  tribISSQN: z.number().int().min(0).max(9),
+  tpImunidade: z.number().int().min(0).max(9),
+  tpRetISSQN: z.number().int().min(0).max(9),
 });
 
 export const totTribSchema = z.object({
@@ -42,6 +42,8 @@ export const configuracaoUpdateSchema = z.object({
   totTrib: totTribSchema,
 });
 
-export type ConfiguracaoDto = z.infer<typeof configuracaoUpdateSchema> & {
+export type ConfiguracaoFormValues = z.infer<typeof configuracaoUpdateSchema>;
+
+export type ConfiguracaoDto = ConfiguracaoFormValues & {
   updatedAt?: string;
 };

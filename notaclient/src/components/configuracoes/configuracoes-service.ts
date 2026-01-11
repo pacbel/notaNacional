@@ -1,4 +1,4 @@
-import type { ConfiguracaoDto } from "@/lib/validators/configuracao";
+import type { ConfiguracaoDto, ConfiguracaoFormValues } from "@/lib/validators/configuracao";
 
 interface ApiErrorResponse {
   message?: string;
@@ -33,7 +33,7 @@ export async function getConfiguracao(): Promise<ConfiguracaoDto> {
   return handleResponse<ConfiguracaoDto>(response);
 }
 
-export async function updateConfiguracao(payload: ConfiguracaoDto): Promise<ConfiguracaoDto> {
+export async function updateConfiguracao(payload: ConfiguracaoFormValues): Promise<ConfiguracaoDto> {
   const response = await fetch("/api/configuracoes", {
     method: "PUT",
     headers: {

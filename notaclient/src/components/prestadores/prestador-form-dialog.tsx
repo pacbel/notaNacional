@@ -353,7 +353,11 @@ export function PrestadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting
                       placeholder="Notas adicionais sobre o prestador"
                       className="min-h-[100px]"
                       disabled={isSubmitting}
-                      {...field}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
                     />
                   </FormControl>
                   <FormMessage />

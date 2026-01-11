@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { tomadorCreateSchema, type TomadorCreateInput } from "@/lib/validators/tomador";
+import { tomadorCreateSchema, type TomadorCreateInput, type TomadorFormValues } from "@/lib/validators/tomador";
 
 interface TomadorFormDialogProps {
   open: boolean;
@@ -23,31 +23,34 @@ interface TomadorFormDialogProps {
   isSubmitting?: boolean;
 }
 
-const DEFAULT_VALUES: TomadorCreateInput = {
+const DEFAULT_VALUES: TomadorFormValues = {
   tipoDocumento: "CPF",
   documento: "",
   nomeRazaoSocial: "",
   email: "",
-  telefone: null,
-  inscricaoMunicipal: null,
+  telefone: "",
+  inscricaoMunicipal: "",
   codigoMunicipio: "",
   cidade: "",
   estado: "",
   cep: "",
   logradouro: "",
   numero: "",
-  complemento: null,
+  complemento: "",
   bairro: "",
 };
 
 export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting = false }: TomadorFormDialogProps) {
-  const form = useForm<TomadorCreateInput>({
-    resolver: zodResolver(tomadorCreateSchema),
+  const resolver: Resolver<TomadorFormValues, undefined, TomadorCreateInput> = zodResolver(tomadorCreateSchema);
+
+  const form = useForm<TomadorFormValues, undefined, TomadorCreateInput>({
+    resolver,
     defaultValues: DEFAULT_VALUES,
   });
 
-  const handleSubmit = async (values: TomadorCreateInput) => {
-    await onSubmit(values);
+  const handleSubmit: SubmitHandler<TomadorFormValues> = async (values) => {
+    const parsed = tomadorCreateSchema.parse(values);
+    await onSubmit(parsed);
     form.reset(DEFAULT_VALUES);
   };
 

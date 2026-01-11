@@ -13,16 +13,28 @@ const tomadorFieldsSchema = z.object({
   email: z.string().email("E-mail inválido"),
   telefone: z
     .string()
-    .transform((value) => value.replace(/\D/g, ""))
     .optional()
     .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .transform((value) => {
+      if (!value) {
+        return undefined;
+      }
+
+      const digits = value.replace(/\D/g, "");
+      return digits === "" ? undefined : digits;
+    }),
   inscricaoMunicipal: z
     .string()
-    .transform((value) => value.trim())
     .optional()
     .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .transform((value) => {
+      if (!value) {
+        return undefined;
+      }
+
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    }),
   codigoMunicipio: z
     .string()
     .transform((value) => value.replace(/\D/g, ""))
@@ -48,7 +60,14 @@ const tomadorFieldsSchema = z.object({
     .string()
     .optional()
     .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .transform((value) => {
+      if (!value) {
+        return undefined;
+      }
+
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    }),
   bairro: z.string().min(1, "Informe o bairro"),
 });
 
@@ -81,5 +100,6 @@ export const tomadorUpdateSchema = withDocumentoValidation(tomadorFieldsSchema.p
   ativo: z.boolean().optional(),
 });
 
+export type TomadorFormValues = z.input<typeof tomadorCreateSchema>;
 export type TomadorCreateInput = z.infer<typeof tomadorCreateSchema>;
 export type TomadorUpdateInput = z.infer<typeof tomadorUpdateSchema>;

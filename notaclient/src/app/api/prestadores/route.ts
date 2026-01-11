@@ -23,10 +23,10 @@ export async function GET(request: Request) {
 
   if (query) {
     where.OR = [
-      { nomeFantasia: { contains: query, mode: "insensitive" } },
-      { razaoSocial: { contains: query, mode: "insensitive" } },
+      { nomeFantasia: { contains: query } },
+      { razaoSocial: { contains: query } },
       { cnpj: { contains: query.replace(/\D/g, "") } },
-      { email: { contains: query, mode: "insensitive" } },
+      { email: { contains: query } },
     ];
   }
 

@@ -1,17 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { tomadorUpdateSchema } from "@/lib/validators/tomador";
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(_request: Request, { params }: RouteParams) {
-  const tomador = await prisma.tomador.findUnique({ where: { id: params.id } });
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const tomador = await prisma.tomador.findUnique({ where: { id } });
 
   if (!tomador) {
     return NextResponse.json({ message: "Tomador não encontrado" }, { status: 404 });
@@ -20,7 +15,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return NextResponse.json(tomador);
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const payload = await request.json().catch(() => null);
   const parseResult = tomadorUpdateSchema.safeParse(payload);
 
@@ -30,7 +26,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   try {
     const tomador = await prisma.tomador.update({
-      where: { id: params.id },
+      where: { id },
       data: parseResult.data,
     });
 
@@ -51,10 +47,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   try {
     const tomador = await prisma.tomador.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ativo: false,
       },

@@ -23,6 +23,7 @@ import {
   gerarDanfse as gerarDanfseApi,
   listarCertificados,
 } from "./client";
+import { CANCELAMENTO_MOTIVO_CODES, findCancelamentoMotivo } from "./cancelamento-motivos";
 import type {
   AssinarXmlResponse,
   CancelarNfseResponse,
@@ -37,6 +38,8 @@ import {
   type TomadorBase,
 } from "./xml/dps-xml";
 import { resolveCertificateId } from "./certificado-service";
+import { generateCancelamentoXml } from "./xml/cancelamento-xml";
+import { gzipSync } from "zlib";
 
 type Nullable<T> = T | null | undefined;
 
@@ -673,18 +676,18 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
 
 export const cancelarNfseSchema = z.object({
   chaveAcesso: z.string().min(1),
-  eventoXmlGZipBase64: z.string().min(1),
+  motivoCodigo: z.enum(CANCELAMENTO_MOTIVO_CODES),
+  justificativa: z.string().min(5),
   ambiente: z.number().int().min(1).max(2).optional(),
-  certificateId: z.string().optional(),
 });
 
 export type CancelarNfseInput = z.infer<typeof cancelarNfseSchema>;
 
 export async function cancelarNota({
   chaveAcesso,
-  eventoXmlGZipBase64,
+  motivoCodigo,
+  justificativa,
   ambiente,
-  certificateId,
 }: CancelarNfseInput): Promise<CancelarNfseResponse> {
   const nota = await prisma.notaFiscal.findFirst({
     where: { chaveAcesso },
@@ -698,9 +701,11 @@ export async function cancelarNota({
     throw new AppError("NFSe não encontrada", 404);
   }
 
+  const motivo = findCancelamentoMotivo(motivoCodigo);
+
   const resolvedCertificate = await resolveCertificateId({
     prestadorCnpj: nota.prestador.cnpj,
-    provided: certificateId,
+    provided: undefined,
     notaCertificado: nota.certificateId,
     dpsCertificado: nota.dps?.certificadoId,
     prestadorCertificado: (nota.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null,
@@ -708,22 +713,81 @@ export async function cancelarNota({
 
   const ambienteApi = mapAmbienteToApi(nota.ambiente, ambiente);
 
+  const verAplic = nota.dps?.versaoAplicacao ?? nota.dps?.versao ?? "NFSE_NACIONAL_1.00";
+  const numeroPedido =
+    (await prisma.notaDocumento.count({
+      where: {
+        notaFiscalId: nota.id,
+        tipo: NotaDocumentoTipo.OUTRO,
+        nomeArquivo: {
+          startsWith: `Cancelamento-${chaveAcesso}`,
+        },
+      },
+    })) + 1;
+
+  const { xml: cancelamentoXml, infPedRegId } = generateCancelamentoXml({
+    chaveAcesso: nota.chaveAcesso,
+    ambiente: ambienteApi,
+    verAplic,
+    cnpjAutor: nota.prestador.cnpj,
+    motivoCodigo,
+    motivoDescricao: motivo?.descricao ?? "Cancelamento de NFS-e",
+    justificativa,
+    numeroPedido,
+  });
+
+  logInfo("XML de cancelamento gerado", {
+    chaveAcesso,
+    infPedRegId,
+    xml: cancelamentoXml,
+  });
+
+  let xmlAssinado: string;
+
+  try {
+    xmlAssinado = await assinarXml({
+      prestadorId: nota.prestadorId,
+      xml: cancelamentoXml,
+      tag: "infPedReg",
+      certificateId: resolvedCertificate,
+    });
+  } catch (error) {
+    const notaError = parseNotaApiError(error);
+    logError("Falha ao assinar pedido de cancelamento", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
+      certificateId: resolvedCertificate,
+      statusCode: notaError.statusCode,
+      detalhes: notaError.details,
+    });
+
+    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+  }
+
+  const eventoXmlGZipBase64 = compressToGzipBase64(xmlAssinado);
+
+  const notaApiPayload = {
+    chaveAcesso,
+    eventoXmlGZipBase64,
+    ambiente: ambienteApi,
+    certificateId: resolvedCertificate,
+  };
+
   logInfo("Solicitando cancelamento de NFSe", {
     chaveAcesso,
     prestadorId: nota.prestadorId,
     ambiente: ambienteApi,
     certificateId: resolvedCertificate,
+    motivoCodigo,
+    infPedRegId,
+    notaApiUrl: "/api/nfse/cancelar",
+    notaApiPayload,
   });
 
   let response: CancelarNfseResponse;
 
   try {
-    response = await cancelarNfse({
-      chaveAcesso,
-      eventoXmlGZipBase64,
-      ambiente: ambienteApi,
-      certificateId: resolvedCertificate,
-    });
+    response = await cancelarNfse(notaApiPayload);
   } catch (error) {
     const notaError = parseNotaApiError(error);
     logError("Falha ao solicitar cancelamento à SEFIN", {
@@ -740,7 +804,49 @@ export async function cancelarNota({
     chaveAcesso,
     prestadorId: nota.prestadorId,
     statusCode: response.statusCode,
+    infPedRegId,
+    notaApiUrl: "/api/nfse/cancelar",
+    notaApiPayload,
   });
+
+  const isSefinError = response.statusCode >= 400;
+
+  if (isSefinError) {
+    logError("SEFIN rejeitou cancelamento", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
+      statusCode: response.statusCode,
+      rawResponseContentType: response.contentType,
+      rawResponseContent: response.content,
+    });
+
+    await prisma.notaFiscal.update({
+      where: { id: nota.id },
+      data: {
+        statusCode: response.statusCode,
+        rawResponseContentType: response.contentType,
+        rawResponseContent: response.content,
+        ativo: true,
+      },
+    });
+
+    if (nota.dpsId) {
+      await prisma.dps.update({
+        where: { id: nota.dpsId },
+        data: {
+          status: DpsStatus.ENVIADO,
+          mensagemErro: resolveSefinErrorMessage(response.content, response.statusCode),
+          dataRetorno: new Date(),
+        },
+      });
+    }
+
+    throw new AppError(resolveSefinErrorMessage(response.content, response.statusCode), 502, {
+      statusCode: response.statusCode,
+      rawResponseContentType: response.contentType,
+      rawResponseContent: response.content,
+    });
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.notaFiscal.update({
@@ -776,6 +882,13 @@ export async function cancelarNota({
   });
 
   return response;
+}
+
+function compressToGzipBase64(value: string): string {
+  const normalized = value.trim();
+  const buffer = Buffer.from(normalized, "utf-8");
+  const compressed = gzipSync(buffer);
+  return compressed.toString("base64");
 }
 
 export async function gerarDanfse(

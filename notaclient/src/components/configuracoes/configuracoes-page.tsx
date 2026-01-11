@@ -37,7 +37,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { configuracaoUpdateSchema, type ConfiguracaoDto } from "@/lib/validators/configuracao";
+import {
+  configuracaoUpdateSchema,
+  type ConfiguracaoDto,
+  type ConfiguracaoFormValues,
+} from "@/lib/validators/configuracao";
 import { listMunicipios, type MunicipioDto } from "@/services/municipios";
 
 import { getConfiguracao, updateConfiguracao } from "./configuracoes-service";
@@ -80,7 +84,7 @@ const ufOptions = [
 export default function ConfiguracoesPage() {
   const [selectedUf, setSelectedUf] = useState<string>("MG");
 
-  const defaultValues: ConfiguracaoDto = {
+  const defaultValues: ConfiguracaoFormValues = {
     nomeSistema: "",
     versaoAplicacao: "",
     ambientePadrao: "HOMOLOGACAO",
@@ -127,22 +131,24 @@ export default function ConfiguracoesPage() {
     enabled: Boolean(selectedUf),
   });
 
-  const form = useForm<ConfiguracaoDto>({
+  const form = useForm<ConfiguracaoFormValues>({
     resolver: zodResolver(configuracaoUpdateSchema),
     defaultValues,
   });
 
   useEffect(() => {
     if (configuracaoQuery.data) {
-      form.reset(configuracaoQuery.data);
+      const { updatedAt: _updatedAt, ...formValues } = configuracaoQuery.data;
+      form.reset(formValues);
     }
   }, [configuracaoQuery.data, form]);
 
-  const updateMutation = useMutation({
+  const updateMutation = useMutation<ConfiguracaoDto, Error, ConfiguracaoFormValues>({
     mutationFn: updateConfiguracao,
     onSuccess: (data) => {
       toast.success("Configurações atualizadas com sucesso");
-      form.reset(data);
+      const { updatedAt: _updatedAt, ...formValues } = data;
+      form.reset(formValues);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -158,7 +164,7 @@ export default function ConfiguracoesPage() {
     }));
   }, [municipiosQuery.data]);
 
-  const handleSubmit = async (values: ConfiguracaoDto) => {
+  const handleSubmit = async (values: ConfiguracaoFormValues) => {
     await updateMutation.mutateAsync(values);
   };
 

@@ -1,3 +1,4 @@
+import type { CancelamentoMotivoCodigo } from "@/lib/nfse/cancelamento-motivos";
 import type { CancelarNfseResponse, EmitirNfseResponse } from "@/lib/nfse/types";
 
 export type DpsStatus = "RASCUNHO" | "ASSINADO" | "ENVIADO" | "CANCELADO";
@@ -63,9 +64,9 @@ export interface EmitirNfsePayload {
 
 export interface CancelarNfsePayload {
   chaveAcesso: string;
-  eventoXmlGZipBase64: string;
+  motivoCodigo: CancelamentoMotivoCodigo;
+  justificativa: string;
   ambiente?: number;
-  certificateId?: string;
 }
 
 export interface NotaDto {

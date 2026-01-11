@@ -69,6 +69,10 @@ import { listPrestadores, type PrestadorDto } from "@/services/prestadores";
 import { listTomadores, type TomadorDto } from "@/services/tomadores";
 import { listServicos, type ServicoDto } from "@/services/servicos";
 import { dpsCreateSchema } from "@/lib/validators/dps";
+import {
+  CANCELAMENTO_MOTIVOS,
+  type CancelamentoMotivoCodigo,
+} from "@/lib/nfse/cancelamento-motivos";
 
 interface CreateFormState {
   prestadorId: string;
@@ -122,6 +126,7 @@ const AMBIENTE_OPTIONS = [
 
 const SELECT_LOADING_VALUE = "__loading__";
 const SELECT_EMPTY_VALUE = "__empty__";
+const CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH = 5;
 
 function normalizeOptionalText(value: string | null | undefined) {
   if (value === null || value === undefined) {
@@ -180,10 +185,11 @@ export default function NfsePageContent() {
   }));
   const [cancelState, setCancelState] = useState<{
     nota: NotaDto;
-    eventoXml: string;
-    certificateId: string;
+    motivoCodigo: CancelamentoMotivoCodigo | "";
+    justificativa: string;
     ambiente: string;
   } | null>(null);
+  const [showCancelDetails, setShowCancelDetails] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -327,9 +333,6 @@ export default function NfsePageContent() {
   const isActionLoading = actionState?.type === "sign" ? assinarMutation.isPending : emitirMutation.isPending;
 
   const selectedCertificate = certificados.find((item) => item.id === selectedCertificateId);
-  const cancelSelectedCertificate = cancelState
-    ? certificados.find((item) => item.id === cancelState.certificateId) ?? null
-    : null;
 
   useEffect(() => {
     if (certificadosQuery.error) {
@@ -354,15 +357,10 @@ export default function NfsePageContent() {
 
   useEffect(() => {
     if (!cancelState) {
-      return;
+      setShowCancelDetails(false);
     }
+  }, [cancelState]);
 
-    const defaultCertificate = cancelState.certificateId || certificados[0]?.id || "";
-
-    if (defaultCertificate && defaultCertificate !== cancelState.certificateId) {
-      setCancelState((state) => (state ? { ...state, certificateId: defaultCertificate } : state));
-    }
-  }, [cancelState, certificados]);
 
   const handleToggleStatus = (status: DpsStatus) => {
     setSelectedStatuses((previous) => {
@@ -684,14 +682,15 @@ export default function NfsePageContent() {
                           size="sm"
                           variant="destructive"
                           disabled={cancelarMutation.isPending || nota.dps?.status === "CANCELADO"}
-                          onClick={() =>
+                          onClick={() => {
+                            setShowCancelDetails(false);
                             setCancelState({
                               nota,
-                              eventoXml: "",
-                              certificateId: nota.certificateId ?? nota.dps?.certificadoId ?? certificados[0]?.id ?? "",
+                              motivoCodigo: CANCELAMENTO_MOTIVOS[0]?.codigo ?? "",
+                              justificativa: "",
                               ambiente: nota.ambiente === "PRODUCAO" ? "1" : "2",
-                            })
-                          }
+                            });
+                          }}
                         >
                           <XCircle className="mr-2 h-4 w-4" /> Cancelar
                         </Button>
@@ -762,65 +761,79 @@ export default function NfsePageContent() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={cancelState !== null} onOpenChange={(open) => !open && setCancelState(null)}>
+      <Dialog
+        open={cancelState !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelState(null);
+            setShowCancelDetails(false);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Cancelar NFSe</DialogTitle>
-            <DialogDescription>Informe os dados necessários para cancelar a nota selecionada.</DialogDescription>
+            <DialogDescription>
+              Escolha o motivo, descreva a justificativa e confirme o cancelamento. O certificado A1 será aplicado
+              automaticamente.
+            </DialogDescription>
           </DialogHeader>
 
           {cancelState ? (
             <div className="space-y-4">
               <div className="rounded border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">NFSe nº {cancelState.nota.numero}</p>
-                <p className="text-muted-foreground">Chave: {cancelState.nota.chaveAcesso}</p>
+                <p className="text-muted-foreground">
+                  {showCancelDetails ? `Chave: ${cancelState.nota.chaveAcesso}` : "Chave de acesso oculta."}
+                  <button
+                    type="button"
+                    className="ml-2 text-xs font-medium text-primary underline"
+                    onClick={() => setShowCancelDetails((previous) => !previous)}
+                  >
+                    {showCancelDetails ? "Ocultar" : "Exibir detalhes"}
+                  </button>
+                </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="cancelCertificateId">
-                  Certificado A1
+                <label className="text-sm font-medium" htmlFor="cancelMotivo">
+                  Motivo do cancelamento
                 </label>
                 <Select
-                  value={cancelState.certificateId}
+                  value={cancelState.motivoCodigo}
                   onValueChange={(value) =>
-                    setCancelState((state) => (state ? { ...state, certificateId: value } : state))
+                    setCancelState((state) => (state ? { ...state, motivoCodigo: value as CancelamentoMotivoCodigo } : state))
                   }
                 >
-                  <SelectTrigger id="cancelCertificateId">
-                    <SelectValue placeholder="Selecione o certificado" />
+                  <SelectTrigger id="cancelMotivo">
+                    <SelectValue placeholder="Selecione o motivo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {certificadosQuery.isLoading ? (
-                      <SelectItem value={SELECT_LOADING_VALUE} disabled>
-                        Carregando certificados...
+                    {CANCELAMENTO_MOTIVOS.map((motivo) => (
+                      <SelectItem key={motivo.codigo} value={motivo.codigo} description={motivo.descricao}>
+                        {`Motivo ${motivo.codigo}`}
                       </SelectItem>
-                    ) : certificados.length > 0 ? (
-                      certificados.map((certificado) => (
-                        <SelectItem key={certificado.id} value={certificado.id}>
-                          {resolveCertificateLabel(certificado)}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value={SELECT_EMPTY_VALUE} disabled>
-                        Nenhum certificado disponível
-                      </SelectItem>
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="xmlCancelamento">
-                  XML de cancelamento (GZip Base64)
+                <label className="text-sm font-medium" htmlFor="cancelJustificativa">
+                  Justificativa
                 </label>
                 <Textarea
-                  id="xmlCancelamento"
-                  value={cancelState.eventoXml}
+                  id="cancelJustificativa"
+                  value={cancelState.justificativa}
                   onChange={(event) =>
-                    setCancelState((state) => (state ? { ...state, eventoXml: event.target.value } : state))
+                    setCancelState((state) => (state ? { ...state, justificativa: event.target.value } : state))
                   }
                   rows={4}
+                  placeholder="Descreva o motivo do cancelamento"
                 />
+                <p className="text-xs text-muted-foreground">
+                  A justificativa será enviada para a SEFIN junto com o pedido de cancelamento.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -858,12 +871,16 @@ export default function NfsePageContent() {
                 cancelState &&
                 cancelarMutation.mutate({
                   chaveAcesso: cancelState.nota.chaveAcesso,
-                  eventoXmlGZipBase64: cancelState.eventoXml,
-                  certificateId: cancelState.certificateId || undefined,
+                  motivoCodigo: cancelState.motivoCodigo as CancelamentoMotivoCodigo,
+                  justificativa: cancelState.justificativa.trim(),
                   ambiente: cancelState.ambiente ? Number(cancelState.ambiente) : undefined,
                 })
               }
-              disabled={cancelarMutation.isPending || !cancelState?.eventoXml}
+              disabled={
+                cancelarMutation.isPending ||
+                !cancelState?.motivoCodigo ||
+                cancelState.justificativa.trim().length < CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH
+              }
             >
               {cancelarMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Confirmar cancelamento

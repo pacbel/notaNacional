@@ -232,8 +232,12 @@ export default function ServicosPage() {
         servico={selectedServico}
         onClose={() => setSelectedServico(null)}
         onUpdate={handleUpdate}
-        onInactivate={async (id: string) => inactivateMutation.mutateAsync(id)}
-        onReactivate={async (id: string) => reactivateMutation.mutateAsync(id)}
+        onInactivate={async (id: string) => {
+          await inactivateMutation.mutateAsync(id);
+        }}
+        onReactivate={async (id: string) => {
+          await reactivateMutation.mutateAsync(id);
+        }}
         isMutating={isMutating}
       />
     </div>
