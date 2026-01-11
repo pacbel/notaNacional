@@ -11,6 +11,7 @@ using API_NFSe.Application.Services;
 using API_NFSe.Domain.Entities;
 using API_NFSe.Domain.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
+using Microsoft.Extensions.Logging;
 
 namespace API_NFSe.Infra.Data.Services.Nfse
 {
@@ -25,6 +26,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
         private readonly ISefinHttpClient _sefinHttpClient;
         private readonly INfseResponseParser _responseParser;
         private readonly INfseStorageService _storageService;
+        private readonly ILogger<NfseSefinService> _logger;
 
         public NfseSefinService(
             IPrestadorRepository prestadorRepository,
@@ -35,7 +37,8 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             ISefinHttpClient sefinHttpClient,
             INfseResponseParser responseParser,
             INfseStorageService storageService,
-            IXmlSignatureService xmlSignatureService)
+            IXmlSignatureService xmlSignatureService,
+            ILogger<NfseSefinService> logger)
         {
             _prestadorRepository = prestadorRepository ?? throw new ArgumentNullException(nameof(prestadorRepository));
             _prestadorCertificadoRepository = prestadorCertificadoRepository ?? throw new ArgumentNullException(nameof(prestadorCertificadoRepository));
@@ -46,6 +49,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             _responseParser = responseParser ?? throw new ArgumentNullException(nameof(responseParser));
             _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
             _xmlSignatureService = xmlSignatureService ?? throw new ArgumentNullException(nameof(xmlSignatureService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IReadOnlyCollection<CertificateInfoDto>> ListarCertificadosAsync(string usuarioReferencia, Guid? prestadorId, bool listarTodosCertificados)
@@ -191,14 +195,35 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var certificado = await ObterCertificadoPrestadorAsync(prestadorId, SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
 
+            var urlCancelar = ObterUrlCancelar(request.Ambiente, request.ChaveAcesso);
+
+            _logger.LogInformation(
+                "Iniciando cancelamento de NFSe. Url: {Url}. ChaveAcesso: {ChaveAcesso}. CertificateId: {CertificateId}. Ambiente: {Ambiente}. PayloadLength: {PayloadLength}",
+                urlCancelar,
+                request.ChaveAcesso,
+                request.CertificateId,
+                request.Ambiente,
+                request.EventoXmlGZipBase64?.Length ?? 0);
+
+            _logger.LogDebug(
+                "Payload cancelamento enviado à Sefin. Url: {Url}. PayloadBase64: {PayloadBase64}",
+                urlCancelar,
+                request.EventoXmlGZipBase64);
+
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.EventoXmlGZipBase64), "application/json", "request");
 
             var response = await _sefinHttpClient.CancelarAsync(request.ChaveAcesso, request.EventoXmlGZipBase64, request.Ambiente, certificado, cancellationToken);
 
+            _logger.LogInformation(
+                "Resposta recebida do cancelamento de NFSe. Url: {Url}. StatusCode: {StatusCode}. ContentType: {ContentType}",
+                urlCancelar,
+                response.StatusCode,
+                response.ContentType);
+
             var responseId = _storageService.SaveContent(response.Content, response.ContentType, "response");
             RegistrarLogEstruturado(
                 acao: "cancelar",
-                url: ObterUrlCancelar(request.Ambiente, request.ChaveAcesso),
+                url: urlCancelar,
                 ambiente: request.Ambiente,
                 certificateId: request.CertificateId,
                 contentType: response.ContentType,

@@ -64,13 +64,27 @@ type NotaWithRelations = Prisma.NotaFiscalGetPayload<{
   };
 }>;
 
-function logInfo(message: string, context?: Record<string, unknown>) {
+function logWithLevel(level: "info" | "debug" | "error", message: string, context?: Record<string, unknown>) {
+  const logger = level === "debug" ? console.debug : level === "error" ? console.error : console.info;
+
   if (context) {
-    console.info(`[NFSe] ${message}`, context);
+    logger(`[NFSe] ${message}`, context);
     return;
   }
 
-  console.info(`[NFSe] ${message}`);
+  logger(`[NFSe] ${message}`);
+}
+
+function logInfo(message: string, context?: Record<string, unknown>) {
+  logWithLevel("info", message, context);
+}
+
+function logDebug(message: string, context?: Record<string, unknown>) {
+  logWithLevel("debug", message, context);
+}
+
+function logError(message: string, context?: Record<string, unknown>) {
+  logWithLevel("error", message, context);
 }
 
 function normalizeSignedDpsXml(xml: string): string {
@@ -132,15 +146,6 @@ function ensureSignatureReference(signature: string, infDpsId: string): string {
   }
 
   return signature;
-}
-
-function logError(message: string, context?: Record<string, unknown>) {
-  if (context) {
-    console.error(`[NFSe] ${message}`, context);
-    return;
-  }
-
-  console.error(`[NFSe] ${message}`);
 }
 
 function minifyXml(value: string): string {
@@ -714,16 +719,6 @@ export async function cancelarNota({
   const ambienteApi = mapAmbienteToApi(nota.ambiente, ambiente);
 
   const verAplic = nota.dps?.versaoAplicacao ?? nota.dps?.versao ?? "NFSE_NACIONAL_1.00";
-  const numeroPedido =
-    (await prisma.notaDocumento.count({
-      where: {
-        notaFiscalId: nota.id,
-        tipo: NotaDocumentoTipo.OUTRO,
-        nomeArquivo: {
-          startsWith: `Cancelamento-${chaveAcesso}`,
-        },
-      },
-    })) + 1;
 
   const { xml: cancelamentoXml, infPedRegId } = generateCancelamentoXml({
     chaveAcesso: nota.chaveAcesso,
@@ -733,7 +728,6 @@ export async function cancelarNota({
     motivoCodigo,
     motivoDescricao: motivo?.descricao ?? "Cancelamento de NFS-e",
     justificativa,
-    numeroPedido,
   });
 
   logInfo("XML de cancelamento gerado", {
@@ -782,6 +776,16 @@ export async function cancelarNota({
     infPedRegId,
     notaApiUrl: "/api/nfse/cancelar",
     notaApiPayload,
+  });
+
+  logDebug("Payload completo enviado para Nota API (cancelamento)", {
+    url: "/api/nfse/cancelar",
+    chaveAcesso,
+    ambiente: ambienteApi,
+    certificateId: resolvedCertificate,
+    motivoCodigo,
+    eventoXmlGZipBase64Length: eventoXmlGZipBase64.length,
+    payload: notaApiPayload,
   });
 
   let response: CancelarNfseResponse;
