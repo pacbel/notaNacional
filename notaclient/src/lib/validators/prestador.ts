@@ -16,17 +16,15 @@ export const prestadorBaseSchema = z.object({
     }),
   inscricaoMunicipal: z
     .string()
-    .transform((value) => value.trim())
+    .trim()
     .optional()
-    .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .or(z.literal("")),
   email: z.string().email("E-mail inválido"),
   telefone: z
     .string()
     .transform((value) => value.replace(/\D/g, ""))
     .optional()
-    .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .or(z.literal("")),
   codigoMunicipio: z
     .string()
     .transform((value) => value.replace(/\D/g, ""))
@@ -51,14 +49,12 @@ export const prestadorBaseSchema = z.object({
   complemento: z
     .string()
     .optional()
-    .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .or(z.literal("")),
   bairro: z.string().min(1, "Informe o bairro"),
   observacoes: z
     .string()
     .optional()
-    .or(z.literal(""))
-    .transform((value) => (value === "" ? null : value)),
+    .or(z.literal("")),
 });
 
 export const prestadorCreateSchema = prestadorBaseSchema;
@@ -67,5 +63,6 @@ export const prestadorUpdateSchema = prestadorBaseSchema.partial().extend({
   ativo: z.boolean().optional(),
 });
 
+export type PrestadorFormValues = z.input<typeof prestadorCreateSchema>;
 export type PrestadorCreateInput = z.infer<typeof prestadorCreateSchema>;
 export type PrestadorUpdateInput = z.infer<typeof prestadorUpdateSchema>;
