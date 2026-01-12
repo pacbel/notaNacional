@@ -87,22 +87,31 @@ function logError(message: string, context?: Record<string, unknown>) {
   logWithLevel("error", message, context);
 }
 
-function normalizeSignedDpsXml(xml: string): string {
-  const infDpsId = extractInfDpsId(xml);
+function normalizeSignedXml(xml: string, elementTag: string, rootTag: string): string {
+  const elementId = extractElementId(xml, elementTag);
 
-  if (!infDpsId) {
+  if (!elementId) {
     return xml;
   }
 
-  return repositionSignatureNode(xml, infDpsId);
+  return repositionSignatureNode(xml, elementTag, rootTag, elementId);
 }
 
-function extractInfDpsId(xml: string): string | null {
-  const match = xml.match(/<infDPS\b[^>]*\bId="([^"]+)"/);
+function normalizeSignedDpsXml(xml: string): string {
+  return normalizeSignedXml(xml, "infDPS", "DPS");
+}
+
+function normalizeSignedPedRegXml(xml: string): string {
+  return normalizeSignedXml(xml, "infPedReg", "pedRegEvento");
+}
+
+function extractElementId(xml: string, tagName: string): string | null {
+  const regex = new RegExp(`<${tagName}\\b[^>]*\\bId="([^"]+)"`);
+  const match = regex.exec(xml);
   return match ? match[1] : null;
 }
 
-function repositionSignatureNode(xml: string, infDpsId: string): string {
+function repositionSignatureNode(xml: string, elementTag: string, rootTag: string, elementId: string): string {
   const signaturePattern = /<Signature[\s\S]*?<\/Signature>/;
   const match = signaturePattern.exec(xml);
 
@@ -110,32 +119,32 @@ function repositionSignatureNode(xml: string, infDpsId: string): string {
     return xml;
   }
 
-  const signatureBlock = ensureSignatureReference(match[0], infDpsId);
+  const signatureBlock = ensureSignatureReference(match[0], elementId);
   const normalizedSignature = signatureBlock.trim();
   const withoutSignature = xml.slice(0, match.index) + xml.slice(match.index + match[0].length);
 
-  const closingInfDpsTag = "</infDPS>";
-  const closingInfDpsIndex = withoutSignature.lastIndexOf(closingInfDpsTag);
+  const closingElementTag = `</${elementTag}>`;
+  const closingElementIndex = withoutSignature.lastIndexOf(closingElementTag);
 
-  if (closingInfDpsIndex !== -1) {
-    const insertPosition = closingInfDpsIndex + closingInfDpsTag.length;
+  if (closingElementIndex !== -1) {
+    const insertPosition = closingElementIndex + closingElementTag.length;
     const before = withoutSignature.slice(0, insertPosition);
     const after = withoutSignature.slice(insertPosition);
 
     return minifyXml(`${before}${normalizedSignature}${after}`);
   }
 
-  const closingDpsTag = "</DPS>";
-  const closingDpsIndex = withoutSignature.lastIndexOf(closingDpsTag);
+  const closingRootTag = `</${rootTag}>`;
+  const closingRootIndex = withoutSignature.lastIndexOf(closingRootTag);
 
-  if (closingDpsIndex !== -1) {
-    const before = withoutSignature.slice(0, closingDpsIndex);
-    const after = withoutSignature.slice(closingDpsIndex);
+  if (closingRootIndex !== -1) {
+    const before = withoutSignature.slice(0, closingRootIndex);
+    const after = withoutSignature.slice(closingRootIndex);
 
     return minifyXml(`${before}${normalizedSignature}${after}`);
   }
 
-  return ensureSignatureReference(xml, infDpsId);
+  return ensureSignatureReference(xml, elementId);
 }
 
 function ensureSignatureReference(signature: string, infDpsId: string): string {
@@ -745,6 +754,8 @@ export async function cancelarNota({
       tag: "infPedReg",
       certificateId: resolvedCertificate,
     });
+
+    xmlAssinado = normalizeSignedPedRegXml(xmlAssinado);
   } catch (error) {
     const notaError = parseNotaApiError(error);
     logError("Falha ao assinar pedido de cancelamento", {

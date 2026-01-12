@@ -1,4 +1,5 @@
 import type { CancelamentoMotivoCodigo } from "../cancelamento-motivos";
+import { findCancelamentoMotivo } from "../cancelamento-motivos";
 
 const XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
 const EVENT_CODE = "101101";
@@ -118,4 +119,43 @@ export function generateCancelamentoXml({
     ),
     infPedRegId,
   };
+}
+
+const DEFAULT_VER_APLIC = "NFSE_NACIONAL_1.00";
+const DEFAULT_CNPJ_AUTOR = "00000000000000";
+
+export interface GenerateCancelamentoXmlFromMotivoInput {
+  chaveAcesso: string;
+  motivoCodigo: CancelamentoMotivoCodigo;
+  justificativa?: string;
+  ambiente?: number;
+  verAplic?: string;
+  cnpjAutor?: string;
+  motivoDescricao?: string;
+  dataEvento?: Date;
+}
+
+export function generateCancelamentoXmlFromMotivo({
+  chaveAcesso,
+  motivoCodigo,
+  justificativa,
+  ambiente = 1,
+  verAplic = DEFAULT_VER_APLIC,
+  cnpjAutor = DEFAULT_CNPJ_AUTOR,
+  motivoDescricao,
+  dataEvento,
+}: GenerateCancelamentoXmlFromMotivoInput): GenerateCancelamentoXmlOutput {
+  const resolvedDescricao =
+    motivoDescricao ?? findCancelamentoMotivo(motivoCodigo)?.descricao ?? EVENT_DESCRIPTION;
+
+  return generateCancelamentoXml({
+    chaveAcesso,
+    ambiente,
+    verAplic,
+    cnpjAutor,
+    motivoCodigo,
+    motivoDescricao: resolvedDescricao,
+    justificativa: justificativa ?? resolvedDescricao,
+    dataEvento,
+  });
 }
