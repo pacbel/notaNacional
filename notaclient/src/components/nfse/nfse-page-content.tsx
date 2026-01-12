@@ -126,7 +126,8 @@ const AMBIENTE_OPTIONS = [
 
 const SELECT_LOADING_VALUE = "__loading__";
 const SELECT_EMPTY_VALUE = "__empty__";
-const CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH = 5;
+const CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH = 15;
+const CANCELAMENTO_JUSTIFICATIVA_MAX_LENGTH = 255;
 
 function normalizeOptionalText(value: string | null | undefined) {
   if (value === null || value === undefined) {
@@ -187,9 +188,7 @@ export default function NfsePageContent() {
     nota: NotaDto;
     motivoCodigo: CancelamentoMotivoCodigo | "";
     justificativa: string;
-    ambiente: string;
   } | null>(null);
-  const [showCancelDetails, setShowCancelDetails] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -354,13 +353,6 @@ export default function NfsePageContent() {
       toast.error(error instanceof Error ? error.message : "Falha ao carregar NFSe");
     }
   }, [notasQuery.error]);
-
-  useEffect(() => {
-    if (!cancelState) {
-      setShowCancelDetails(false);
-    }
-  }, [cancelState]);
-
 
   const handleToggleStatus = (status: DpsStatus) => {
     setSelectedStatuses((previous) => {
@@ -683,12 +675,10 @@ export default function NfsePageContent() {
                           variant="destructive"
                           disabled={cancelarMutation.isPending || nota.dps?.status === "CANCELADO"}
                           onClick={() => {
-                            setShowCancelDetails(false);
                             setCancelState({
                               nota,
                               motivoCodigo: CANCELAMENTO_MOTIVOS[0]?.codigo ?? "",
                               justificativa: "",
-                              ambiente: nota.ambiente === "PRODUCAO" ? "1" : "2",
                             });
                           }}
                         >
@@ -766,7 +756,6 @@ export default function NfsePageContent() {
         onOpenChange={(open) => {
           if (!open) {
             setCancelState(null);
-            setShowCancelDetails(false);
           }
         }}
       >
@@ -783,15 +772,8 @@ export default function NfsePageContent() {
             <div className="space-y-4">
               <div className="rounded border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">NFSe nº {cancelState.nota.numero}</p>
-                <p className="text-muted-foreground">
-                  {showCancelDetails ? `Chave: ${cancelState.nota.chaveAcesso}` : "Chave de acesso oculta."}
-                  <button
-                    type="button"
-                    className="ml-2 text-xs font-medium text-primary underline"
-                    onClick={() => setShowCancelDetails((previous) => !previous)}
-                  >
-                    {showCancelDetails ? "Ocultar" : "Exibir detalhes"}
-                  </button>
+                <p className="text-muted-foreground break-words">
+                  Chave: {cancelState.nota.chaveAcesso}
                 </p>
               </div>
 
@@ -811,7 +793,7 @@ export default function NfsePageContent() {
                   <SelectContent>
                     {CANCELAMENTO_MOTIVOS.map((motivo) => (
                       <SelectItem key={motivo.codigo} value={motivo.codigo} description={motivo.descricao}>
-                        {`Motivo ${motivo.codigo}`}
+                        {motivo.descricao}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -824,6 +806,7 @@ export default function NfsePageContent() {
                 </label>
                 <Textarea
                   id="cancelJustificativa"
+                  maxLength={CANCELAMENTO_JUSTIFICATIVA_MAX_LENGTH}
                   value={cancelState.justificativa}
                   onChange={(event) =>
                     setCancelState((state) => (state ? { ...state, justificativa: event.target.value } : state))
@@ -832,31 +815,8 @@ export default function NfsePageContent() {
                   placeholder="Descreva o motivo do cancelamento"
                 />
                 <p className="text-xs text-muted-foreground">
-                  A justificativa será enviada para a SEFIN junto com o pedido de cancelamento.
+                  A justificativa (15 a 255 caracteres) será enviada para a SEFIN junto com o pedido de cancelamento.
                 </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="ambienteCancelamento">
-                  Ambiente
-                </label>
-                <Select
-                  value={cancelState.ambiente}
-                  onValueChange={(value) =>
-                    setCancelState((state) => (state ? { ...state, ambiente: value } : state))
-                  }
-                >
-                  <SelectTrigger id="ambienteCancelamento">
-                    <SelectValue placeholder="Selecione o ambiente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AMBIENTE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           ) : null}
@@ -873,13 +833,13 @@ export default function NfsePageContent() {
                   chaveAcesso: cancelState.nota.chaveAcesso,
                   motivoCodigo: cancelState.motivoCodigo as CancelamentoMotivoCodigo,
                   justificativa: cancelState.justificativa.trim(),
-                  ambiente: cancelState.ambiente ? Number(cancelState.ambiente) : undefined,
                 })
               }
               disabled={
                 cancelarMutation.isPending ||
                 !cancelState?.motivoCodigo ||
-                cancelState.justificativa.trim().length < CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH
+                cancelState.justificativa.trim().length < CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH ||
+                cancelState.justificativa.trim().length > CANCELAMENTO_JUSTIFICATIVA_MAX_LENGTH
               }
             >
               {cancelarMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

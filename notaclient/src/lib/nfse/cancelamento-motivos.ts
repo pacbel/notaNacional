@@ -1,4 +1,4 @@
-export const CANCELAMENTO_MOTIVO_CODES = ["1", "2", "3", "4"] as const;
+export const CANCELAMENTO_MOTIVO_CODES = ["1", "2", "9"] as const;
 
 export type CancelamentoMotivoCodigo = (typeof CANCELAMENTO_MOTIVO_CODES)[number];
 
@@ -8,10 +8,9 @@ export interface CancelamentoMotivo {
 }
 
 export const CANCELAMENTO_MOTIVOS: readonly CancelamentoMotivo[] = [
-  { codigo: "1", descricao: "Erro na emissão da nota" },
+  { codigo: "1", descricao: "Erro na emissão" },
   { codigo: "2", descricao: "Serviço não prestado" },
-  { codigo: "3", descricao: "Cancelamento por determinação da prefeitura" },
-  { codigo: "4", descricao: "Duplicidade na emissão" },
+  { codigo: "9", descricao: "Outros" },
 ];
 
 export function findCancelamentoMotivo(codigo: string): CancelamentoMotivo | undefined {
