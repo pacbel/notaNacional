@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +15,6 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -28,19 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatCpfCnpj, formatPhone } from "@/lib/formatters";
-import { formatCepInput, formatDocumentoInput, formatPhoneInput, normalizeCep, normalizeDocumento, normalizePhone } from "@/lib/utils/input-masks";
+import { formatDocumentoInput, formatPhoneInput, normalizeDocumento, normalizePhone } from "@/lib/utils/input-masks";
 import { tomadorUpdateSchema, type TomadorUpdateInput } from "@/lib/validators/tomador";
 import type { TomadorDto } from "@/services/tomadores";
-
-interface ViaCepResponse {
-  logradouro?: string;
-  bairro?: string;
-  localidade?: string;
-  uf?: string;
-  ibge?: string;
-  complemento?: string;
-  erro?: boolean;
-}
+import { AddressFormSection } from "@/components/address/address-form-section";
 
 interface TomadorDetailsDrawerProps {
   tomador: TomadorDto | null;
@@ -107,19 +97,12 @@ export function TomadorDetailsDrawer({
   });
 
   const numeroInputRef = useRef<HTMLInputElement | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const lastFetchedCepRef = useRef<string>("");
-  const logCepDebug = useCallback((step: string, details?: Record<string, unknown>) => {
-    console.debug(`[Tomadores][CEP][DetailsDrawer] ${step}`, details ?? {});
-  }, []);
-  const [isFetchingCep, setIsFetchingCep] = useState(false);
   const tipoDocumentoValue = form.watch("tipoDocumento") ?? "CPF";
 
   useEffect(() => {
     if (tomador) {
       form.reset(mapTomadorToForm(tomador));
       setIsEditing(false);
-      lastFetchedCepRef.current = normalizeCep(tomador.cep ?? "");
     }
   }, [tomador, form]);
 
@@ -136,163 +119,6 @@ export function TomadorDetailsDrawer({
 
     return parts.join(" · ");
   }, [tomador]);
-
-  const cancelPendingFetch = useCallback(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-  }, []);
-
-  const fetchCepData = useCallback(
-    async (digitsOnlyCep: string) => {
-      if (!isEditing) {
-        logCepDebug("skip fetch", { reason: "not editing", digitsOnlyCep });
-        return;
-      }
-
-      if (digitsOnlyCep.length !== 8) {
-        logCepDebug("skip fetch", { reason: "incomplete", digitsOnlyCep });
-        return;
-      }
-
-      if (digitsOnlyCep === lastFetchedCepRef.current) {
-        logCepDebug("skip fetch", { reason: "already fetched", digitsOnlyCep });
-        return;
-      }
-
-      cancelPendingFetch();
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      try {
-        setIsFetchingCep(true);
-        logCepDebug("fetch start", { digitsOnlyCep });
-        const response = await fetch(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error("CEP inválido ou indisponível");
-        }
-
-        const data = (await response.json()) as ViaCepResponse;
-
-        logCepDebug("fetch response", {
-          digitsOnlyCep,
-          hasErrorFlag: data.erro ?? false,
-        });
-
-        if (data.erro) {
-          throw new Error("CEP não encontrado");
-        }
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        lastFetchedCepRef.current = digitsOnlyCep;
-        form.clearErrors("cep");
-
-        if (data.logradouro) {
-          form.setValue("logradouro", data.logradouro, { shouldDirty: true });
-        }
-        if (data.bairro) {
-          form.setValue("bairro", data.bairro, { shouldDirty: true });
-        }
-        if (data.localidade) {
-          form.setValue("cidade", data.localidade, { shouldDirty: true });
-        }
-
-        if (data.uf) {
-          form.setValue("estado", data.uf, { shouldDirty: true, shouldValidate: true });
-        }
-
-        if (data.ibge) {
-          const codigoMunicipio = data.ibge.slice(0, 7);
-          form.setValue("codigoMunicipio", codigoMunicipio, {
-            shouldDirty: true,
-            shouldValidate: true,
-          });
-        }
-
-        if (data.complemento) {
-          form.setValue("complemento", data.complemento, { shouldDirty: true });
-        }
-
-        logCepDebug("fetch success", {
-          digitsOnlyCep,
-          cidade: data.localidade ?? "",
-          estado: data.uf ?? "",
-          codigoMunicipio: data.ibge?.slice(0, 7) ?? "",
-        });
-
-        window.requestAnimationFrame(() => {
-          numeroInputRef.current?.focus();
-        });
-      } catch (error) {
-        if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-          logCepDebug("fetch aborted", { digitsOnlyCep });
-          return;
-        }
-        const message = error instanceof Error ? error.message : "Erro ao buscar CEP";
-        toast.error(message);
-        form.setError("cep", {
-          type: "manual",
-          message,
-        });
-        lastFetchedCepRef.current = "";
-        logCepDebug("fetch error", {
-          digitsOnlyCep,
-          message,
-        });
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsFetchingCep(false);
-          logCepDebug("fetch end", {
-            digitsOnlyCep,
-            cancelled: controller.signal.aborted,
-          });
-        }
-        abortControllerRef.current = null;
-      }
-    },
-    [cancelPendingFetch, form, isEditing, logCepDebug]
-  );
-
-  useEffect(() => () => cancelPendingFetch(), [cancelPendingFetch]);
-
-  const handleCepBlur = useCallback(
-    (event: FocusEvent<HTMLInputElement>) => {
-      if (!isEditing) {
-        return;
-      }
-
-      const normalized = normalizeCep(event.target.value);
-      const formatted = formatCepInput(normalized);
-      if (event.target.value !== formatted) {
-        event.target.value = formatted;
-      }
-
-      form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
-      logCepDebug("blur", { normalizedCep: normalized });
-      cancelPendingFetch();
-      void fetchCepData(normalized);
-    },
-    [cancelPendingFetch, fetchCepData, form, isEditing, logCepDebug]
-  );
-
-  const handleCepSearchClick = useCallback(() => {
-    if (!isEditing) {
-      logCepDebug("button click skipped", { reason: "not editing" });
-      return;
-    }
-
-    const normalized = normalizeCep(form.getValues("cep") ?? "");
-    form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
-    logCepDebug("button click", { normalizedCep: normalized });
-    cancelPendingFetch();
-    void fetchCepData(normalized);
-  }, [cancelPendingFetch, fetchCepData, form, isEditing, logCepDebug]);
 
   const handleSubmit = async (values: TomadorFormValues) => {
     const parsed = tomadorUpdateSchema.parse(values);
@@ -447,172 +273,11 @@ export function TomadorDetailsDrawer({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="cep"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>CEP</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="01000-000"
-                              disabled={isMutating}
-                              value={formatCepInput(field.value ?? "")}
-                              onChange={(event) => field.onChange(normalizeCep(event.target.value))}
-                              onBlur={(event) => {
-                                field.onBlur();
-                                handleCepBlur(event);
-                              }}
-                              aria-busy={isMutating || isFetchingCep}
-                              inputMode="numeric"
-                              maxLength={9}
-                              autoComplete="postal-code"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={handleCepSearchClick}
-                              disabled={isMutating || isFetchingCep}
-                            >
-                              Buscar
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="estado"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>UF</FormLabel>
-                        <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={(event) => field.onChange(event.target.value.toUpperCase())}
-                            disabled={isMutating}
-                            maxLength={2}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="cidade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="codigoMunicipio"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código do município (IBGE)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="0000000"
-                            value={field.value ?? ""}
-                            readOnly
-                            aria-readonly
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="inscricaoMunicipal"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inscrição municipal</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="logradouro"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>Logradouro</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="numero"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número</FormLabel>
-                        <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            disabled={isMutating}
-                            ref={(element) => {
-                              field.ref(element);
-                              numeroInputRef.current = element;
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="complemento"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Complemento</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="bairro"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <AddressFormSection
+                    form={form}
+                    isSubmitting={isMutating}
+                    numeroInputRef={numeroInputRef}
+                    debugLabel="Tomadores/DetailsDrawer"
                   />
                 </div>
 
