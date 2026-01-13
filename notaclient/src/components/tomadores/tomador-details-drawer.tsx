@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } fr
 import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Phone, MapPin, Shield } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
 
 import {
   Sheet,
@@ -140,10 +140,6 @@ export function TomadorDetailsDrawer({
 
     return parts.join(" · ");
   }, [tomador]);
-
-  if (!tomador) {
-    return null;
-  }
 
   const cancelPendingFetch = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -305,9 +301,13 @@ export function TomadorDetailsDrawer({
 
   const handleSubmit = async (values: TomadorFormValues) => {
     const parsed = tomadorUpdateSchema.parse(values);
-    await onUpdate(tomador.id, parsed);
+    await onUpdate(tomador?.id ?? "", parsed);
     setIsEditing(false);
   };
+
+  if (!tomador) {
+    return null;
+  }
 
   return (
     <Sheet
@@ -318,7 +318,7 @@ export function TomadorDetailsDrawer({
         }
       }}
     >
-      <SheetContent className="flex w-full max-w-xl flex-col gap-6 overflow-y-auto">
+      <SheetContent widthClass="w-full max-w-4xl border-l" className="flex flex-col gap-6 overflow-y-auto p-6">
         <SheetHeader>
           <SheetTitle className="text-left text-2xl font-semibold">
             {tomador.nomeRazaoSocial}
@@ -334,25 +334,6 @@ export function TomadorDetailsDrawer({
             {tomador.ativo ? "Tomador ativo" : "Tomador inativo"}
           </Badge>
           <Badge variant="secondary">Criado em {new Date(tomador.createdAt).toLocaleString("pt-BR")}</Badge>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            <span>{tomador.email}</span>
-          </div>
-          {tomador.telefone && (
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              <span>{formatPhone(tomador.telefone)}</span>
-            </div>
-          )}
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4" />
-            <span>{address}</span>
-          </div>
         </div>
 
         <Separator />
