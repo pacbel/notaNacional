@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -27,8 +28,19 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatCpfCnpj, formatPhone } from "@/lib/formatters";
+import { formatCepInput, normalizeCep } from "@/lib/utils/input-masks";
 import { tomadorUpdateSchema, type TomadorUpdateInput } from "@/lib/validators/tomador";
 import type { TomadorDto } from "@/services/tomadores";
+
+interface ViaCepResponse {
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  ibge?: string;
+  complemento?: string;
+  erro?: boolean;
+}
 
 interface TomadorDetailsDrawerProps {
   tomador: TomadorDto | null;
@@ -94,10 +106,24 @@ export function TomadorDetailsDrawer({
     defaultValues: EMPTY_VALUES,
   });
 
+  const cepInputRef = useRef<HTMLInputElement | null>(null);
+  const numeroInputRef = useRef<HTMLInputElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchedCepRef = useRef<string>("");
+  const logCepDebug = useCallback((step: string, details?: Record<string, unknown>) => {
+    console.debug(`[Tomadores][CEP][DetailsDrawer] ${step}`, details ?? {});
+  }, []);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
+
   useEffect(() => {
     if (tomador) {
       form.reset(mapTomadorToForm(tomador));
       setIsEditing(false);
+      const formattedCep = formatCepInput(tomador.cep ?? "");
+      if (cepInputRef.current) {
+        cepInputRef.current.value = formattedCep;
+      }
+      lastFetchedCepRef.current = normalizeCep(tomador.cep ?? "");
     }
   }, [tomador, form]);
 
@@ -118,6 +144,164 @@ export function TomadorDetailsDrawer({
   if (!tomador) {
     return null;
   }
+
+  const cancelPendingFetch = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, []);
+
+  const fetchCepData = useCallback(
+    async (digitsOnlyCep: string) => {
+      if (!isEditing) {
+        logCepDebug("skip fetch", { reason: "not editing", digitsOnlyCep });
+        return;
+      }
+
+      if (digitsOnlyCep.length !== 8) {
+        logCepDebug("skip fetch", { reason: "incomplete", digitsOnlyCep });
+        return;
+      }
+
+      if (digitsOnlyCep === lastFetchedCepRef.current) {
+        logCepDebug("skip fetch", { reason: "already fetched", digitsOnlyCep });
+        return;
+      }
+
+      cancelPendingFetch();
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        setIsFetchingCep(true);
+        logCepDebug("fetch start", { digitsOnlyCep });
+        const response = await fetch(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("CEP inválido ou indisponível");
+        }
+
+        const data = (await response.json()) as ViaCepResponse;
+
+        logCepDebug("fetch response", {
+          digitsOnlyCep,
+          hasErrorFlag: data.erro ?? false,
+        });
+
+        if (data.erro) {
+          throw new Error("CEP não encontrado");
+        }
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        lastFetchedCepRef.current = digitsOnlyCep;
+        form.clearErrors("cep");
+
+        form.setValue("logradouro", data.logradouro ?? "", { shouldDirty: true });
+        form.setValue("bairro", data.bairro ?? "", { shouldDirty: true });
+        form.setValue("cidade", data.localidade ?? "", { shouldDirty: true });
+
+        if (data.uf) {
+          form.setValue("estado", data.uf, { shouldDirty: true, shouldValidate: true });
+        }
+
+        if (data.ibge) {
+          const codigoMunicipio = data.ibge.slice(0, 7);
+          form.setValue("codigoMunicipio", codigoMunicipio, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+
+        if (data.complemento) {
+          form.setValue("complemento", data.complemento ?? "", { shouldDirty: true });
+        }
+
+        logCepDebug("fetch success", {
+          digitsOnlyCep,
+          cidade: data.localidade ?? "",
+          estado: data.uf ?? "",
+          codigoMunicipio: data.ibge?.slice(0, 7) ?? "",
+        });
+
+        window.requestAnimationFrame(() => {
+          numeroInputRef.current?.focus();
+        });
+      } catch (error) {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+          logCepDebug("fetch aborted", { digitsOnlyCep });
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Erro ao buscar CEP";
+        toast.error(message);
+        form.setError("cep", {
+          type: "manual",
+          message,
+        });
+        lastFetchedCepRef.current = "";
+        logCepDebug("fetch error", {
+          digitsOnlyCep,
+          message,
+        });
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsFetchingCep(false);
+          logCepDebug("fetch end", {
+            digitsOnlyCep,
+            cancelled: controller.signal.aborted,
+          });
+        }
+        abortControllerRef.current = null;
+      }
+    },
+    [cancelPendingFetch, form, isEditing, logCepDebug]
+  );
+
+  useEffect(() => () => cancelPendingFetch(), [cancelPendingFetch]);
+
+  const handleCepNormalization = useCallback(
+    (value: string) => {
+      const normalized = normalizeCep(value);
+      const formatted = formatCepInput(normalized);
+      form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
+
+      if (cepInputRef.current) {
+        cepInputRef.current.value = formatted;
+      }
+
+      return normalized;
+    },
+    [form]
+  );
+
+  const handleCepBlur = useCallback(
+    (event: FocusEvent<HTMLInputElement>) => {
+      if (!isEditing) {
+        return;
+      }
+
+      const normalized = handleCepNormalization(event.target.value);
+      logCepDebug("blur", { normalizedCep: normalized });
+      void fetchCepData(normalized);
+    },
+    [fetchCepData, handleCepNormalization, isEditing, logCepDebug]
+  );
+
+  const handleCepSearchClick = useCallback(() => {
+    if (!isEditing) {
+      logCepDebug("button click skipped", { reason: "not editing" });
+      return;
+    }
+
+    const rawValue = cepInputRef.current?.value ?? "";
+    const normalized = handleCepNormalization(rawValue);
+    logCepDebug("button click", { normalizedCep: normalized });
+    void fetchCepData(normalized);
+  }, [fetchCepData, handleCepNormalization, isEditing, logCepDebug]);
 
   const handleSubmit = async (values: TomadorFormValues) => {
     const parsed = tomadorUpdateSchema.parse(values);
@@ -302,7 +486,32 @@ export function TomadorDetailsDrawer({
                       <FormItem>
                         <FormLabel>CEP</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="01000-000"
+                              disabled={isMutating}
+                              defaultValue={formatCepInput(field.value ?? "")}
+                              ref={(element) => {
+                                field.ref(element);
+                                cepInputRef.current = element;
+                              }}
+                              onBlur={(event) => {
+                                field.onBlur();
+                                handleCepBlur(event);
+                              }}
+                              aria-busy={isMutating || isFetchingCep}
+                              autoFocus
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={handleCepSearchClick}
+                              disabled={isMutating || isFetchingCep}
+                            >
+                              Buscar
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -330,7 +539,15 @@ export function TomadorDetailsDrawer({
                       <FormItem>
                         <FormLabel>Número</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Input
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            disabled={isMutating}
+                            ref={(element) => {
+                              field.ref(element);
+                              numeroInputRef.current = element;
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
