@@ -199,13 +199,15 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                 )}
               />
 
-              <AddressFormSection
-                form={form}
-                isSubmitting={isSubmitting}
-                numeroInputRef={numeroInputRef}
-                debugLabel="Tomadores/FormDialog"
-              />
+
             </div>
+
+            <AddressFormSection
+              form={form}
+              isSubmitting={isSubmitting}
+              numeroInputRef={numeroInputRef}
+              debugLabel="Tomadores/FormDialog"
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

@@ -272,14 +272,14 @@ export function TomadorDetailsDrawer({
                       </FormItem>
                     )}
                   />
-
-                  <AddressFormSection
-                    form={form}
-                    isSubmitting={isMutating}
-                    numeroInputRef={numeroInputRef}
-                    debugLabel="Tomadores/DetailsDrawer"
-                  />
                 </div>
+
+                <AddressFormSection
+                  form={form}
+                  isSubmitting={isMutating}
+                  numeroInputRef={numeroInputRef}
+                  debugLabel="Tomadores/DetailsDrawer"
+                />
 
                 <SheetFooter className="flex-row-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="submit" disabled={isMutating}>

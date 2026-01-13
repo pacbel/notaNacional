@@ -80,38 +80,24 @@ export function AddressFormSection<TFormValues extends FieldValues>({
     bairro: bairroPath,
   } = fields;
 
-  const estadoValueRaw = form.watch(estadoPath);
-  const codigoMunicipioValueRaw = form.watch(codigoMunicipioPath);
-
-  const toStringValue = (value: unknown) => {
-    if (typeof value === "string") {
-      return value;
-    }
-    if (typeof value === "number") {
-      return value.toString();
-    }
-    if (value == null) {
-      return "";
-    }
-    return String(value);
-  };
-
-  const estadoValue = toStringValue(estadoValueRaw);
-  const codigoMunicipioValue = toStringValue(codigoMunicipioValueRaw);
+  const estadoValue = form.watch(estadoPath) as string | undefined;
+  const codigoMunicipioValue = form.watch(codigoMunicipioPath) as string | undefined;
 
   const [municipios, setMunicipios] = useState<MunicipioDto[]>([]);
   const [isLoadingMunicipios, setIsLoadingMunicipios] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
-  const [shouldShowMunicipioErrors, setShouldShowMunicipioErrors] = useState(true);
-  const [isAwaitingMunicipiosAfterUfChange, setIsAwaitingMunicipiosAfterUfChange] = useState(false);
-  const loadMunicipiosRequestRef = useRef(0);
-  const pendingMunicipioRef = useRef<{ codigo: string; cidade: string } | null>(null);
+  
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastFetchedCepRef = useRef<string>("");
-  const isSettingEstadoFromCepRef = useRef(false);
+  const municipiosLoadedForUfRef = useRef<string>("");
+  const pendingCepDataRef = useRef<{ uf: string; ibge: string; cidade: string } | null>(null);
 
   const setFieldValue = useCallback(
-    <TName extends Path<TFormValues>>(name: TName, value: PathValue<TFormValues, TName>, options?: Parameters<UseFormReturn<TFormValues>["setValue"]>[2]) => {
+    <TName extends Path<TFormValues>>(
+      name: TName,
+      value: PathValue<TFormValues, TName>,
+      options?: Parameters<UseFormReturn<TFormValues>["setValue"]>[2]
+    ) => {
       form.setValue(name, value, options);
     },
     [form]
@@ -119,135 +105,75 @@ export function AddressFormSection<TFormValues extends FieldValues>({
 
   const logDebug = useCallback(
     (step: string, details?: Record<string, unknown>) => {
-      const payload = {
+      console.debug(`[${debugLabel}] ${step}`, {
         ...details,
-        valores: {
-          estado: form.getValues(estadoPath),
-          cidade: form.getValues(cidadePath),
-          codigoMunicipio: form.getValues(codigoMunicipioPath),
-        },
-        isLoadingMunicipios,
-        hasPendingMunicipio: Boolean(pendingMunicipioRef.current),
-      } satisfies Record<string, unknown>;
-      console.debug(`[${debugLabel}] ${step}`, JSON.stringify(payload, null, 2));
+        estado: estadoValue,
+        cidade: form.getValues(cidadePath),
+        codigoMunicipio: form.getValues(codigoMunicipioPath),
+      });
     },
-    [cidadePath, codigoMunicipioPath, debugLabel, estadoPath, form, isLoadingMunicipios]
+    [debugLabel, estadoValue, form, cidadePath, codigoMunicipioPath]
   );
 
-  const cancelPendingFetch = useCallback(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-  }, []);
-
-  useEffect(() => () => cancelPendingFetch(), [cancelPendingFetch]);
-
+  // Carrega municípios quando o estado muda
   useEffect(() => {
-    loadMunicipiosRequestRef.current += 1;
-    const requestId = loadMunicipiosRequestRef.current;
-
-    if (!estadoValue || estadoValue.length !== 2) {
+    const uf = estadoValue?.toString().trim().toUpperCase();
+    
+    if (!uf || uf.length !== 2) {
       setMunicipios([]);
-      if (!estadoValue) {
-        pendingMunicipioRef.current = null;
-      }
-      form.clearErrors([cidadePath, codigoMunicipioPath]);
-      setIsLoadingMunicipios(false);
-      setIsAwaitingMunicipiosAfterUfChange(false);
-      logDebug("estado invalido ou vazio", { estadoValue });
+      municipiosLoadedForUfRef.current = "";
       return;
     }
 
-    let isActive = true;
+    // Já carregou para este estado
+    if (municipiosLoadedForUfRef.current === uf) {
+      return;
+    }
+
+    let cancelled = false;
 
     const loadMunicipios = async () => {
       try {
         setIsLoadingMunicipios(true);
-        setShouldShowMunicipioErrors(false);
-        form.clearErrors([cidadePath, codigoMunicipioPath]);
-        logDebug("load municipios start", { estadoValue });
-        const data = await listMunicipios(estadoValue);
-        if (!isActive || requestId !== loadMunicipiosRequestRef.current) {
-          logDebug("load municipios aborted", { estadoValue, requestId, currentRequest: loadMunicipiosRequestRef.current });
-          return;
-        }
+        logDebug("Carregando municípios", { uf });
+
+        const data = await listMunicipios(uf);
+
+        if (cancelled) return;
 
         setMunicipios(data);
-        setIsAwaitingMunicipiosAfterUfChange(false);
-        setShouldShowMunicipioErrors(true);
-        logDebug("load municipios success", { estadoValue, total: data.length });
+        municipiosLoadedForUfRef.current = uf;
+        logDebug("Municípios carregados", { uf, count: data.length });
 
-        const currentCodigo = form.getValues(codigoMunicipioPath)?.toString().trim();
-        const currentCidade = form.getValues(cidadePath)?.toString().trim();
+        // Se há dados pendentes do CEP, aplica agora
+        const pending = pendingCepDataRef.current;
+        if (pending && pending.uf === uf && pending.ibge) {
+          const municipio = data.find(
+            m => m.codigo.padStart(7, "0") === pending.ibge.padStart(7, "0")
+          );
 
-        const findByCodigo = (codigo?: string) => {
-          if (!codigo) return undefined;
-          const normalizedCodigo = codigo.padStart(7, "0");
-          return data.find((municipio) => municipio.codigo.padStart(7, "0") === normalizedCodigo);
-        };
-
-        const findByCidade = (cidade?: string) => {
-          if (!cidade) return undefined;
-          const normalizedCidade = normalizeText(cidade);
-          return data.find((municipio) => normalizeText(municipio.nome) === normalizedCidade);
-        };
-
-        const pending = pendingMunicipioRef.current;
-
-        let selected = findByCodigo(currentCodigo);
-        if (!selected) {
-          selected = findByCidade(currentCidade);
-        }
-        if (!selected && pending) {
-          selected = findByCodigo(pending.codigo) ?? findByCidade(pending.cidade);
-        }
-
-        if (selected) {
-          pendingMunicipioRef.current = null;
-          setFieldValue(codigoMunicipioPath, selected.codigo as PathValue<TFormValues, typeof codigoMunicipioPath>, {
-            shouldDirty: true,
-            shouldValidate: true,
-            shouldTouch: true,
-          });
-          setFieldValue(cidadePath, selected.nome as PathValue<TFormValues, typeof cidadePath>, {
-            shouldDirty: true,
-            shouldValidate: true,
-            shouldTouch: true,
-          });
-          form.clearErrors([cidadePath, codigoMunicipioPath]);
-          logDebug("municipio selecionado automaticamente", {
-            selected,
-            errors: form.formState.errors,
-            touched: form.formState.touchedFields,
-          });
-        } else if (pending) {
-          form.clearErrors([cidadePath, codigoMunicipioPath]);
-          logDebug("municipio pendente aguardando match", { pending });
-        } else {
-          logDebug("nenhum municipio encontrado", { currentCodigo, currentCidade });
+          if (municipio) {
+            logDebug("Aplicando dados pendentes do CEP", { municipio });
+            setFieldValue(codigoMunicipioPath, municipio.codigo as PathValue<TFormValues, typeof codigoMunicipioPath>, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setFieldValue(cidadePath, municipio.nome as PathValue<TFormValues, typeof cidadePath>, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            form.clearErrors([cidadePath, codigoMunicipioPath]);
+            pendingCepDataRef.current = null;
+          }
         }
       } catch (error) {
-        if (!isActive || requestId !== loadMunicipiosRequestRef.current) {
-          logDebug("load municipios catch abort", { estadoValue, error });
-          return;
-        }
-        toast.error("Não foi possível carregar as cidades. Tente novamente.");
+        if (cancelled) return;
+        logDebug("Erro ao carregar municípios", { uf, error });
+        toast.error("Erro ao carregar cidades. Tente novamente.");
         setMunicipios([]);
-        form.setError(cidadePath, {
-          type: "manual",
-          message: "Erro ao carregar cidades",
-        });
-        setIsAwaitingMunicipiosAfterUfChange(false);
-        setShouldShowMunicipioErrors(true);
-        logDebug("load municipios erro", { estadoValue, error });
       } finally {
-        if (isActive && requestId === loadMunicipiosRequestRef.current) {
+        if (!cancelled) {
           setIsLoadingMunicipios(false);
-          logDebug("load municipios end", {
-            estadoValue,
-            errors: form.formState.errors,
-            touched: form.formState.touchedFields,
-          });
-          isSettingEstadoFromCepRef.current = false;
         }
       }
     };
@@ -255,30 +181,33 @@ export function AddressFormSection<TFormValues extends FieldValues>({
     void loadMunicipios();
 
     return () => {
-      isActive = false;
+      cancelled = true;
     };
-  }, [estadoValue, fieldNames, fields.cidade, fields.codigoMunicipio, fields.estado, form, logDebug]);
+  }, [estadoValue, codigoMunicipioPath, cidadePath, setFieldValue, form, logDebug]);
 
   const fetchCepData = useCallback(
     async (digitsOnlyCep: string) => {
       if (digitsOnlyCep.length !== 8) {
-        logDebug("skip fetch", { reason: "incomplete", digitsOnlyCep });
         return;
       }
 
       if (digitsOnlyCep === lastFetchedCepRef.current) {
-        logDebug("skip fetch", { reason: "already fetched", digitsOnlyCep });
+        logDebug("CEP já buscado anteriormente", { digitsOnlyCep });
         return;
       }
 
-      cancelPendingFetch();
+      // Cancela requisição anterior
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
       try {
         setIsFetchingCep(true);
-        logDebug("fetch start", { digitsOnlyCep });
+        logDebug("Buscando CEP", { digitsOnlyCep });
+
         const response = await fetch(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
           signal: controller.signal,
         });
@@ -289,167 +218,216 @@ export function AddressFormSection<TFormValues extends FieldValues>({
 
         const data = (await response.json()) as ViaCepResponse;
 
-        logDebug("fetch response", {
-          digitsOnlyCep,
-          hasErrorFlag: data.erro ?? false,
-        });
-
         if (data.erro) {
           throw new Error("CEP não encontrado");
         }
 
-        if (controller.signal.aborted) {
-          return;
-        }
+        if (controller.signal.aborted) return;
 
         lastFetchedCepRef.current = digitsOnlyCep;
         form.clearErrors(cepPath);
 
-        const localidade = data.localidade ?? "";
-        const ufFromCep = data.uf?.toUpperCase() ?? "";
-        const rawIbge = data.ibge ? data.ibge.slice(0, 7) : "";
-        const codigoMunicipioIbge = rawIbge && rawIbge !== "0000000" ? rawIbge : "";
+        const ufFromCep = data.uf?.toUpperCase() || "";
+        const localidade = data.localidade || "";
+        const ibgeCode = data.ibge?.slice(0, 7) || "";
 
+        logDebug("CEP encontrado", { ufFromCep, localidade, ibgeCode });
+
+        // Define o estado
         if (ufFromCep) {
-          isSettingEstadoFromCepRef.current = true;
           setFieldValue(estadoPath, ufFromCep as PathValue<TFormValues, typeof estadoPath>, {
             shouldDirty: true,
             shouldValidate: true,
-            shouldTouch: true,
           });
-          logDebug("estado definido via CEP", { ufFromCep });
         }
 
-        if (codigoMunicipioIbge) {
-          pendingMunicipioRef.current = {
-            codigo: codigoMunicipioIbge,
+        // Se tem IBGE, guarda para aplicar quando municípios carregarem
+        if (ibgeCode && ibgeCode !== "0000000") {
+          pendingCepDataRef.current = {
+            uf: ufFromCep,
+            ibge: ibgeCode,
             cidade: localidade,
           };
-          setFieldValue(codigoMunicipioPath, codigoMunicipioIbge as PathValue<TFormValues, typeof codigoMunicipioPath>, {
-            shouldDirty: true,
-            shouldValidate: true,
-            shouldTouch: true,
-          });
+
+          // Se já tem municípios carregados para este UF, aplica imediatamente
+          if (municipiosLoadedForUfRef.current === ufFromCep) {
+            const municipio = municipios.find(
+              m => m.codigo.padStart(7, "0") === ibgeCode.padStart(7, "0")
+            );
+
+            if (municipio) {
+              logDebug("Aplicando município imediatamente", { municipio });
+              setFieldValue(codigoMunicipioPath, municipio.codigo as PathValue<TFormValues, typeof codigoMunicipioPath>, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setFieldValue(cidadePath, municipio.nome as PathValue<TFormValues, typeof cidadePath>, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              form.clearErrors([cidadePath, codigoMunicipioPath]);
+              pendingCepDataRef.current = null;
+            }
+          }
+        } else if (localidade) {
+          // Sem IBGE, apenas preenche o nome da cidade
           setFieldValue(cidadePath, localidade as PathValue<TFormValues, typeof cidadePath>, {
             shouldDirty: true,
-            shouldValidate: false,
-            shouldTouch: true,
           });
-          form.clearErrors([cidadePath, codigoMunicipioPath]);
-          setShouldShowMunicipioErrors(false);
-          logDebug("viaCep preencheu dados com IBGE", { localidade, ufFromCep, rawIbge });
-        } else {
-          pendingMunicipioRef.current = null;
           setFieldValue(codigoMunicipioPath, "" as PathValue<TFormValues, typeof codigoMunicipioPath>, {
             shouldDirty: true,
-            shouldValidate: false,
-            shouldTouch: true,
           });
-          setFieldValue(cidadePath, localidade as PathValue<TFormValues, typeof cidadePath>, {
-            shouldDirty: true,
-            shouldValidate: true,
-            shouldTouch: true,
-          });
-          setShouldShowMunicipioErrors(false);
-          logDebug("viaCep preencheu dados sem IBGE", { localidade, ufFromCep, rawIbge });
         }
 
+        // Preenche outros campos
         if (data.logradouro) {
           setFieldValue(logradouroPath, data.logradouro as PathValue<TFormValues, typeof logradouroPath>, {
             shouldDirty: true,
-            shouldTouch: true,
           });
         }
 
         if (data.bairro) {
           setFieldValue(bairroPath, data.bairro as PathValue<TFormValues, typeof bairroPath>, {
             shouldDirty: true,
-            shouldTouch: true,
           });
         }
 
+        data.complemento = data.complemento || "";
         if (data.complemento) {
           setFieldValue(complementoPath, data.complemento as PathValue<TFormValues, typeof complementoPath>, {
             shouldDirty: true,
-            shouldTouch: true,
           });
         }
 
-        logDebug("fetch success", {
-          digitsOnlyCep,
-          cidade: data.localidade ?? "",
-          estado: data.uf ?? "",
-          codigoMunicipio: data.ibge?.slice(0, 7) ?? "",
-        });
-
+        // Foca no campo número
         requestAnimationFrame(() => {
           numeroInputRef?.current?.focus();
         });
+
+        logDebug("CEP aplicado com sucesso");
       } catch (error) {
         if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-          logDebug("fetch aborted", { digitsOnlyCep });
           return;
         }
+
         const message = error instanceof Error ? error.message : "Erro ao buscar CEP";
         toast.error(message);
         form.setError(cepPath, {
           type: "manual",
           message,
         });
-        pendingMunicipioRef.current = null;
         lastFetchedCepRef.current = "";
-        logDebug("fetch error", {
-          digitsOnlyCep,
-          message,
-        });
+        pendingCepDataRef.current = null;
+        logDebug("Erro ao buscar CEP", { error: message });
       } finally {
         if (!controller.signal.aborted) {
           setIsFetchingCep(false);
-          logDebug("fetch end", {
-            digitsOnlyCep,
-            cancelled: controller.signal.aborted,
-          });
         }
         abortControllerRef.current = null;
       }
     },
-    [cancelPendingFetch, fieldNames, fields, form, logDebug, numeroInputRef]
+    [
+      form,
+      cepPath,
+      estadoPath,
+      cidadePath,
+      codigoMunicipioPath,
+      logradouroPath,
+      bairroPath,
+      complementoPath,
+      setFieldValue,
+      numeroInputRef,
+      logDebug,
+      municipios,
+    ]
   );
 
   const handleCepBlur = useCallback(
     (event: FocusEvent<HTMLInputElement>) => {
       const normalized = normalizeCep(event.target.value);
       const formatted = formatCepInput(normalized);
+      
       if (event.target.value !== formatted) {
         event.target.value = formatted;
       }
+
       setFieldValue(cepPath, normalized as PathValue<TFormValues, typeof cepPath>, {
         shouldDirty: true,
         shouldValidate: true,
         shouldTouch: true,
       });
-      logDebug("blur", { normalizedCep: normalized });
-      cancelPendingFetch();
+
       void fetchCepData(normalized);
     },
-    [cancelPendingFetch, fetchCepData, cepPath, form, logDebug]
+    [cepPath, setFieldValue, fetchCepData]
   );
 
   const handleCepSearchClick = useCallback(() => {
-    const current = form.getValues(cepPath)?.toString() ?? "";
+    const current = form.getValues(cepPath) as string || "";
     const normalized = normalizeCep(current);
+    
     setFieldValue(cepPath, normalized as PathValue<TFormValues, typeof cepPath>, {
       shouldDirty: true,
       shouldValidate: true,
       shouldTouch: true,
     });
-    logDebug("button click", { normalizedCep: normalized });
-    cancelPendingFetch();
+
     void fetchCepData(normalized);
-  }, [cancelPendingFetch, fetchCepData, cepPath, form, logDebug, setFieldValue]);
+  }, [form, cepPath, setFieldValue, fetchCepData]);
+
+  const handleEstadoChange = useCallback(
+    (value: string) => {
+      setFieldValue(estadoPath, value as PathValue<TFormValues, typeof estadoPath>, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+
+      // Limpa cidade e município quando estado muda manualmente
+      setFieldValue(cidadePath, "" as PathValue<TFormValues, typeof cidadePath>, {
+        shouldDirty: true,
+      });
+      setFieldValue(codigoMunicipioPath, "" as PathValue<TFormValues, typeof codigoMunicipioPath>, {
+        shouldDirty: true,
+      });
+
+      form.clearErrors([estadoPath, cidadePath, codigoMunicipioPath]);
+      pendingCepDataRef.current = null;
+    },
+    [estadoPath, cidadePath, codigoMunicipioPath, setFieldValue, form]
+  );
+
+  const handleCidadeChange = useCallback(
+    (codigoMunicipio: string) => {
+      const municipio = municipios.find(m => m.codigo === codigoMunicipio);
+
+      if (!municipio) return;
+
+      setFieldValue(codigoMunicipioPath, municipio.codigo as PathValue<TFormValues, typeof codigoMunicipioPath>, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setFieldValue(cidadePath, municipio.nome as PathValue<TFormValues, typeof cidadePath>, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+
+      form.clearErrors([cidadePath, codigoMunicipioPath]);
+      pendingCepDataRef.current = null;
+    },
+    [municipios, codigoMunicipioPath, cidadePath, setFieldValue, form]
+  );
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-12 sm:gap-x-4 sm:gap-y-5">
+    <div className="grid gap-4 sm:grid-cols-12 sm:gap-x-4 sm:gap-y-5" style={{ width: "100%" }}>
       <FormField
         control={form.control}
         name={fields.cep as FieldPath<TFormValues>}
@@ -477,9 +455,9 @@ export function AddressFormSection<TFormValues extends FieldValues>({
                   variant="outline"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={handleCepSearchClick}
-                  disabled={isFetchingCep}
+                  disabled={isFetchingCep || isSubmitting}
                 >
-                  Buscar
+                  {isFetchingCep ? "Buscando..." : "Buscar"}
                 </Button>
               </div>
             </FormControl>
@@ -498,30 +476,7 @@ export function AddressFormSection<TFormValues extends FieldValues>({
               <Select
                 disabled={isSubmitting}
                 value={field.value ?? ""}
-                onValueChange={(value) => {
-                  const wasProgrammatic = isSettingEstadoFromCepRef.current;
-                  isSettingEstadoFromCepRef.current = false;
-
-                  field.onChange(value);
-                  form.clearErrors(estadoPath);
-
-                  if (wasProgrammatic) {
-                    logDebug("estado mantido via CEP", { value });
-                    return;
-                  }
-
-                  logDebug("estado alterado manualmente", { value });
-                  setFieldValue(cidadePath, "" as PathValue<TFormValues, typeof cidadePath>, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                  setFieldValue(codigoMunicipioPath, "" as PathValue<TFormValues, typeof codigoMunicipioPath>, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                  lastFetchedCepRef.current = "";
-                  setIsAwaitingMunicipiosAfterUfChange(true);
-                }}
+                onValueChange={handleEstadoChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a UF" />
@@ -548,71 +503,41 @@ export function AddressFormSection<TFormValues extends FieldValues>({
             <FormLabel>Cidade</FormLabel>
             <FormControl>
               <Select
-                disabled={
-                  isSubmitting ||
-                  !estadoValue ||
-                  isLoadingMunicipios ||
-                  isAwaitingMunicipiosAfterUfChange
-                }
-                value={codigoMunicipioValue || "__auto__"}
-                onValueChange={(codigo) => {
-                  if (codigo === "__auto__") {
-                    return;
-                  }
-                  const selectedMunicipio = municipios.find((municipio) => municipio.codigo === codigo);
-                  setShouldShowMunicipioErrors(true);
-                  setFieldValue(codigoMunicipioPath, codigo as PathValue<TFormValues, typeof codigoMunicipioPath>, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                    shouldTouch: true,
-                  });
-                  field.onChange(selectedMunicipio?.nome ?? "");
-                  if (!selectedMunicipio) {
-                    form.setError(cidadePath, {
-                      type: "manual",
-                      message: "Cidade inválida",
-                    });
-                  } else {
-                    form.clearErrors([cidadePath, codigoMunicipioPath]);
-                  }
-                }}
+                disabled={isSubmitting || !estadoValue || isLoadingMunicipios}
+                value={codigoMunicipioValue || ""}
+                onValueChange={handleCidadeChange}
               >
                 <SelectTrigger>
                   <SelectValue
                     placeholder={
-                      estadoValue
-                        ? isLoadingMunicipios
-                          ? "Carregando cidades..."
-                          : "Selecione a cidade"
-                        : "Selecione a UF primeiro"
+                      !estadoValue
+                        ? "Selecione a UF primeiro"
+                        : isLoadingMunicipios
+                        ? "Carregando cidades..."
+                        : "Selecione a cidade"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {codigoMunicipioValue ? (
-                    <SelectItem value="__auto__" disabled>
-                      {field.value || "Cidade selecionada"}
-                    </SelectItem>
-                  ) : null}
                   {isLoadingMunicipios ? (
-                    <SelectItem value="__loading" disabled>
+                    <SelectItem value="__loading__" disabled>
                       Carregando cidades...
                     </SelectItem>
-                  ) : null}
-                  {!isLoadingMunicipios && municipios.length === 0 ? (
-                    <SelectItem value="__empty" disabled>
-                      {estadoValue ? "Nenhuma cidade encontrada" : "Selecione a UF"}
+                  ) : municipios.length === 0 ? (
+                    <SelectItem value="__empty__" disabled>
+                      Nenhuma cidade encontrada
                     </SelectItem>
-                  ) : null}
-                  {municipios.map((municipio) => (
-                    <SelectItem key={municipio.codigo} value={municipio.codigo}>
-                      {municipio.nome}
-                    </SelectItem>
-                  ))}
+                  ) : (
+                    municipios.map((municipio) => (
+                      <SelectItem key={municipio.codigo} value={municipio.codigo}>
+                        {municipio.nome}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </FormControl>
-            {shouldShowMunicipioErrors ? <FormMessage /> : null}
+            <FormMessage />
           </FormItem>
         )}
       />
@@ -624,9 +549,15 @@ export function AddressFormSection<TFormValues extends FieldValues>({
           <FormItem className="sm:col-span-3">
             <FormLabel>Código do município (IBGE)</FormLabel>
             <FormControl>
-              <Input placeholder="0000000" readOnly value={field.value ?? ""} aria-readonly />
+              <Input
+                placeholder="0000000"
+                readOnly
+                value={field.value ?? ""}
+                aria-readonly
+                disabled={isSubmitting}
+              />
             </FormControl>
-            {shouldShowMunicipioErrors ? <FormMessage /> : null}
+            <FormMessage />
           </FormItem>
         )}
       />
@@ -643,6 +574,7 @@ export function AddressFormSection<TFormValues extends FieldValues>({
                 disabled={isSubmitting}
                 value={field.value ?? ""}
                 onChange={field.onChange}
+                autoComplete="address-line1"
               />
             </FormControl>
             <FormMessage />
@@ -687,6 +619,7 @@ export function AddressFormSection<TFormValues extends FieldValues>({
                 disabled={isSubmitting}
                 value={field.value ?? ""}
                 onChange={field.onChange}
+                autoComplete="address-line2"
               />
             </FormControl>
             <FormMessage />
