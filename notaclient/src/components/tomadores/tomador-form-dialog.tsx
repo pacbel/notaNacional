@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
 import { useForm, type Resolver, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -73,7 +73,6 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
     defaultValues: DEFAULT_VALUES,
   });
 
-  const cepValue = form.watch("cep") ?? "";
   const estadoValue = form.watch("estado") ?? "";
   const tipoDocumentoValue = form.watch("tipoDocumento") ?? "CPF";
   const codigoMunicipioValue = form.watch("codigoMunicipio") ?? "";
@@ -81,9 +80,12 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
   const [municipios, setMunicipios] = useState<MunicipioDto[]>([]);
   const [isLoadingMunicipios, setIsLoadingMunicipios] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
+  const [shouldShowMunicipioErrors, setShouldShowMunicipioErrors] = useState(true);
+  const [isAwaitingMunicipiosAfterUfChange, setIsAwaitingMunicipiosAfterUfChange] = useState(false);
+  const [shouldDelayMunicipioValidation, setShouldDelayMunicipioValidation] = useState(false);
   const lastFetchedCepRef = useRef<string>("");
   const numeroInputRef = useRef<HTMLInputElement | null>(null);
-  const cepInputRef = useRef<HTMLInputElement | null>(null);
+  const loadMunicipiosRequestRef = useRef(0);
   const pendingMunicipioRef = useRef<{ codigo: string; cidade: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const logCepDebug = useCallback((step: string, details?: Record<string, unknown>) => {
@@ -100,80 +102,96 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
   }, [form, tipoDocumentoValue]);
 
   useEffect(() => {
+    loadMunicipiosRequestRef.current += 1;
+    const requestId = loadMunicipiosRequestRef.current;
+
     if (!estadoValue || estadoValue.length !== 2) {
       setMunicipios([]);
-      pendingMunicipioRef.current = null;
-      form.setValue("cidade", "", { shouldDirty: true });
-      form.setValue("codigoMunicipio", "", { shouldDirty: true });
+      if (!estadoValue) {
+        pendingMunicipioRef.current = null;
+      }
+      setShouldShowMunicipioErrors(true);
+      setShouldDelayMunicipioValidation(false);
+      form.clearErrors(["cidade", "codigoMunicipio"]);
+      setIsLoadingMunicipios(false);
+      setIsAwaitingMunicipiosAfterUfChange(false);
       return;
     }
 
-    let isCancelled = false;
+    let isActive = true;
 
     const loadMunicipios = async () => {
       try {
         setIsLoadingMunicipios(true);
+        setShouldShowMunicipioErrors(false);
+        setShouldDelayMunicipioValidation(true);
+        form.clearErrors(["cidade", "codigoMunicipio"]);
         const data = await listMunicipios(estadoValue);
-        if (!isCancelled) {
-          setMunicipios(data);
+        if (!isActive || requestId !== loadMunicipiosRequestRef.current) {
+          return;
+        }
 
-          const currentCodigo = form.getValues("codigoMunicipio")?.trim();
-          const currentCidade = form.getValues("cidade")?.trim();
+        setMunicipios(data);
+        setIsAwaitingMunicipiosAfterUfChange(false);
+        setShouldDelayMunicipioValidation(false);
 
-          const findByCodigo = (codigo?: string) => {
-            if (!codigo) return undefined;
-            const normalizedCodigo = codigo.padStart(7, "0");
-            return data.find((municipio) => municipio.codigo.padStart(7, "0") === normalizedCodigo);
-          };
+        const currentCodigo = form.getValues("codigoMunicipio")?.trim();
+        const currentCidade = form.getValues("cidade")?.trim();
 
-          const findByCidade = (cidade?: string) => {
-            if (!cidade) return undefined;
-            const normalizedCidade = normalizeText(cidade);
-            return data.find((municipio) => normalizeText(municipio.nome) === normalizedCidade);
-          };
+        const findByCodigo = (codigo?: string) => {
+          if (!codigo) return undefined;
+          const normalizedCodigo = codigo.padStart(7, "0");
+          return data.find((municipio) => municipio.codigo.padStart(7, "0") === normalizedCodigo);
+        };
 
-          const pending = pendingMunicipioRef.current;
+        const findByCidade = (cidade?: string) => {
+          if (!cidade) return undefined;
+          const normalizedCidade = normalizeText(cidade);
+          return data.find((municipio) => normalizeText(municipio.nome) === normalizedCidade);
+        };
 
-          let selected = findByCodigo(currentCodigo);
-          if (!selected) {
-            selected = findByCidade(currentCidade);
-          }
-          if (!selected && pending) {
-            selected = findByCodigo(pending.codigo) ?? findByCidade(pending.cidade);
-          }
+        const pending = pendingMunicipioRef.current;
 
-          if (selected) {
-            pendingMunicipioRef.current = null;
-            form.setValue("codigoMunicipio", selected.codigo, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            form.setValue("cidade", selected.nome, { shouldDirty: true, shouldValidate: true });
-            void form.trigger(["cidade", "codigoMunicipio"]);
-            form.clearErrors(["cidade", "codigoMunicipio"]);
-          } else if (pending) {
-            // aguarda nova tentativa quando IBGE retornar dados compatíveis
-            form.clearErrors(["cidade", "codigoMunicipio"]);
-          } else if (currentCodigo || currentCidade) {
-            form.setError("cidade", {
-              type: "manual",
-              message: "Cidade inválida",
-            });
-          } else {
-            form.clearErrors(["cidade", "codigoMunicipio"]);
-          }
+        let selected = findByCodigo(currentCodigo);
+        if (!selected) {
+          selected = findByCidade(currentCidade);
+        }
+        if (!selected && pending) {
+          selected = findByCodigo(pending.codigo) ?? findByCidade(pending.cidade);
+        }
+
+        if (selected) {
+          pendingMunicipioRef.current = null;
+          form.setValue("codigoMunicipio", selected.codigo, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+          form.setValue("cidade", selected.nome, { shouldDirty: true, shouldValidate: true });
+          void form.trigger(["cidade", "codigoMunicipio"]);
+          form.clearErrors(["cidade", "codigoMunicipio"]);
+          setShouldDelayMunicipioValidation(false);
+          setShouldShowMunicipioErrors(true);
+        } else if (pending) {
+          // aguarda nova tentativa quando IBGE retornar dados compatíveis
+          form.clearErrors(["cidade", "codigoMunicipio"]);
+        } else {
+          form.clearErrors(["cidade", "codigoMunicipio"]);
         }
       } catch (error) {
-        if (!isCancelled) {
-          toast.error("Não foi possível carregar as cidades. Tente novamente.");
-          setMunicipios([]);
-          form.setError("cidade", {
-            type: "manual",
-            message: "Erro ao carregar cidades",
-          });
+        if (!isActive || requestId !== loadMunicipiosRequestRef.current) {
+          return;
         }
+        toast.error("Não foi possível carregar as cidades. Tente novamente.");
+        setMunicipios([]);
+        form.setError("cidade", {
+          type: "manual",
+          message: "Erro ao carregar cidades",
+        });
+        setIsAwaitingMunicipiosAfterUfChange(false);
+        setShouldDelayMunicipioValidation(false);
+        setShouldShowMunicipioErrors(true);
       } finally {
-        if (!isCancelled) {
+        if (isActive && requestId === loadMunicipiosRequestRef.current) {
           setIsLoadingMunicipios(false);
         }
       }
@@ -182,11 +200,9 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
     void loadMunicipios();
 
     return () => {
-      isCancelled = true;
+      isActive = false;
     };
   }, [estadoValue, form]);
-
-  const normalizedCep = useMemo(() => normalizeCep(cepValue), [cepValue]);
 
   const cancelPendingFetch = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -237,32 +253,43 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
         }
 
         lastFetchedCepRef.current = digitsOnlyCep;
-        pendingMunicipioRef.current = null;
         form.clearErrors("cep");
 
-        form.setValue("logradouro", data.logradouro ?? "", { shouldDirty: true });
-        form.setValue("bairro", data.bairro ?? "", { shouldDirty: true });
-        form.setValue("cidade", data.localidade ?? "", { shouldDirty: true });
+        const localidade = data.localidade ?? "";
+        const ufFromCep = data.uf?.toUpperCase() ?? "";
+        const rawIbge = data.ibge ? data.ibge.slice(0, 7) : "";
+        const codigoMunicipioIbge = rawIbge && rawIbge !== "0000000" ? rawIbge : "";
 
-        if (data.uf) {
-          form.setValue("estado", data.uf, { shouldDirty: true, shouldValidate: true });
+        if (ufFromCep) {
+          form.setValue("estado", ufFromCep, { shouldDirty: true, shouldValidate: true });
         }
 
-        if (data.ibge) {
-          const codigoMunicipio = data.ibge.slice(0, 7);
+        if (codigoMunicipioIbge) {
           pendingMunicipioRef.current = {
-            codigo: codigoMunicipio,
-            cidade: data.localidade ?? "",
+            codigo: codigoMunicipioIbge,
+            cidade: localidade,
           };
-          form.setValue("codigoMunicipio", codigoMunicipio, {
+          form.setValue("codigoMunicipio", codigoMunicipioIbge, {
             shouldDirty: true,
             shouldValidate: false,
           });
+          form.setValue("cidade", localidade, { shouldDirty: true, shouldValidate: false });
           form.clearErrors(["cidade", "codigoMunicipio"]);
+          setShouldDelayMunicipioValidation(true);
+          setShouldShowMunicipioErrors(false);
+        } else {
+          pendingMunicipioRef.current = null;
+          form.setValue("codigoMunicipio", "", { shouldDirty: true, shouldValidate: false });
+          form.setValue("cidade", localidade, { shouldDirty: true, shouldValidate: true });
+          setShouldDelayMunicipioValidation(true);
+          setShouldShowMunicipioErrors(false);
         }
 
+        form.setValue("logradouro", data.logradouro ?? "", { shouldDirty: true });
+        form.setValue("bairro", data.bairro ?? "", { shouldDirty: true });
+
         if (data.complemento) {
-          form.setValue("complemento", data.complemento ?? "", { shouldDirty: true });
+          form.setValue("complemento", data.complemento, { shouldDirty: true });
         }
 
         logCepDebug("fetch success", {
@@ -308,12 +335,6 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
 
   useEffect(() => () => cancelPendingFetch(), [cancelPendingFetch]);
 
-  useEffect(() => {
-    if (cepInputRef.current) {
-      cepInputRef.current.value = formatCepInput(normalizedCep);
-    }
-  }, [normalizedCep]);
-
   const handleCepBlur = useCallback(
     (event: FocusEvent<HTMLInputElement>) => {
       const normalized = normalizeCep(event.target.value);
@@ -321,23 +342,25 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
       if (event.target.value !== formatted) {
         event.target.value = formatted;
       }
-      form.setValue("cep", normalized, { shouldDirty: true });
+      setShouldDelayMunicipioValidation(true);
+      form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: false });
+      void form.trigger("cep");
       logCepDebug("blur", { normalizedCep: normalized });
+      cancelPendingFetch();
       void fetchCepData(normalized);
     },
-    [fetchCepData, form, logCepDebug]
+    [cancelPendingFetch, fetchCepData, form, logCepDebug]
   );
 
   const handleCepSearchClick = useCallback(() => {
-    const rawValue = cepInputRef.current?.value ?? "";
-    const normalized = normalizeCep(rawValue);
-    if (cepInputRef.current) {
-      cepInputRef.current.value = formatCepInput(normalized);
-    }
-    form.setValue("cep", normalized, { shouldDirty: true });
+    const normalized = normalizeCep(form.getValues("cep") ?? "");
+    setShouldDelayMunicipioValidation(true);
+    form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: false });
+    void form.trigger("cep");
     logCepDebug("button click", { normalizedCep: normalized });
+    cancelPendingFetch();
     void fetchCepData(normalized);
-  }, [fetchCepData, form, logCepDebug]);
+  }, [cancelPendingFetch, fetchCepData, form, logCepDebug]);
 
   const handleSubmit: SubmitHandler<TomadorFormValues> = async (values) => {
     const parsed = tomadorCreateSchema.parse(values);
@@ -372,46 +395,6 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="cep"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>CEP</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="01000-000"
-                          disabled={isSubmitting}
-                          defaultValue={formatCepInput(field.value ?? "")}
-                          ref={(element) => {
-                            field.ref(element);
-                            cepInputRef.current = element;
-                          }}
-                          onBlur={(event) => {
-                            field.onBlur();
-                            cancelPendingFetch();
-                            handleCepBlur(event);
-                          }}
-                          aria-busy={isFetchingCep}
-                          autoFocus
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={handleCepSearchClick}
-                          disabled={isFetchingCep}
-                        >
-                          Buscar
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="tipoDocumento"
                 render={({ field }) => (
                   <FormItem>
@@ -427,6 +410,7 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                           const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
                           form.setValue("documento", normalized, { shouldDirty: true });
                         }}
+                        autoFocus
                       >
                         <option value="CPF">CPF</option>
                         <option value="CNPJ">CNPJ</option>
@@ -462,7 +446,7 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                 control={form.control}
                 name="nomeRazaoSocial"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="sm:col-span-2">
                     <FormLabel>Nome / Razão social</FormLabel>
                     <FormControl>
                       <Input
@@ -489,7 +473,8 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                         placeholder="contato@cliente.com"
                         disabled={isSubmitting}
                         value={field.value ?? ""}
-                        onChange={field.onChange}
+                        onChange={(event) => field.onChange(event.target.value.toLowerCase())}
+                        autoComplete="email"
                       />
                     </FormControl>
                     <FormMessage />
@@ -518,6 +503,44 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
 
               <FormField
                 control={form.control}
+                name="cep"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>CEP</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="01000-000"
+                          disabled={isSubmitting}
+                          value={formatCepInput(field.value ?? "")}
+                          onChange={(event) => field.onChange(normalizeCep(event.target.value))}
+                          onBlur={(event) => {
+                            field.onBlur();
+                            handleCepBlur(event);
+                          }}
+                          aria-busy={isFetchingCep}
+                          inputMode="numeric"
+                          maxLength={9}
+                          autoComplete="postal-code"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={handleCepSearchClick}
+                          disabled={isFetchingCep}
+                        >
+                          Buscar
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="estado"
                 render={({ field }) => (
                   <FormItem>
@@ -532,6 +555,7 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                           form.setValue("cidade", "", { shouldDirty: true });
                           form.setValue("codigoMunicipio", "", { shouldDirty: true });
                           lastFetchedCepRef.current = "";
+                          setIsAwaitingMunicipiosAfterUfChange(true);
                         }}
                       >
                         <SelectTrigger>
@@ -559,13 +583,20 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                     <FormLabel>Cidade</FormLabel>
                     <FormControl>
                       <Select
-                        disabled={isSubmitting || !estadoValue || isLoadingMunicipios}
+                        disabled={
+                          isSubmitting ||
+                          !estadoValue ||
+                          isLoadingMunicipios ||
+                          isAwaitingMunicipiosAfterUfChange
+                        }
                         value={codigoMunicipioValue}
                         onValueChange={(codigo) => {
                           const selectedMunicipio = municipios.find((municipio) => municipio.codigo === codigo);
+                          setShouldShowMunicipioErrors(true);
+                          setShouldDelayMunicipioValidation(false);
                           form.setValue("codigoMunicipio", codigo, { shouldDirty: true, shouldValidate: true });
                           field.onChange(selectedMunicipio?.nome ?? "");
-                          if (!selectedMunicipio) {
+                          if (!selectedMunicipio && shouldShowMunicipioErrors && !shouldDelayMunicipioValidation) {
                             form.setError("cidade", {
                               type: "manual",
                               message: "Cidade inválida",
@@ -637,7 +668,7 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                     <FormItem>
                       <FormLabel>Código do município (IBGE)</FormLabel>
                       <FormControl>
-                        <Input placeholder="0000000" readOnly value={field.value ?? ""} />
+                        <Input placeholder="0000000" readOnly value={field.value ?? ""} aria-readonly />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

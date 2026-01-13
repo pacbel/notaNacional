@@ -10,7 +10,10 @@ const tomadorFieldsSchema = z.object({
   tipoDocumento: z.enum(["CPF", "CNPJ"]),
   documento: z.string().transform((value) => value.replace(/\D/g, "")),
   nomeRazaoSocial: z.string().min(1, "Informe o nome ou razão social"),
-  email: z.string().email("E-mail inválido"),
+  email: z
+    .string()
+    .email("E-mail inválido")
+    .transform((value) => value.toLowerCase()),
   telefone: z
     .string()
     .optional()

@@ -28,14 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatCpfCnpj, formatPhone } from "@/lib/formatters";
-import {
-  formatCepInput,
-  formatDocumentoInput,
-  formatPhoneInput,
-  normalizeCep,
-  normalizeDocumento,
-  normalizePhone,
-} from "@/lib/utils/input-masks";
+import { formatCepInput, formatDocumentoInput, formatPhoneInput, normalizeCep, normalizeDocumento, normalizePhone } from "@/lib/utils/input-masks";
 import { tomadorUpdateSchema, type TomadorUpdateInput } from "@/lib/validators/tomador";
 import type { TomadorDto } from "@/services/tomadores";
 
@@ -113,7 +106,6 @@ export function TomadorDetailsDrawer({
     defaultValues: EMPTY_VALUES,
   });
 
-  const cepInputRef = useRef<HTMLInputElement | null>(null);
   const numeroInputRef = useRef<HTMLInputElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastFetchedCepRef = useRef<string>("");
@@ -121,15 +113,12 @@ export function TomadorDetailsDrawer({
     console.debug(`[Tomadores][CEP][DetailsDrawer] ${step}`, details ?? {});
   }, []);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
+  const tipoDocumentoValue = form.watch("tipoDocumento") ?? "CPF";
 
   useEffect(() => {
     if (tomador) {
       form.reset(mapTomadorToForm(tomador));
       setIsEditing(false);
-      const formattedCep = formatCepInput(tomador.cep ?? "");
-      if (cepInputRef.current) {
-        cepInputRef.current.value = formattedCep;
-      }
       lastFetchedCepRef.current = normalizeCep(tomador.cep ?? "");
     }
   }, [tomador, form]);
@@ -204,9 +193,15 @@ export function TomadorDetailsDrawer({
         lastFetchedCepRef.current = digitsOnlyCep;
         form.clearErrors("cep");
 
-        form.setValue("logradouro", data.logradouro ?? "", { shouldDirty: true });
-        form.setValue("bairro", data.bairro ?? "", { shouldDirty: true });
-        form.setValue("cidade", data.localidade ?? "", { shouldDirty: true });
+        if (data.logradouro) {
+          form.setValue("logradouro", data.logradouro, { shouldDirty: true });
+        }
+        if (data.bairro) {
+          form.setValue("bairro", data.bairro, { shouldDirty: true });
+        }
+        if (data.localidade) {
+          form.setValue("cidade", data.localidade, { shouldDirty: true });
+        }
 
         if (data.uf) {
           form.setValue("estado", data.uf, { shouldDirty: true, shouldValidate: true });
@@ -221,7 +216,7 @@ export function TomadorDetailsDrawer({
         }
 
         if (data.complemento) {
-          form.setValue("complemento", data.complemento ?? "", { shouldDirty: true });
+          form.setValue("complemento", data.complemento, { shouldDirty: true });
         }
 
         logCepDebug("fetch success", {
@@ -266,32 +261,24 @@ export function TomadorDetailsDrawer({
 
   useEffect(() => () => cancelPendingFetch(), [cancelPendingFetch]);
 
-  const handleCepNormalization = useCallback(
-    (value: string) => {
-      const normalized = normalizeCep(value);
-      const formatted = formatCepInput(normalized);
-      form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
-
-      if (cepInputRef.current) {
-        cepInputRef.current.value = formatted;
-      }
-
-      return normalized;
-    },
-    [form]
-  );
-
   const handleCepBlur = useCallback(
     (event: FocusEvent<HTMLInputElement>) => {
       if (!isEditing) {
         return;
       }
 
-      const normalized = handleCepNormalization(event.target.value);
+      const normalized = normalizeCep(event.target.value);
+      const formatted = formatCepInput(normalized);
+      if (event.target.value !== formatted) {
+        event.target.value = formatted;
+      }
+
+      form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
       logCepDebug("blur", { normalizedCep: normalized });
+      cancelPendingFetch();
       void fetchCepData(normalized);
     },
-    [fetchCepData, handleCepNormalization, isEditing, logCepDebug]
+    [cancelPendingFetch, fetchCepData, form, isEditing, logCepDebug]
   );
 
   const handleCepSearchClick = useCallback(() => {
@@ -300,11 +287,12 @@ export function TomadorDetailsDrawer({
       return;
     }
 
-    const rawValue = cepInputRef.current?.value ?? "";
-    const normalized = handleCepNormalization(rawValue);
+    const normalized = normalizeCep(form.getValues("cep") ?? "");
+    form.setValue("cep", normalized, { shouldDirty: true, shouldValidate: true });
     logCepDebug("button click", { normalizedCep: normalized });
+    cancelPendingFetch();
     void fetchCepData(normalized);
-  }, [fetchCepData, handleCepNormalization, isEditing, logCepDebug]);
+  }, [cancelPendingFetch, fetchCepData, form, isEditing, logCepDebug]);
 
   const handleSubmit = async (values: TomadorFormValues) => {
     const parsed = tomadorUpdateSchema.parse(values);
@@ -359,34 +347,6 @@ export function TomadorDetailsDrawer({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="nomeRazaoSocial"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome / Razão social</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-mail</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="tipoDocumento"
                     render={({ field }) => (
                       <FormItem>
@@ -402,6 +362,7 @@ export function TomadorDetailsDrawer({
                               form.setValue("documento", normalized, { shouldDirty: true, shouldValidate: true });
                             }}
                             disabled={isMutating}
+                            autoFocus
                           >
                             <option value="CPF">CPF</option>
                             <option value="CNPJ">CNPJ</option>
@@ -420,14 +381,46 @@ export function TomadorDetailsDrawer({
                         <FormLabel>Documento</FormLabel>
                         <FormControl>
                           <Input
-                            value={formatDocumentoInput(field.value ?? "", form.watch("tipoDocumento") ?? "CPF")}
+                            value={formatDocumentoInput(field.value ?? "", tipoDocumentoValue)}
                             onChange={(event) =>
-                              field.onChange(
-                                normalizeDocumento(event.target.value, form.watch("tipoDocumento") ?? "CPF")
-                              )
+                              field.onChange(normalizeDocumento(event.target.value, tipoDocumentoValue))
                             }
                             disabled={isMutating}
                             inputMode="numeric"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="nomeRazaoSocial"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Nome / Razão social</FormLabel>
+                        <FormControl>
+                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>E-mail</FormLabel>
+                        <FormControl>
+                          <Input
+                            value={field.value ?? ""}
+                            onChange={(event) => field.onChange(event.target.value.toLowerCase())}
+                            disabled={isMutating}
+                            type="email"
+                            autoComplete="email"
                           />
                         </FormControl>
                         <FormMessage />
@@ -456,16 +449,36 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="inscricaoMunicipal"
+                    name="cep"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inscrição municipal</FormLabel>
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>CEP</FormLabel>
                         <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            disabled={isMutating}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="01000-000"
+                              disabled={isMutating}
+                              value={formatCepInput(field.value ?? "")}
+                              onChange={(event) => field.onChange(normalizeCep(event.target.value))}
+                              onBlur={(event) => {
+                                field.onBlur();
+                                handleCepBlur(event);
+                              }}
+                              aria-busy={isMutating || isFetchingCep}
+                              inputMode="numeric"
+                              maxLength={9}
+                              autoComplete="postal-code"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={handleCepSearchClick}
+                              disabled={isMutating || isFetchingCep}
+                            >
+                              Buscar
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -474,15 +487,16 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="codigoMunicipio"
+                    name="estado"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Código do município</FormLabel>
+                        <FormLabel>UF</FormLabel>
                         <FormControl>
                           <Input
                             value={field.value ?? ""}
-                            onChange={field.onChange}
+                            onChange={(event) => field.onChange(event.target.value.toUpperCase())}
                             disabled={isMutating}
+                            maxLength={2}
                           />
                         </FormControl>
                         <FormMessage />
@@ -506,10 +520,29 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="estado"
+                    name="codigoMunicipio"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>UF</FormLabel>
+                        <FormLabel>Código do município (IBGE)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="0000000"
+                            value={field.value ?? ""}
+                            readOnly
+                            aria-readonly
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="inscricaoMunicipal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inscrição municipal</FormLabel>
                         <FormControl>
                           <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
                         </FormControl>
@@ -520,48 +553,9 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="cep"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CEP</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="01000-000"
-                              disabled={isMutating}
-                              defaultValue={formatCepInput(field.value ?? "")}
-                              ref={(element) => {
-                                field.ref(element);
-                                cepInputRef.current = element;
-                              }}
-                              onBlur={(event) => {
-                                field.onBlur();
-                                handleCepBlur(event);
-                              }}
-                              aria-busy={isMutating || isFetchingCep}
-                              autoFocus
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={handleCepSearchClick}
-                              disabled={isMutating || isFetchingCep}
-                            >
-                              Buscar
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="logradouro"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="sm:col-span-2">
                         <FormLabel>Logradouro</FormLabel>
                         <FormControl>
                           <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
