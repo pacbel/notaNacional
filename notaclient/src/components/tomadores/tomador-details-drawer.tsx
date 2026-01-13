@@ -28,7 +28,14 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatCpfCnpj, formatPhone } from "@/lib/formatters";
-import { formatCepInput, normalizeCep } from "@/lib/utils/input-masks";
+import {
+  formatCepInput,
+  formatDocumentoInput,
+  formatPhoneInput,
+  normalizeCep,
+  normalizeDocumento,
+  normalizePhone,
+} from "@/lib/utils/input-masks";
 import { tomadorUpdateSchema, type TomadorUpdateInput } from "@/lib/validators/tomador";
 import type { TomadorDto } from "@/services/tomadores";
 
@@ -380,14 +387,65 @@ export function TomadorDetailsDrawer({
 
                   <FormField
                     control={form.control}
+                    name="tipoDocumento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de documento</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            value={field.value ?? "CPF"}
+                            onChange={(event) => {
+                              const nextTipo = event.target.value as "CPF" | "CNPJ";
+                              field.onChange(nextTipo);
+                              const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
+                              form.setValue("documento", normalized, { shouldDirty: true, shouldValidate: true });
+                            }}
+                            disabled={isMutating}
+                          >
+                            <option value="CPF">CPF</option>
+                            <option value="CNPJ">CNPJ</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="documento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Documento</FormLabel>
+                        <FormControl>
+                          <Input
+                            value={formatDocumentoInput(field.value ?? "", form.watch("tipoDocumento") ?? "CPF")}
+                            onChange={(event) =>
+                              field.onChange(
+                                normalizeDocumento(event.target.value, form.watch("tipoDocumento") ?? "CPF")
+                              )
+                            }
+                            disabled={isMutating}
+                            inputMode="numeric"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="telefone"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Telefone</FormLabel>
                         <FormControl>
                           <Input
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
+                            placeholder="(11) 99999-0000"
+                            value={formatPhoneInput(field.value ?? "")}
+                            onChange={(event) => field.onChange(normalizePhone(event.target.value))}
                             disabled={isMutating}
                           />
                         </FormControl>
@@ -564,10 +622,7 @@ export function TomadorDetailsDrawer({
                   />
                 </div>
 
-                <SheetFooter className="gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isMutating}>
-                    Cancelar
-                  </Button>
+                <SheetFooter className="flex-row-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="submit" disabled={isMutating}>
                     {isMutating ? (
                       <>
@@ -576,6 +631,9 @@ export function TomadorDetailsDrawer({
                     ) : (
                       "Salvar alterações"
                     )}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isMutating}>
+                    Cancelar
                   </Button>
                 </SheetFooter>
               </form>
