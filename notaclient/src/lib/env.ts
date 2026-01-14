@@ -13,6 +13,8 @@ const envSchema = z.object({
   MFA_EMAIL_ASSUNTO: z.string().min(1),
   RECOVERY_EMAIL_ASSUNTO: z.string().min(1),
   SEED_SENHA_PADRAO: z.string().min(8).default("ChangeMe123!"),
+  PUBLIC_API_USER: z.string().min(1),
+  PUBLIC_API_PASSWORD: z.string().min(1),
 });
 
 type Env = z.infer<typeof envSchema>;
