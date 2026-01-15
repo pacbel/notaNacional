@@ -34,6 +34,7 @@ const navigation = [
   { name: "Prestadores", href: "/prestadores", icon: Users },
   { name: "Tomadores", href: "/tomadores", icon: Users },
   { name: "Serviços", href: "/servicos", icon: FileText },
+  { name: "Usuários", href: "/usuarios", icon: Users },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 

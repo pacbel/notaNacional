@@ -102,6 +102,8 @@ import {
 import { listPrestadores, type PrestadorDto } from "@/services/prestadores";
 import { listTomadores, type TomadorDto } from "@/services/tomadores";
 import { listServicos, type ServicoDto } from "@/services/servicos";
+import { getConfiguracao } from "@/components/configuracoes/configuracoes-service";
+import type { ConfiguracaoDto } from "@/lib/validators/configuracao";
 import { dpsCreateSchema } from "@/lib/validators/dps";
 import {
   CANCELAMENTO_MOTIVOS,
@@ -167,8 +169,6 @@ const STATUS_BADGE_VARIANT: Record<DpsStatus, "default" | "secondary" | "outline
 const STATUS_OPTIONS: { value: DpsStatus; icon: LucideIcon }[] = [
   { value: "RASCUNHO", icon: FileSignature },
   { value: "ASSINADO", icon: CheckCircle2 },
-  { value: "ENVIADO", icon: Send },
-  { value: "CANCELADO", icon: XCircle },
 ];
 
 const AMBIENTE_OPTIONS = [
@@ -179,7 +179,6 @@ const AMBIENTE_OPTIONS = [
 const SELECT_LOADING_VALUE = "__loading__";
 const SELECT_EMPTY_VALUE = "__empty__";
 const MAX_MULTI_OPTIONS = 8;
-const AMBIENTE_ALL_VALUE = "__all__";
 const CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH = 15;
 const CANCELAMENTO_JUSTIFICATIVA_MAX_LENGTH = 255;
 const DELETE_DPS_CONFIRMATION_KEY = "DELETE";
@@ -573,6 +572,23 @@ export default function NfsePageContent() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const configuracoesQuery = useQuery<ConfiguracaoDto>({
+    queryKey: ["configuracoes"],
+    queryFn: getConfiguracao,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Definir ambiente padrão quando as configurações forem carregadas
+  useEffect(() => {
+    if (configuracoesQuery.data && !filters.ambiente) {
+      const ambientePadrao = configuracoesQuery.data.ambientePadrao;
+      setFilters((previous) => ({
+        ...previous,
+        ambiente: ambientePadrao,
+      }));
+    }
+  }, [configuracoesQuery.data, filters.ambiente]);
+
   const deleteDpsMutation = useMutation({
     mutationFn: async (id: string) => deleteDps(id),
     onSuccess: () => {
@@ -641,7 +657,6 @@ export default function NfsePageContent() {
       // A API filtra pelo status da DPS associada, o que impede que todas as notas sejam exibidas
       // Uma nota fiscal sempre representa um documento emitido, independente do status da DPS
       return listNotas({
-        // statuses: undefined, // Não filtrar por status
         ambiente: filters.ambiente,
         search: filters.search,
         prestadorIds: filters.prestadorIds,
@@ -778,11 +793,6 @@ export default function NfsePageContent() {
   }, [notasQuery.error]);
 
   const handleToggleStatus = (status: DpsStatus) => {
-    // Se o status ENVIADO ou CANCELADO for selecionado, mudar para a aba de notas
-    if ((status === "ENVIADO" || status === "CANCELADO") && !filters.statuses.includes(status)) {
-      setActiveTab("notas");
-    }
-
     handleFiltersChange((previous) => {
       const statuses = previous.statuses ?? [];
       const alreadySelected = statuses.includes(status);
@@ -823,10 +833,9 @@ export default function NfsePageContent() {
   };
 
   const handleAmbienteChange = (value: string) => {
-    const ambienteValue = value === AMBIENTE_ALL_VALUE ? undefined : (value as Ambiente);
     handleFiltersChange((previous) => ({
       ...previous,
-      ambiente: ambienteValue,
+      ambiente: value as Ambiente,
       page: 1,
     }));
   };
@@ -1139,12 +1148,15 @@ export default function NfsePageContent() {
                 ) : null}
               </div>
 
-              <Select value={filters.ambiente ?? AMBIENTE_ALL_VALUE} onValueChange={handleAmbienteChange}>
+              <Select 
+                value={filters.ambiente ?? configuracoesQuery.data?.ambientePadrao ?? "PRODUCAO"} 
+                onValueChange={handleAmbienteChange}
+                disabled={configuracoesQuery.isLoading}
+              >
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Ambiente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={AMBIENTE_ALL_VALUE}>Todos os ambientes</SelectItem>
                   {FILTER_AMBIENTE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -1403,15 +1415,7 @@ export default function NfsePageContent() {
                   ) : dpsData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                        {filters.statuses.some((s) => s === "ENVIADO" || s === "CANCELADO") && 
-                         !filters.statuses.some((s) => s === "RASCUNHO" || s === "ASSINADO") ? (
-                          <div className="space-y-2">
-                            <p>DPS enviadas ou canceladas não aparecem nesta aba.</p>
-                            <p className="text-xs">Acesse a aba "NFSe emitidas recentemente" para visualizar as notas fiscais.</p>
-                          </div>
-                        ) : (
-                          "Nenhuma DPS encontrada para os filtros selecionados."
-                        )}
+                        Nenhuma DPS encontrada para os filtros selecionados.
                       </TableCell>
                     </TableRow>
                   ) : (
