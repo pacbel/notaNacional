@@ -21,11 +21,11 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] Guid? prestadorId = null)
         {
             try
             {
-                var usuarios = await _usuarioService.ObterTodosAsync();
+                var usuarios = await _usuarioService.ObterTodosAsync(prestadorId);
                 return Ok(usuarios);
             }
             catch (UnauthorizedAccessException ex)

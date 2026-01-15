@@ -7,7 +7,7 @@ namespace API_NFSe.Application.Interfaces
 {
     public interface IUsuarioService
     {
-        Task<IEnumerable<UsuarioDto>> ObterTodosAsync();
+        Task<IEnumerable<UsuarioDto>> ObterTodosAsync(Guid? prestadorId = null);
         Task<UsuarioDto?> ObterPorIdAsync(Guid id);
         Task<UsuarioDto?> ObterPorEmailAsync(string email);
         Task<UsuarioDto> CriarAsync(CreateUsuarioDto dto);

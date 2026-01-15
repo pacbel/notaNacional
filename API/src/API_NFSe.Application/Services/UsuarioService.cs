@@ -46,9 +46,19 @@ namespace API_NFSe.Application.Services
             _prestadorRepository = prestadorRepository;
         }
 
-        public async Task<IEnumerable<UsuarioDto>> ObterTodosAsync()
+        public async Task<IEnumerable<UsuarioDto>> ObterTodosAsync(Guid? prestadorId = null)
         {
-            var usuarios = await _usuarioRepository.ObterTodosAsync();
+            IEnumerable<Usuario> usuarios;
+            
+            if (prestadorId.HasValue)
+            {
+                usuarios = await _usuarioRepository.ObterPorPrestadorAsync(prestadorId.Value);
+            }
+            else
+            {
+                usuarios = await _usuarioRepository.ObterTodosAsync();
+            }
+            
             return usuarios.Select(MapearParaDto);
         }
 

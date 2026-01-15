@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using API_NFSe.Domain.Entities;
@@ -49,6 +50,14 @@ namespace API_NFSe.Infra.Data.Repositories
             return await _dbSet.FirstOrDefaultAsync(
                 u => u.RefreshToken == refreshToken && u.RefreshTokenExpiraEm >= DateTime.UtcNow && u.Ativo
             );
+        }
+
+        public async Task<IEnumerable<Usuario>> ObterPorPrestadorAsync(Guid prestadorId)
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Where(u => u.PrestadorId == prestadorId && u.Ativo)
+                .ToListAsync();
         }
     }
 }
