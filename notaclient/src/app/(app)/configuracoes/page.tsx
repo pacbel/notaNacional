@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-import { redirect } from "next/navigation";
+import ConfiguracaoNfseForm from "@/components/configuracoes/configuracao-nfse-form";
 
 export const metadata: Metadata = {
-  title: "Configurações | NotaClient",
+  title: "Configuração NFSe | NotaClient",
 };
 
 export default function ConfiguracoesRoute() {
-  redirect("/configuracoes/nfse");
+  return <ConfiguracaoNfseForm />;
 }

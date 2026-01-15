@@ -672,7 +672,7 @@ export default function NfsePageContent() {
                 notasData.map((nota) => (
                   <TableRow key={nota.id} className="align-top">
                     <TableCell>
-                      <div className="font-medium">NFSe nº {nota.numero}</div>
+                      <div className="font-medium">NFSe {nota.numero}</div>
                       <div className="text-xs text-muted-foreground">Chave {nota.chaveAcesso}</div>
                       <div className="text-xs text-muted-foreground">Emitida em {formatDate(nota.createdAt)}</div>
                     </TableCell>

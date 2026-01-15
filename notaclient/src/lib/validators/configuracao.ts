@@ -9,9 +9,9 @@ export const tribMunSchema = z.object({
 });
 
 export const totTribSchema = z.object({
-  pTotTribFed: z.number().min(0),
-  pTotTribEst: z.number().min(0),
-  pTotTribMun: z.number().min(0),
+  pTotTribFed: z.number().min(0).optional().nullable(),
+  pTotTribEst: z.number().min(0).optional().nullable(),
+  pTotTribMun: z.number().min(0).optional().nullable(),
 });
 
 export const configuracaoUpdateSchema = z.object({

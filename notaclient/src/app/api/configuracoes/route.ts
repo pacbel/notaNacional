@@ -106,9 +106,9 @@ export async function PUT(request: Request) {
       tribISSQN: data.tribMun.tribISSQN,
       tpImunidade: data.tribMun.tpImunidade,
       tpRetISSQN: data.tribMun.tpRetISSQN,
-      pTotTribFed: data.totTrib.pTotTribFed,
-      pTotTribEst: data.totTrib.pTotTribEst,
-      pTotTribMun: data.totTrib.pTotTribMun,
+      pTotTribFed: data.totTrib.pTotTribFed ?? undefined,
+      pTotTribEst: data.totTrib.pTotTribEst ?? undefined,
+      pTotTribMun: data.totTrib.pTotTribMun ?? undefined,
     };
 
     const response = await prisma.configuracaoDps.update({

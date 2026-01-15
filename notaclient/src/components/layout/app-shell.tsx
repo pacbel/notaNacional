@@ -34,7 +34,7 @@ const navigation = [
   { name: "Prestadores", href: "/prestadores", icon: Users },
   { name: "Tomadores", href: "/tomadores", icon: Users },
   { name: "Serviços", href: "/servicos", icon: FileText },
-  { name: "Configurações", href: "/configuracoes/nfse", icon: Settings },
+  { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
 export default function AppShell({ user, children }: AppShellProps) {
@@ -102,14 +102,14 @@ export default function AppShell({ user, children }: AppShellProps) {
         <aside className="hidden w-64 border-r bg-background lg:block">{sidebarContent}</aside>
 
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-          <SheetContent side="left" className="w-64 p-0 shadow-lg lg:hidden">
-            {sidebarContent}
-          </SheetContent>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="lg:hidden m-2">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0 shadow-lg lg:hidden">
+            {sidebarContent}
+          </SheetContent>
         </Sheet>
 
         <div className="flex flex-1 flex-col">
@@ -138,7 +138,7 @@ export default function AppShell({ user, children }: AppShellProps) {
                 <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/configuracoes/nfse">Configurações</Link>
+                  <Link href="/configuracoes">Configurações</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

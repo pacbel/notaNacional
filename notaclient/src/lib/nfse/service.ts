@@ -305,18 +305,8 @@ export async function createDps(payload: CreateDpsInput) {
   const numeroInicialDps = (configuracao as ConfiguracaoDps & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
 
   const { record, xmlGerado } = await prisma.$transaction(async (tx) => {
-    const maxNumero = await tx.dps.aggregate({
-      where: {
-        prestadorId: prestador.id,
-        serie,
-      },
-      _max: {
-        numero: true,
-      },
-    });
-
-    const nextNumeroBase = maxNumero._max.numero ?? numeroInicialDps - 1;
-    const numero = nextNumeroBase + 1;
+    // Usar o numeroInicialDps das configurações como próximo número
+    const numero = numeroInicialDps;
 
     const created: DpsWithRelations = await tx.dps.create({
       data: {
@@ -361,6 +351,14 @@ export async function createDps(payload: CreateDpsInput) {
       data: {
         xmlGerado: xml,
         mensagemErro: null,
+      },
+    });
+
+    // Incrementar o numeroInicialDps nas configurações
+    await tx.configuracaoDps.update({
+      where: { id: 1 },
+      data: {
+        numeroInicialDps: numeroInicialDps + 1,
       },
     });
 
