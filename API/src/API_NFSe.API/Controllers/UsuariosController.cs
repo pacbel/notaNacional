@@ -1,15 +1,16 @@
-using System;
-using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Usuarios;
 using API_NFSe.Application.Interfaces;
+using API_NFSe.Application.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace API_NFSe.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = $"{RoleNames.Robot},{RoleNames.Administrador}")]
     public class UsuariosController : ControllerBase
     {
         private readonly IUsuarioService _usuarioService;
