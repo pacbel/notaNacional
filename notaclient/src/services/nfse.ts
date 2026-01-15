@@ -4,6 +4,50 @@ import type { CancelarNfseResponse, EmitirNfseResponse } from "@/lib/nfse/types"
 export type DpsStatus = "RASCUNHO" | "ASSINADO" | "ENVIADO" | "CANCELADO";
 export type Ambiente = "PRODUCAO" | "HOMOLOGACAO";
 
+export interface PaginationMeta {
+  page: number;
+  perPage: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export async function getNfseMetrics(): Promise<NfseMetrics> {
+  const response = await fetch("/api/nfse/metrics", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  return handleResponse<NfseMetrics>(response);
+}
+export interface ListNotasParams {
+  statuses?: DpsStatus[];
+  search?: string;
+  prestadorIds?: string[];
+  tomadorIds?: string[];
+  ambiente?: Ambiente;
+  startDate?: string;
+  endDate?: string;
+  minValue?: number;
+  maxValue?: number;
+  page?: number;
+  perPage?: number;
+}
+
+export interface NfseMetrics {
+  totalNotas: number;
+  notasMes: number;
+  dpsPendentes: number;
+  valorTotalMes: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
 export interface DpsDto {
   id: string;
   identificador: string;
@@ -38,6 +82,21 @@ export interface DpsDto {
   dataEnvio: string | null;
   dataRetorno: string | null;
   updatedAt: string;
+}
+
+export interface ListDpsParams {
+  statuses?: DpsStatus[];
+  search?: string;
+  prestadorIds?: string[];
+  tomadorIds?: string[];
+  servicoIds?: string[];
+  ambiente?: Ambiente;
+  startDate?: string;
+  endDate?: string;
+  minValue?: number;
+  maxValue?: number;
+  page?: number;
+  perPage?: number;
 }
 
 export interface CreateDpsPayload {
@@ -262,12 +321,50 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function listDps(params: { statuses?: DpsStatus[] } = {}): Promise<DpsDto[]> {
+function appendMultiple(searchParams: URLSearchParams, key: string, values?: string[]) {
+  if (!values) {
+    return;
+  }
+
+  values.forEach((value) => {
+    if (value) {
+      searchParams.append(key, value);
+    }
+  });
+}
+
+function appendNumber(searchParams: URLSearchParams, key: string, value?: number) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    searchParams.set(key, value.toString());
+  }
+}
+
+function appendString(searchParams: URLSearchParams, key: string, value?: string) {
+  if (value && value.trim().length > 0) {
+    searchParams.set(key, value.trim());
+  }
+}
+
+export async function listDps(params: ListDpsParams = {}): Promise<PaginatedResponse<DpsDto>> {
   const searchParams = new URLSearchParams();
 
   if (params.statuses && params.statuses.length > 0) {
     searchParams.set("status", params.statuses.join(","));
   }
+
+  appendString(searchParams, "search", params.search);
+  appendString(searchParams, "ambiente", params.ambiente);
+  appendString(searchParams, "startDate", params.startDate);
+  appendString(searchParams, "endDate", params.endDate);
+
+  appendMultiple(searchParams, "prestadorId", params.prestadorIds);
+  appendMultiple(searchParams, "tomadorId", params.tomadorIds);
+  appendMultiple(searchParams, "servicoId", params.servicoIds);
+
+  appendNumber(searchParams, "minValue", params.minValue);
+  appendNumber(searchParams, "maxValue", params.maxValue);
+  appendNumber(searchParams, "page", params.page);
+  appendNumber(searchParams, "perPage", params.perPage);
 
   const query = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 
@@ -279,7 +376,7 @@ export async function listDps(params: { statuses?: DpsStatus[] } = {}): Promise<
     cache: "no-store",
   });
 
-  return handleResponse<DpsDto[]>(response);
+  return handleResponse<PaginatedResponse<DpsDto>>(response);
 }
 
 export async function createDps(payload: CreateDpsPayload): Promise<DpsDto> {
@@ -349,13 +446,29 @@ export async function emitirNfse(payload: EmitirNfsePayload) {
   return handleResponse<EmitirNfseResponse>(response);
 }
 
-export async function listNotas(limit = 50): Promise<NotaDto[]> {
-  const params = new URLSearchParams();
-  if (limit) {
-    params.set("limit", String(limit));
+export async function listNotas(params: ListNotasParams = {}): Promise<PaginatedResponse<NotaDto>> {
+  const searchParams = new URLSearchParams();
+
+  if (params.statuses && params.statuses.length > 0) {
+    searchParams.set("status", params.statuses.join(","));
   }
 
-  const response = await fetch(`/api/nfse/notas?${params.toString()}`, {
+  appendString(searchParams, "search", params.search);
+  appendString(searchParams, "ambiente", params.ambiente);
+  appendString(searchParams, "startDate", params.startDate);
+  appendString(searchParams, "endDate", params.endDate);
+
+  appendMultiple(searchParams, "prestadorId", params.prestadorIds);
+  appendMultiple(searchParams, "tomadorId", params.tomadorIds);
+
+  appendNumber(searchParams, "minValue", params.minValue);
+  appendNumber(searchParams, "maxValue", params.maxValue);
+  appendNumber(searchParams, "page", params.page);
+  appendNumber(searchParams, "perPage", params.perPage);
+
+  const query = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
+
+  const response = await fetch(`/api/nfse/notas${query}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -363,7 +476,7 @@ export async function listNotas(limit = 50): Promise<NotaDto[]> {
     cache: "no-store",
   });
 
-  return handleResponse<NotaDto[]>(response);
+  return handleResponse<PaginatedResponse<NotaDto>>(response);
 }
 
 export async function cancelarNfse(payload: CancelarNfsePayload) {

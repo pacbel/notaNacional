@@ -1,54 +1,254 @@
 import { NextResponse } from "next/server";
+import { DpsStatus, Ambiente as AmbienteEnum, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 
-const DEFAULT_LIMIT = 50;
+const DEFAULT_PAGE = 1;
+const DEFAULT_PER_PAGE = 25;
+const MAX_PER_PAGE = 200;
+
+function isValidStatus(value: string): value is DpsStatus {
+  return Object.values(DpsStatus).includes(value as DpsStatus);
+}
+
+function resolveNumberParam(value: string | null, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function resolveDateParam(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseDecimal(param: string | null): Prisma.Decimal | null {
+  if (!param) {
+    return null;
+  }
+
+  const parsed = Number(param);
+
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+
+  return new Prisma.Decimal(parsed);
+}
+
+function normalizeDocument(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function resolveStatuses(param: string | null): DpsStatus[] | undefined {
+  if (!param) {
+    return undefined;
+  }
+
+  const statuses = param
+    .split(",")
+    .map((value) => value.trim().toUpperCase())
+    .filter(isValidStatus);
+
+  return statuses.length > 0 ? statuses : undefined;
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limitParam = Number(searchParams.get("limit") ?? DEFAULT_LIMIT);
+    const search = searchParams.get("search")?.trim();
+    const ambienteParam = searchParams.get("ambiente")?.trim().toUpperCase() as AmbienteEnum | undefined;
+    const startDate = resolveDateParam(searchParams.get("startDate"));
+    const endDate = resolveDateParam(searchParams.get("endDate"));
+    const minValueParam = searchParams.get("minValue");
+    const maxValueParam = searchParams.get("maxValue");
+    const prestadorIds = searchParams.getAll("prestadorId").filter(Boolean);
+    const tomadorIds = searchParams.getAll("tomadorId").filter(Boolean);
+    const statuses = resolveStatuses(searchParams.get("status"));
+    const page = Math.max(1, resolveNumberParam(searchParams.get("page"), DEFAULT_PAGE));
+    const perPage = Math.min(MAX_PER_PAGE, resolveNumberParam(searchParams.get("perPage"), DEFAULT_PER_PAGE));
+    const skip = (page - 1) * perPage;
 
-    const take = Number.isNaN(limitParam) || limitParam <= 0 ? DEFAULT_LIMIT : Math.min(limitParam, 200);
+    const where: Prisma.NotaFiscalWhereInput = {
+      ativo: true,
+    };
 
-    const notas = await prisma.notaFiscal.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      take,
-      include: {
-        prestador: {
-          select: {
-            id: true,
-            nomeFantasia: true,
-            cnpj: true,
+    if (ambienteParam === AmbienteEnum.PRODUCAO || ambienteParam === AmbienteEnum.HOMOLOGACAO) {
+      where.ambiente = ambienteParam;
+    }
+
+    if (prestadorIds.length > 0) {
+      where.prestadorId = {
+        in: prestadorIds,
+      };
+    }
+
+    if (tomadorIds.length > 0) {
+      where.tomadorId = {
+        in: tomadorIds,
+      };
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {
+        gte: startDate ?? undefined,
+        lte: endDate ?? undefined,
+      };
+    }
+
+    const minValue = parseDecimal(minValueParam);
+    const maxValue = parseDecimal(maxValueParam);
+
+    const dpsFilters: Prisma.DpsWhereInput = {};
+    let hasDpsFilters = false;
+
+    if (minValue || maxValue) {
+      dpsFilters.servico = {
+        is: {
+          valorUnitario: {
+            gte: minValue ?? undefined,
+            lte: maxValue ?? undefined,
           },
         },
-        tomador: {
-          select: {
-            id: true,
-            nomeRazaoSocial: true,
-            documento: true,
+      };
+      hasDpsFilters = true;
+    }
+
+    if (statuses && statuses.length > 0) {
+      dpsFilters.status = {
+        in: statuses,
+      };
+      hasDpsFilters = true;
+    }
+
+    if (hasDpsFilters) {
+      where.dps = {
+        is: dpsFilters,
+      };
+    }
+
+    if (search && search.length > 2) {
+      const normalizedDocument = normalizeDocument(search);
+      const searchConditions: Prisma.NotaFiscalWhereInput[] = [
+        {
+          chaveAcesso: {
+            contains: search,
           },
         },
-        dps: {
-          select: {
-            id: true,
-            numero: true,
-            serie: true,
-            status: true,
-            certificadoId: true,
-            servico: {
-              select: {
-                valorUnitario: true,
-                descricao: true,
+        {
+          numero: {
+            contains: search,
+          },
+        },
+        {
+          prestador: {
+            is: {
+              nomeFantasia: {
+                contains: search,
               },
             },
           },
         },
-      },
-    });
+        {
+          tomador: {
+            is: {
+              nomeRazaoSocial: {
+                contains: search,
+              },
+            },
+          },
+        },
+      ];
+
+      const numericSearch = Number(search);
+
+      if (!Number.isNaN(numericSearch)) {
+        searchConditions.push({ dps: { is: { numero: numericSearch } } });
+      }
+
+      if (normalizedDocument.length >= 6) {
+        searchConditions.push({
+          prestador: {
+            is: {
+              cnpj: {
+                contains: normalizedDocument,
+              },
+            },
+          },
+        });
+
+        searchConditions.push({
+          tomador: {
+            is: {
+              documento: {
+                contains: normalizedDocument,
+              },
+            },
+          },
+        });
+      }
+
+      const existingAnd = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+
+      where.AND = [...existingAnd, { OR: searchConditions }];
+    }
+
+    const [totalItems, notas] = await Promise.all([
+      prisma.notaFiscal.count({ where }),
+      prisma.notaFiscal.findMany({
+        where,
+        include: {
+          prestador: {
+            select: {
+              id: true,
+              nomeFantasia: true,
+              cnpj: true,
+            },
+          },
+          tomador: {
+            select: {
+              id: true,
+              nomeRazaoSocial: true,
+              documento: true,
+            },
+          },
+          dps: {
+            select: {
+              id: true,
+              numero: true,
+              serie: true,
+              status: true,
+              certificadoId: true,
+              servico: {
+                select: {
+                  valorUnitario: true,
+                  descricao: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: perPage,
+      }),
+    ]);
 
     const payload = notas.map((nota) => ({
       id: nota.id,
@@ -86,7 +286,15 @@ export async function GET(request: Request) {
         : null,
     }));
 
-    return NextResponse.json(payload);
+    return NextResponse.json({
+      data: payload,
+      meta: {
+        page,
+        perPage,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / perPage)),
+      },
+    });
   } catch (error) {
     return handleRouteError(error, "Erro ao listar NFSe emitidas");
   }
