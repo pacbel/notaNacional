@@ -30,6 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -53,6 +63,7 @@ import {
   assinarDps,
   cancelarNfse,
   createDps,
+  deleteDps,
   downloadDanfse,
   emitirNfse,
   listCertificados,
@@ -128,6 +139,7 @@ const SELECT_LOADING_VALUE = "__loading__";
 const SELECT_EMPTY_VALUE = "__empty__";
 const CANCELAMENTO_JUSTIFICATIVA_MIN_LENGTH = 15;
 const CANCELAMENTO_JUSTIFICATIVA_MAX_LENGTH = 255;
+const DELETE_DPS_CONFIRMATION_KEY = "DELETE";
 
 function normalizeOptionalText(value: string | null | undefined) {
   if (value === null || value === undefined) {
@@ -189,6 +201,8 @@ export default function NfsePageContent() {
     motivoCodigo: CancelamentoMotivoCodigo | "";
     justificativa: string;
   } | null>(null);
+  const [deleteState, setDeleteState] = useState<{ dps: DpsDto; confirmation: string }>({ dps: null as unknown as DpsDto, confirmation: "" });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -198,6 +212,19 @@ export default function NfsePageContent() {
     queryKey: ["nfse", "certificados"],
     queryFn: listCertificados,
     staleTime: 5 * 60 * 1000,
+  });
+
+  const deleteDpsMutation = useMutation({
+    mutationFn: async (id: string) => deleteDps(id),
+    onSuccess: () => {
+      toast.success("DPS excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
+      setShowDeleteDialog(false);
+      setDeleteState({ dps: null as unknown as DpsDto, confirmation: "" });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir DPS");
+    },
   });
 
   const prestadoresQuery = useQuery<PrestadorDto[]>({
@@ -575,6 +602,19 @@ export default function NfsePageContent() {
                           <Send className="mr-2 h-4 w-4" />
                           Emitir
                         </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          disabled={dps.status === "ENVIADO" || dps.status === "CANCELADO" || deleteDpsMutation.isPending}
+                          onClick={() => {
+                            setDeleteState({ dps, confirmation: "" });
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Excluir
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -698,11 +738,11 @@ export default function NfsePageContent() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{actionState?.type === "sign" ? "Assinar DPS" : "Emitir NFSe"}</DialogTitle>
-            <DialogDescription>
+            {/* <DialogDescription>
               {actionState?.type === "sign"
                 ? "O certificado será resolvido automaticamente. Confirme para assinar a DPS."
                 : "O certificado será resolvido automaticamente. Informe apenas o ambiente se necessário."}
-            </DialogDescription>
+            </DialogDescription> */}
           </DialogHeader>
 
           {actionState ? (
@@ -734,7 +774,7 @@ export default function NfsePageContent() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                O certificado A1 será obtido automaticamente pela API Nota.
+                O certificado será obtido automaticamente pelo sistema Nota Nacional.
               </p>
             </div>
           ) : null}
@@ -750,6 +790,50 @@ export default function NfsePageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open);
+          if (!open) {
+            setDeleteState({ dps: null as unknown as DpsDto, confirmation: "" });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir DPS</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Digite <strong>{DELETE_DPS_CONFIRMATION_KEY}</strong> para confirmar a exclusão da
+              DPS nº {deleteState.dps?.numero}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-3">
+            <Input
+              value={deleteState.confirmation}
+              onChange={(event) => setDeleteState((state) => ({ ...state, confirmation: event.target.value }))}
+              placeholder={DELETE_DPS_CONFIRMATION_KEY}
+            />
+            <p className="text-xs text-muted-foreground">
+              Somente DPS em rascunho ou assinadas podem ser excluídas.
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteDpsMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                deleteDpsMutation.isPending ||
+                !deleteState.dps ||
+                deleteState.confirmation.trim().toUpperCase() !== DELETE_DPS_CONFIRMATION_KEY
+              }
+              onClick={() => deleteState.dps && deleteDpsMutation.mutate(deleteState.dps.id)}
+            >
+              {deleteDpsMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirmar exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={cancelState !== null}
@@ -772,7 +856,7 @@ export default function NfsePageContent() {
             <div className="space-y-4">
               <div className="rounded border bg-muted/30 p-3 text-sm">
                 <p className="font-medium">NFSe nº {cancelState.nota.numero}</p>
-                <p className="text-muted-foreground break-words">
+                <p className="text-muted-foreground wrap-break-word">
                   Chave: {cancelState.nota.chaveAcesso}
                 </p>
               </div>

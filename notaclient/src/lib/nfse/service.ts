@@ -250,7 +250,6 @@ export async function createDps(payload: CreateDpsInput) {
   const emissao = new Date(data.dataEmissao);
 
   const identificador = buildIdentificador(prestador.id);
-  const numero = await prisma.dps.count({ where: { prestadorId: prestador.id } }) + 1;
   const serie = configuracao.seriePadrao ?? 1;
 
   const jsonEntrada = {
@@ -303,7 +302,22 @@ export async function createDps(payload: CreateDpsInput) {
 
   const jsonEntradaString = JSON.stringify(jsonEntrada);
 
+  const numeroInicialDps = (configuracao as ConfiguracaoDps & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
+
   const { record, xmlGerado } = await prisma.$transaction(async (tx) => {
+    const maxNumero = await tx.dps.aggregate({
+      where: {
+        prestadorId: prestador.id,
+        serie,
+      },
+      _max: {
+        numero: true,
+      },
+    });
+
+    const nextNumeroBase = maxNumero._max.numero ?? numeroInicialDps - 1;
+    const numero = nextNumeroBase + 1;
+
     const created: DpsWithRelations = await tx.dps.create({
       data: {
         identificador,

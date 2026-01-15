@@ -34,7 +34,7 @@ const navigation = [
   { name: "Prestadores", href: "/prestadores", icon: Users },
   { name: "Tomadores", href: "/tomadores", icon: Users },
   { name: "Serviços", href: "/servicos", icon: FileText },
-  { name: "Configurações", href: "/configuracoes", icon: Settings },
+  { name: "Configurações", href: "/configuracoes/nfse", icon: Settings },
 ];
 
 export default function AppShell({ user, children }: AppShellProps) {
@@ -138,7 +138,7 @@ export default function AppShell({ user, children }: AppShellProps) {
                 <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/configuracoes">Configurações</Link>
+                  <Link href="/configuracoes/nfse">Configurações</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

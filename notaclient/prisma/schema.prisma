@@ -10,7 +10,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 enum UsuarioRole {
@@ -110,6 +109,7 @@ model ConfiguracaoDps {
   versaoAplicacao                 String   @db.VarChar(50)
   ambientePadrao                  Ambiente @default(HOMOLOGACAO)
   seriePadrao                     Int      @default(1)
+  numeroInicialDps                Int      @default(1)
   verAplic                        String   @db.VarChar(60)
   emailRemetente                  String?  @db.VarChar(191)
   robotClientId                   String?  @db.VarChar(191)
@@ -270,6 +270,7 @@ model Dps {
   notaFiscal    NotaFiscal?
 
   @@unique([prestadorId, identificador])
+  @@unique([prestadorId, numero, serie])
   @@index([numero, serie])
   @@index([prestadorId])
   @@index([tomadorId])

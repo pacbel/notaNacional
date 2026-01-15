@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -47,8 +47,8 @@ import { listMunicipios, type MunicipioDto } from "@/services/municipios";
 import { getConfiguracao, updateConfiguracao } from "./configuracoes-service";
 
 const ambienteOptions = [
-  { label: "Produção", value: "PRODUCAO" },
-  { label: "Homologação", value: "HOMOLOGACAO" },
+  { label: "Produ├º├úo", value: "PRODUCAO" },
+  { label: "Homologa├º├úo", value: "HOMOLOGACAO" },
 ];
 
 const ufOptions = [
@@ -84,24 +84,11 @@ const ufOptions = [
 export default function ConfiguracoesPage() {
   const [selectedUf, setSelectedUf] = useState<string>("MG");
 
-  const handleIntegerChange = (onChange: (value: number | undefined) => void) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      onChange(value === "" ? undefined : Number(value));
-    };
-
-  const handleDecimalChange = (onChange: (value: number | undefined) => void) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      onChange(value === "" ? undefined : Number.parseFloat(value));
-    };
-
   const defaultValues: ConfiguracaoFormValues = {
     nomeSistema: "",
     versaoAplicacao: "",
     ambientePadrao: "HOMOLOGACAO",
     seriePadrao: 1,
-    numeroInicialDps: 1,
     verAplic: "",
     emailRemetente: null,
     robotClientId: null,
@@ -159,11 +146,11 @@ export default function ConfiguracoesPage() {
   const updateMutation = useMutation<ConfiguracaoDto, Error, ConfiguracaoFormValues>({
     mutationFn: updateConfiguracao,
     onSuccess: (data) => {
-      toast.success("Configurações atualizadas com sucesso");
+      toast.success("Configura├º├Áes atualizadas com sucesso");
       const { updatedAt: _updatedAt, ...formValues } = data;
       form.reset(formValues);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(error.message);
     },
   });
@@ -187,9 +174,9 @@ export default function ConfiguracoesPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Configurações de emissão</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Configura├º├Áes de emiss├úo</h1>
         <p className="text-sm text-muted-foreground">
-          Defina parâmetros fixos utilizados na geração da DPS e emissão da NFSe.
+          Defina par├ómetros fixos utilizados na gera├º├úo da DPS e emiss├úo da NFSe.
         </p>
       </header>
 
@@ -198,7 +185,7 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Dados gerais</CardTitle>
-              <CardDescription>Informações principais do sistema e controles de emissão.</CardDescription>
+              <CardDescription>Informa├º├Áes principais do sistema e controles de emiss├úo.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <FormField
@@ -220,7 +207,7 @@ export default function ConfiguracoesPage() {
                 name="versaoAplicacao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Versão da aplicação</FormLabel>
+                    <FormLabel>Vers├úo da aplica├º├úo</FormLabel>
                     <FormControl>
                       <Input placeholder="1.0.0" {...field} />
                     </FormControl>
@@ -248,7 +235,7 @@ export default function ConfiguracoesPage() {
                 name="ambientePadrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ambiente padrão</FormLabel>
+                    <FormLabel>Ambiente padr├úo</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
@@ -273,39 +260,9 @@ export default function ConfiguracoesPage() {
                 name="seriePadrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Série padrão</FormLabel>
+                    <FormLabel>S├®rie padr├úo</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="numeroInicialDps"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número inicial da DPS</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -317,7 +274,7 @@ export default function ConfiguracoesPage() {
                 name="nNFSe"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número NFSe</FormLabel>
+                    <FormLabel>N├║mero NFSe</FormLabel>
                     <FormControl>
                       <Input placeholder="40" {...field} />
                     </FormControl>
@@ -331,7 +288,7 @@ export default function ConfiguracoesPage() {
                 name="nDFSe"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número DFSe</FormLabel>
+                    <FormLabel>N├║mero DFSe</FormLabel>
                     <FormControl>
                       <Input placeholder="778552" {...field} />
                     </FormControl>
@@ -361,7 +318,7 @@ export default function ConfiguracoesPage() {
                   <FormItem className="sm:col-span-2">
                     <FormLabel>xNBS</FormLabel>
                     <FormControl>
-                      <Input placeholder="Serviços de clínica médica" {...field} />
+                      <Input placeholder="Servi├ºos de cl├¡nica m├®dica" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -373,7 +330,7 @@ export default function ConfiguracoesPage() {
                 name="xLocEmi"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Local de emissão</FormLabel>
+                    <FormLabel>Local de emiss├úo</FormLabel>
                     <FormControl>
                       <Input placeholder="Belo Horizonte" {...field} />
                     </FormControl>
@@ -387,7 +344,7 @@ export default function ConfiguracoesPage() {
                 name="xLocPrestacao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Local de prestação</FormLabel>
+                    <FormLabel>Local de presta├º├úo</FormLabel>
                     <FormControl>
                       <Input placeholder="Belo Horizonte" {...field} />
                     </FormControl>
@@ -403,16 +360,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>ambGer</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -426,16 +374,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>tpEmis</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -449,16 +388,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>procEmi</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -472,15 +402,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>cStat</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -508,15 +430,7 @@ export default function ConfiguracoesPage() {
                   <FormItem className="sm:col-span-2">
                     <FormLabel>E-mail remetente</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        value={field.value ?? ""}
-                        onChange={(event) => field.onChange(event.target.value || null)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="contato@empresa.com"
-                      />
+                      <Input type="email" value={field.value ?? ""} onChange={field.onChange} placeholder="contato@empresa.com" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -530,14 +444,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>Robot Client ID</FormLabel>
                     <FormControl>
-                      <Input
-                        value={field.value ?? ""}
-                        onChange={(event) => field.onChange(event.target.value || null)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="CLIENT_ID"
-                      />
+                      <Input value={field.value ?? ""} onChange={field.onChange} placeholder="CLIENT_ID" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -551,14 +458,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>Robot Client Secret</FormLabel>
                     <FormControl>
-                      <Input
-                        value={field.value ?? ""}
-                        onChange={(event) => field.onChange(event.target.value || null)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="CLIENT_SECRET"
-                      />
+                      <Input value={field.value ?? ""} onChange={field.onChange} placeholder="CLIENT_SECRET" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -572,15 +472,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>Token cache (minutos)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -594,15 +486,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>Validade MFA (minutos)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={1} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -614,7 +498,7 @@ export default function ConfiguracoesPage() {
                 name="enviarNotificacaoEmailPrestador"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <FormLabel className="text-sm font-medium">Enviar e-mails aos prestadores</FormLabel>
+                    <FormLabel className="text-sm font-medium">Enviar emails aos prestadores</FormLabel>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
@@ -627,7 +511,7 @@ export default function ConfiguracoesPage() {
                 name="ativo"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <FormLabel className="text-sm font-medium">Configuração ativa</FormLabel>
+                    <FormLabel className="text-sm font-medium">Configura├º├úo ativa</FormLabel>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
@@ -639,8 +523,8 @@ export default function ConfiguracoesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Parâmetros tributários</CardTitle>
-              <CardDescription>Informações complementares enviadas na DPS.</CardDescription>
+              <CardTitle>Par├ómetros tribut├írios</CardTitle>
+              <CardDescription>Informa├º├Áes complementares enviadas na DPS.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
               <FormField
@@ -650,16 +534,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>tribISSQN</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -673,16 +548,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>tpImunidade</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -696,16 +562,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>tpRetISSQN</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={9}
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} max={9} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -719,16 +576,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>pTotTribFed</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -742,16 +590,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>pTotTribEst</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -765,16 +604,7 @@ export default function ConfiguracoesPage() {
                   <FormItem>
                     <FormLabel>pTotTribMun</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <Input type="number" min={0} step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -785,7 +615,7 @@ export default function ConfiguracoesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Referência de municípios</CardTitle>
+              <CardTitle>Refer├¬ncia de munic├¡pios</CardTitle>
               <CardDescription>Selecione a UF para carregar a lista do IBGE.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -811,7 +641,7 @@ export default function ConfiguracoesPage() {
               </div>
 
               <div>
-                <FormLabel>Municípios disponíveis</FormLabel>
+                <FormLabel>Munic├¡pios dispon├¡veis</FormLabel>
                 <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
                   {municipiosQuery.isLoading ? (
                     <div className="flex items-center gap-2">
@@ -819,7 +649,7 @@ export default function ConfiguracoesPage() {
                       Carregando lista do IBGE...
                     </div>
                   ) : (
-                    <span>{municipioOptions.length} municípios carregados</span>
+                    <span>{municipioOptions.length} munic├¡pios carregados</span>
                   )}
                 </div>
               </div>
@@ -827,7 +657,7 @@ export default function ConfiguracoesPage() {
 
             <CardFooter className="flex flex-col gap-2 text-xs text-muted-foreground">
               <span>
-                Use os códigos IBGE ao preencher locais de emissão/prestação e cadastros de prestadores/tomadores.
+                Use os c├│digos IBGE ao preencher locais de emiss├úo/presta├º├úo e cadastros de prestadores/tomadores.
               </span>
               {dhProcFormatted && (
                 <Alert>
@@ -839,7 +669,7 @@ export default function ConfiguracoesPage() {
               )}
               {updatedAt && (
                 <span>
-                  Última atualização: {format(new Date(updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  ├Ültima atualiza├º├úo: {format(new Date(updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </span>
               )}
             </CardFooter>
@@ -847,8 +677,8 @@ export default function ConfiguracoesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Observações adicionais</CardTitle>
-              <CardDescription>Opcional, para guardar anotações internas.</CardDescription>
+              <CardTitle>Observa├º├Áes adicionais</CardTitle>
+              <CardDescription>Opcional, para guardar anota├º├Áes internas.</CardDescription>
             </CardHeader>
             <CardContent>
               <FormField
@@ -856,11 +686,11 @@ export default function ConfiguracoesPage() {
                 name="xTribNac"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Anotações internas</FormLabel>
+                    <FormLabel>Anota├º├Áes internas</FormLabel>
                     <FormControl>
                       <Textarea
                         className="min-h-[120px]"
-                        placeholder="Registre detalhes importantes para a emissão..."
+                        placeholder="Registre detalhes importantes para a emiss├úo..."
                         value={field.value}
                         onChange={field.onChange}
                       />
@@ -887,7 +717,7 @@ export default function ConfiguracoesPage() {
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" /> Salvar alterações
+                  <Save className="mr-2 h-4 w-4" /> Salvar altera├º├Áes
                 </>
               )}
             </Button>

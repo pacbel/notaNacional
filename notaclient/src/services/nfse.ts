@@ -105,6 +105,136 @@ export interface NotaDto {
 
 interface ApiErrorResponse {
   message?: string;
+  details?: unknown;
+}
+
+function tryParseJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function resolveSefinErrorFromRecord(record: Record<string, unknown>): string | null {
+  const erros = record["erros"];
+
+  if (Array.isArray(erros)) {
+    for (const item of erros) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+
+      const entry = item as Record<string, unknown>;
+      const rawCodigo = entry["Codigo"] ?? entry["codigo"];
+      const rawDescricao = entry["Descricao"] ?? entry["descricao"];
+
+      const descricao = typeof rawDescricao === "string" && rawDescricao.trim().length > 0 ? rawDescricao.trim() : null;
+      const codigo = rawCodigo !== undefined && rawCodigo !== null ? String(rawCodigo).trim() : null;
+
+      if (descricao && codigo) {
+        return `${codigo} - ${descricao}`;
+      }
+
+      if (descricao) {
+        return descricao;
+      }
+    }
+  }
+
+  const descricaoDireta = record["Descricao"] ?? record["descricao"];
+
+  if (typeof descricaoDireta === "string" && descricaoDireta.trim().length > 0) {
+    return descricaoDireta.trim();
+  }
+
+  return null;
+}
+
+function resolveErrorMessageFromUnknown(value: unknown, depth = 0): string | null {
+  if (depth > 5) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      const parsed = tryParseJson(trimmed);
+
+      if (parsed !== null) {
+        const nested = resolveErrorMessageFromUnknown(parsed, depth + 1);
+
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = resolveErrorMessageFromUnknown(item, depth + 1);
+
+      if (nested) {
+        return nested;
+      }
+    }
+
+    return null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  const sefinMessage = resolveSefinErrorFromRecord(record);
+
+  if (sefinMessage) {
+    return sefinMessage;
+  }
+
+  const messageKeys = ["message", "mensagem", "Mensagem", "Message"];
+
+  for (const key of messageKeys) {
+    if (key in record) {
+      const nested = resolveErrorMessageFromUnknown(record[key], depth + 1);
+
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+
+  const detailKeys = ["details", "detalhes", "rawResponseContent", "raw_response", "error", "erro"];
+
+  for (const key of detailKeys) {
+    if (key in record) {
+      const nested = resolveErrorMessageFromUnknown(record[key], depth + 1);
+
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+
+  if (depth === 0) {
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -112,10 +242,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
     let errorMessage = "Erro inesperado";
 
     try {
-      const data = (await response.json()) as ApiErrorResponse;
-      errorMessage = data.message ?? errorMessage;
+      const bodyText = await response.text();
+      const resolvedMessage = resolveErrorMessageFromUnknown(bodyText);
+
+      if (resolvedMessage) {
+        errorMessage = resolvedMessage;
+      }
     } catch {
-      // ignore parse error
+      // parse failure mantém mensagem padrão
     }
 
     throw new Error(errorMessage);
@@ -158,6 +292,14 @@ export async function createDps(payload: CreateDpsPayload): Promise<DpsDto> {
   });
 
   return handleResponse<DpsDto>(response);
+}
+
+export async function deleteDps(id: string): Promise<void> {
+  const response = await fetch(`/api/nfse/dps/${id}`, {
+    method: "DELETE",
+  });
+
+  await handleResponse<void>(response);
 }
 
 export async function listCertificados() {
