@@ -1,26 +1,31 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-
-const API_BASE_URL = process.env.NOTA_API_BASE_URL || "";
-
-async function getAuthToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("token")?.value;
-}
+import { getCurrentUser } from "@/lib/auth";
+import { getRobotToken } from "@/lib/notanacional-api";
+import { getEnv } from "@/lib/env";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const token = await getAuthToken();
+    const currentUser = await getCurrentUser();
 
-    const response = await fetch(`${API_BASE_URL}/api/Usuarios/${id}`, {
+    if (!currentUser) {
+      return NextResponse.json(
+        { message: "Não autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    const token = await getRobotToken();
+    const env = getEnv();
+
+    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
     });
@@ -48,15 +53,25 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const token = await getAuthToken();
-    const body = await request.json();
+    const currentUser = await getCurrentUser();
 
-    const response = await fetch(`${API_BASE_URL}/api/Usuarios/${id}`, {
+    if (!currentUser) {
+      return NextResponse.json(
+        { message: "Não autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const token = await getRobotToken();
+    const env = getEnv();
+
+    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     });
@@ -84,14 +99,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const token = await getAuthToken();
+    const currentUser = await getCurrentUser();
 
-    const response = await fetch(`${API_BASE_URL}/api/Usuarios/${id}`, {
+    if (!currentUser) {
+      return NextResponse.json(
+        { message: "Não autorizado" },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    const token = await getRobotToken();
+    const env = getEnv();
+
+    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}`,
       },
     });
 
