@@ -38,8 +38,13 @@ import { listUsuarios, deleteUsuario } from "@/services/usuarios";
 import type { UsuarioDto } from "@/lib/validators/usuario";
 import { UsuarioForm } from "./usuario-form";
 import { ChangePasswordForm } from "./change-password-form";
+import { isAdministrador } from "@/lib/permissions";
 
-export function UsuariosPage() {
+interface UsuariosPageProps {
+  currentUserRole: string;
+}
+
+export function UsuariosPage({ currentUserRole }: UsuariosPageProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<UsuarioDto | null>(null);
   const [deletingUsuario, setDeletingUsuario] = useState<UsuarioDto | null>(null);
@@ -124,7 +129,12 @@ export function UsuariosPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              usuarios.map((usuario) => (
+              usuarios.map((usuario) => {
+                const targetIsAdmin = isAdministrador(usuario.role);
+                const currentUserIsAdmin = isAdministrador(currentUserRole);
+                const isRestrictedAdmin = targetIsAdmin && !currentUserIsAdmin;
+
+                return (
                 <TableRow key={usuario.id}>
                   <TableCell className="font-medium">{usuario.nome}</TableCell>
                   <TableCell>{usuario.email}</TableCell>
@@ -141,6 +151,12 @@ export function UsuariosPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={isRestrictedAdmin}
+                        title={
+                          isRestrictedAdmin
+                            ? "Apenas administradores podem alterar a senha de outros administradores"
+                            : undefined
+                        }
                         onClick={() => handleChangePassword(usuario)}
                       >
                         <Key className="h-4 w-4" />
@@ -148,6 +164,12 @@ export function UsuariosPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={isRestrictedAdmin}
+                        title={
+                          isRestrictedAdmin
+                            ? "Apenas administradores podem editar outros administradores"
+                            : undefined
+                        }
                         onClick={() => handleEdit(usuario)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -155,6 +177,12 @@ export function UsuariosPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={isRestrictedAdmin}
+                        title={
+                          isRestrictedAdmin
+                            ? "Apenas administradores podem excluir outros administradores"
+                            : undefined
+                        }
                         onClick={() => handleDelete(usuario)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -162,7 +190,7 @@ export function UsuariosPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             )}
           </TableBody>
         </Table>

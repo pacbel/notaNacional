@@ -35,6 +35,8 @@ export async function GET() {
     const url = new URL(`${env.NOTA_API_BASE_URL}/api/Usuarios`);
     url.searchParams.append("prestadorId", prestadorId);
 
+    console.log("[Usuarios] URL completa:", url.toString());
+
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
@@ -46,6 +48,7 @@ export async function GET() {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error("[Usuarios] Erro na API:", response.status, error);
       return NextResponse.json(
         { message: error || "Erro ao buscar usuários" },
         { status: response.status }
@@ -53,7 +56,19 @@ export async function GET() {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    console.log("[Usuarios] Dados recebidos da API:", data);
+
+    // Filtro adicional no backend para garantir isolamento
+    const usuarios = Array.isArray(data) ? data : [];
+    const usuariosFiltrados = usuarios.filter(
+      (usuario: any) => usuario.prestadorId === prestadorId
+    );
+
+    console.log(
+      `[Usuarios] Total recebido: ${usuarios.length}, Filtrado: ${usuariosFiltrados.length}`
+    );
+
+    return NextResponse.json(usuariosFiltrados);
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Erro ao buscar usuários" },

@@ -9,30 +9,42 @@
 
 export type UserRole = "Administrador" | "Gestao" | "Operacao";
 
-export function isAdministrador(role: string): boolean {
-  return role === "Administrador" || role === "Administrator";
+function normalizeRole(role?: string | null): string {
+  if (!role) {
+    return "";
+  }
+
+  return role
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 }
 
-export function isGestao(role: string): boolean {
-  return role === "Gestao" || role === "Gestão";
+export function isAdministrador(role?: string | null): boolean {
+  const normalized = normalizeRole(role);
+  return normalized === "administrador" || normalized === "administrator";
 }
 
-export function isOperacao(role: string): boolean {
-  return role === "Operacao" || role === "Operação";
+export function isGestao(role?: string | null): boolean {
+  return normalizeRole(role) === "gestao";
 }
 
-export function hasFullAccess(role: string): boolean {
+export function isOperacao(role?: string | null): boolean {
+  return normalizeRole(role) === "operacao";
+}
+
+export function hasFullAccess(role?: string | null): boolean {
   return isAdministrador(role) || isGestao(role);
 }
 
-export function canAccessUsuarios(role: string): boolean {
+export function canAccessUsuarios(role?: string | null): boolean {
   return hasFullAccess(role);
 }
 
-export function canAccessConfiguracoes(role: string): boolean {
+export function canAccessConfiguracoes(role?: string | null): boolean {
   return hasFullAccess(role);
 }
 
-export function canAccessPrestadores(role: string): boolean {
+export function canAccessPrestadores(role?: string | null): boolean {
   return hasFullAccess(role);
 }

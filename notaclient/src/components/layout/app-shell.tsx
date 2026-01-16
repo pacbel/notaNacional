@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState, useMemo } from "react";
+import { ReactNode, useState, useMemo, useId } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, LayoutDashboard, FileText, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
@@ -51,6 +51,7 @@ export default function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const sheetContentId = useId();
 
   // Filtrar navegação baseado nas permissões do usuário
   const filteredNavigation = useMemo(() => {
@@ -201,11 +202,20 @@ export default function AppShell({ user, children }: AppShellProps) {
 
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden m-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden m-2"
+              aria-controls={sheetContentId}
+            >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0 shadow-lg lg:hidden">
+          <SheetContent
+            id={sheetContentId}
+            side="left"
+            className="w-64 p-0 shadow-lg lg:hidden"
+          >
             {sidebarContent(false)}
           </SheetContent>
         </Sheet>

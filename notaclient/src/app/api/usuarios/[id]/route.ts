@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
-import { canAccessUsuarios } from "@/lib/permissions";
+import { canAccessUsuarios, isAdministrador } from "@/lib/permissions";
 
 export async function GET(
   request: Request,
@@ -104,9 +104,31 @@ export async function PUT(
 
     if (checkResponse.ok) {
       const userData = await checkResponse.json();
+      
+      console.log("[Usuarios][PUT] Dados do usuário alvo:", JSON.stringify(userData, null, 2));
+      console.log("[Usuarios][PUT] Role do usuário logado:", currentUser.role);
+      
+      // Validar se pertence ao mesmo prestador
       if (userData.prestadorId !== currentUser.prestadorId) {
         return NextResponse.json(
           { message: "Acesso negado" },
+          { status: 403 }
+        );
+      }
+
+      // Proteger usuários Administrador - só podem ser alterados por outro Administrador
+      // Verificar todos os campos possíveis onde a role pode estar
+      const targetUserRole = String(userData.role || userData.perfil || userData.Perfil || userData.Role || "");
+      const isTargetAdmin = isAdministrador(targetUserRole);
+      const isCurrentAdmin = isAdministrador(currentUser.role);
+
+      console.log("[Usuarios][PUT] Target role:", targetUserRole, "| Is admin:", isTargetAdmin);
+      console.log("[Usuarios][PUT] Current role:", currentUser.role, "| Is admin:", isCurrentAdmin);
+
+      if (isTargetAdmin && !isCurrentAdmin) {
+        console.log("[Usuarios][PUT] BLOQUEADO - Gestão tentando modificar Administrador");
+        return NextResponse.json(
+          { message: "Apenas usuários com perfil Administrador podem alterar outros Administradores" },
           { status: 403 }
         );
       }
@@ -182,9 +204,31 @@ export async function DELETE(
 
     if (checkResponse.ok) {
       const userData = await checkResponse.json();
+      
+      console.log("[Usuarios][DELETE] Dados do usuário alvo:", JSON.stringify(userData, null, 2));
+      console.log("[Usuarios][DELETE] Role do usuário logado:", currentUser.role);
+      
+      // Validar se pertence ao mesmo prestador
       if (userData.prestadorId !== currentUser.prestadorId) {
         return NextResponse.json(
           { message: "Acesso negado" },
+          { status: 403 }
+        );
+      }
+
+      // Proteger usuários Administrador - só podem ser removidos por outro Administrador
+      // Verificar todos os campos possíveis onde a role pode estar
+      const targetUserRole = String(userData.role || userData.perfil || userData.Perfil || userData.Role || "");
+      const isTargetAdmin = isAdministrador(targetUserRole);
+      const isCurrentAdmin = isAdministrador(currentUser.role);
+
+      console.log("[Usuarios][DELETE] Target role:", targetUserRole, "| Is admin:", isTargetAdmin);
+      console.log("[Usuarios][DELETE] Current role:", currentUser.role, "| Is admin:", isCurrentAdmin);
+
+      if (isTargetAdmin && !isCurrentAdmin) {
+        console.log("[Usuarios][DELETE] BLOQUEADO - Gestão tentando remover Administrador");
+        return NextResponse.json(
+          { message: "Apenas usuários com perfil Administrador podem remover outros Administradores" },
           { status: 403 }
         );
       }
