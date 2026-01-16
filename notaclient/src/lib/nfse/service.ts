@@ -5,9 +5,6 @@ import {
   Prisma,
   type Ambiente,
   type ConfiguracaoDps,
-  type Prestador,
-  type Servico,
-  type Tomador,
 } from "@prisma/client";
 import type { AxiosError } from "axios";
 import { z } from "zod";
@@ -34,33 +31,58 @@ import {
   generateDpsXml,
   type ConfiguracaoBase,
   type PartyBase,
-  type ServicoBase,
   type TomadorBase,
+  type ServicoBase,
 } from "./xml/dps-xml";
 import { resolveCertificateId } from "./certificado-service";
 import { generateCancelamentoXml } from "./xml/cancelamento-xml";
 import { gzipSync } from "zlib";
+import { getPrestador, type PrestadorDto } from "@/services/prestadores";
 
 type Nullable<T> = T | null | undefined;
 
-type DpsWithPrestador = Prisma.DpsGetPayload<{
-  include: {
-    prestador: true;
-  };
-}>;
+// Tipos para dados vindos da API externa
+interface PrestadorApi {
+  id: string;
+  cnpj: string;
+  nomeFantasia: string;
+  razaoSocial: string;
+  codigoMunicipio: string;
+  cidade: string;
+  estado: string;
+}
+
+interface TomadorApi {
+  id: string;
+  tipoDocumento: "CPF" | "CNPJ";
+  documento: string;
+  nomeRazaoSocial: string;
+  codigoMunicipio: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  complemento?: string | null;
+  cep?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+}
+
+interface ServicoApi {
+  id: string;
+  descricao: string;
+  valorUnitario: number;
+  codigoTributacaoMunicipal: string;
+  codigoTributacaoNacional: string;
+  codigoNbs?: string | null;
+  codigoMunicipioPrestacao: string;
+  informacoesComplementares?: string | null;
+  aliquotaIss?: number | null;
+}
 
 type DpsWithRelations = Prisma.DpsGetPayload<{
   include: {
-    prestador: true;
     tomador: true;
     servico: true;
-  };
-}>;
-
-type NotaWithRelations = Prisma.NotaFiscalGetPayload<{
-  include: {
-    prestador: true;
-    dps: true;
   };
 }>;
 
@@ -227,8 +249,8 @@ export type CreateDpsInput = z.infer<typeof createDpsSchema>;
 export async function createDps(payload: CreateDpsInput) {
   const data = createDpsSchema.parse(payload);
 
-  const [prestador, tomador, servico, configuracao] = await Promise.all([
-    prisma.prestador.findUnique({ where: { id: data.prestadorId, ativo: true } }),
+  const [prestadorDto, tomador, servico, configuracao] = await Promise.all([
+    getPrestador(data.prestadorId),
     prisma.tomador.findFirst({ 
       where: { 
         id: data.tomadorId, 
@@ -246,9 +268,19 @@ export async function createDps(payload: CreateDpsInput) {
     resolveConfiguracaoDps(data.prestadorId),
   ]);
 
-  if (!prestador) {
+  if (!prestadorDto || !prestadorDto.ativo) {
     throw new AppError("Prestador não encontrado ou inativo", 404);
   }
+
+  const prestador: PrestadorApi = {
+    id: prestadorDto.id,
+    cnpj: prestadorDto.cnpj ?? "",
+    nomeFantasia: prestadorDto.nomeFantasia ?? "",
+    razaoSocial: prestadorDto.razaoSocial ?? "",
+    codigoMunicipio: prestadorDto.codigoMunicipio ?? prestadorDto.codigoMunicipioIbge ?? "",
+    cidade: prestadorDto.cidade ?? "",
+    estado: prestadorDto.estado ?? "",
+  };
 
   if (!tomador) {
     throw new AppError("Tomador não encontrado, inativo ou não pertence ao prestador", 404);
@@ -296,10 +328,13 @@ export async function createDps(payload: CreateDpsInput) {
       xLocEmi: configuracao.xLocEmi,
       xLocPrestacao: configuracao.xLocPrestacao,
       verAplic: configuracao.verAplic,
+      tpAmb: configuracao.tpAmb,
       ambGer: configuracao.ambGer,
       tpEmis: configuracao.tpEmis,
       procEmi: configuracao.procEmi,
       cStat: configuracao.cStat,
+      opSimpNac: configuracao.opSimpNac,
+      regEspTrib: configuracao.regEspTrib,
       tribISSQN: configuracao.tribISSQN,
       tpImunidade: configuracao.tpImunidade,
       tpRetISSQN: configuracao.tpRetISSQN,
@@ -320,7 +355,7 @@ export async function createDps(payload: CreateDpsInput) {
     // Usar o numeroInicialDps das configurações como próximo número
     const numero = numeroInicialDps;
 
-    const created: DpsWithRelations = await tx.dps.create({
+    const created = await tx.dps.create({
       data: {
         identificador,
         numero,
@@ -339,7 +374,6 @@ export async function createDps(payload: CreateDpsInput) {
         observacoes: data.observacoes ?? configuracao.xTribNac,
       },
       include: {
-        prestador: true,
         tomador: true,
         servico: true,
       },
@@ -352,8 +386,31 @@ export async function createDps(payload: CreateDpsInput) {
       competencia,
       emissao,
       prestador: mapPrestadorToXmlInput(prestador),
-      tomador: mapTomadorToXmlInput(created.tomador),
-      servico: mapServicoToXmlInput(created.servico),
+      tomador: mapTomadorToXmlInput({
+        id: created.tomador.id,
+        tipoDocumento: created.tomador.tipoDocumento,
+        documento: created.tomador.documento,
+        nomeRazaoSocial: created.tomador.nomeRazaoSocial,
+        codigoMunicipio: created.tomador.codigoMunicipio,
+        logradouro: created.tomador.logradouro,
+        numero: created.tomador.numero,
+        bairro: created.tomador.bairro,
+        complemento: created.tomador.complemento,
+        cep: created.tomador.cep,
+        telefone: created.tomador.telefone,
+        email: created.tomador.email,
+      }),
+      servico: mapServicoToXmlInput({
+        id: created.servico.id,
+        descricao: created.servico.descricao,
+        valorUnitario: created.servico.valorUnitario.toNumber(),
+        codigoTributacaoMunicipal: created.servico.codigoTributacaoMunicipal,
+        codigoTributacaoNacional: created.servico.codigoTributacaoNacional,
+        codigoNbs: created.servico.codigoNbs,
+        codigoMunicipioPrestacao: created.servico.codigoMunicipioPrestacao,
+        informacoesComplementares: created.servico.informacoesComplementares,
+        aliquotaIss: created.servico.aliquotaIss?.toNumber() ?? null,
+      }),
       configuracao: mapConfiguracaoToXmlInput(configuracao),
       observacoes: data.observacoes,
     });
@@ -384,12 +441,9 @@ export async function createDps(payload: CreateDpsInput) {
   };
 }
 
-async function resolveDps(dpsId: string): Promise<DpsWithPrestador> {
+async function resolveDps(dpsId: string) {
   const dps = await prisma.dps.findUnique({
     where: { id: dpsId },
-    include: {
-      prestador: true,
-    },
   });
 
   if (!dps) {
@@ -408,17 +462,24 @@ async function resolveConfiguracaoDps(prestadorId: string) {
 
   // Se não existir, criar configuração padrão para o prestador
   if (!config) {
+    const verAplic = process.env.PUBLIC_APPLICATION_VERSION ?? "1.0.0";
     config = await prisma.configuracaoDps.create({
       data: {
         prestadorId,
         nomeSistema: "NotaClient",
         versaoAplicacao: "1.0.0",
-        verAplic: "1.0.0",
+        verAplic,
         xLocEmi: "1",
         xLocPrestacao: "1",
         nNFSe: "1",
         xTribNac: "01.07.00",
         xNBS: "1.0101.10.00",
+        tpAmb: 2,
+        opSimpNac: 1,
+        regEspTrib: 0,
+        tribISSQN: 1,
+        tpImunidade: 0,
+        tpRetISSQN: 1,
       },
     });
   }
@@ -434,14 +495,14 @@ function buildIdentificador(prestadorId: string): string {
   return `${prestadorId.slice(0, 8)}-${serial}`;
 }
 
-function mapPrestadorToXmlInput(prestador: Prestador): PartyBase {
+function mapPrestadorToXmlInput(prestador: PrestadorApi): PartyBase {
   return {
     cnpj: prestador.cnpj,
     codigoMunicipio: prestador.codigoMunicipio,
   };
 }
 
-function mapTomadorToXmlInput(tomador: Tomador): TomadorBase {
+function mapTomadorToXmlInput(tomador: TomadorApi): TomadorBase {
   return {
     tipoDocumento: tomador.tipoDocumento,
     documento: tomador.documento,
@@ -457,7 +518,7 @@ function mapTomadorToXmlInput(tomador: Tomador): TomadorBase {
   };
 }
 
-function mapServicoToXmlInput(servico: Servico): ServicoBase {
+function mapServicoToXmlInput(servico: ServicoApi): ServicoBase {
   return {
     descricao: servico.descricao,
     valorUnitario: servico.valorUnitario,
@@ -473,8 +534,11 @@ function mapServicoToXmlInput(servico: Servico): ServicoBase {
 function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
   return {
     ambGer: config.ambGer,
+    tpAmb: config.tpAmb,
     verAplic: config.verAplic,
     tpEmis: config.tpEmis,
+    opSimpNac: config.opSimpNac,
+    regEspTrib: config.regEspTrib,
     tribISSQN: config.tribISSQN,
     tpImunidade: config.tpImunidade,
     tpRetISSQN: config.tpRetISSQN,
@@ -501,15 +565,15 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
     throw new AppError("XML da DPS não foi gerado", 400);
   }
 
-  const prestadorCertificadoPadrao = (dps.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null;
+  const prestadorDto = await getPrestador(dps.prestadorId);
 
   logInfo("Resolvendo certificado para assinatura", { dpsId, prestadorId: dps.prestadorId });
 
   const resolvedCertificate = await resolveCertificateId({
-    prestadorCnpj: dps.prestador.cnpj,
+    prestadorCnpj: prestadorDto.cnpj ?? "",
     provided: certificateId,
-    dpsCertificado: dps.certificadoId,
-    prestadorCertificado: prestadorCertificadoPadrao,
+    dpsCertificado: null,
+    prestadorCertificado: null,
   });
 
   logInfo("Certificado resolvido para assinatura", { dpsId, certificateId: resolvedCertificate });
@@ -570,13 +634,13 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     throw new AppError("DPS precisa estar assinada antes da emissão", 400);
   }
 
-  const prestadorCertificadoPadrao = (dps.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null;
+  const prestadorDto = await getPrestador(dps.prestadorId);
 
   const resolvedCertificate = await resolveCertificateId({
-    prestadorCnpj: dps.prestador.cnpj,
+    prestadorCnpj: prestadorDto.cnpj ?? "",
     provided: certificateId,
-    dpsCertificado: dps.certificadoId,
-    prestadorCertificado: prestadorCertificadoPadrao,
+    dpsCertificado: null,
+    prestadorCertificado: null,
   });
 
   const ambienteApi = mapAmbienteToApi(dps.ambiente, ambiente);
@@ -740,37 +804,39 @@ export async function cancelarNota({
   justificativa,
   ambiente,
 }: CancelarNfseInput): Promise<CancelarNfseResponse> {
-  const nota = await prisma.notaFiscal.findFirst({
-    where: { chaveAcesso },
-    include: {
-      prestador: true,
-      dps: true,
-    },
-  });
+  const [nota, dps] = await Promise.all([
+    prisma.notaFiscal.findFirst({
+      where: { chaveAcesso },
+    }),
+    prisma.dps.findFirst({
+      where: { notaFiscal: { chaveAcesso } },
+    }),
+  ]);
 
   if (!nota) {
     throw new AppError("NFSe não encontrada", 404);
   }
 
+  const prestadorDto = await getPrestador(nota.prestadorId);
   const motivo = findCancelamentoMotivo(motivoCodigo);
 
   const resolvedCertificate = await resolveCertificateId({
-    prestadorCnpj: nota.prestador.cnpj,
+    prestadorCnpj: prestadorDto.cnpj ?? "",
     provided: undefined,
-    notaCertificado: nota.certificateId,
-    dpsCertificado: nota.dps?.certificadoId,
-    prestadorCertificado: (nota.prestador as Prisma.PrestadorGetPayload<{}>)?.certificadoPadraoId ?? null,
+    notaCertificado: null,
+    dpsCertificado: null,
+    prestadorCertificado: null,
   });
 
   const ambienteApi = mapAmbienteToApi(nota.ambiente, ambiente);
 
-  const verAplic = nota.dps?.versaoAplicacao ?? nota.dps?.versao ?? "NFSE_NACIONAL_1.00";
+  const verAplic = dps?.versaoAplicacao ?? dps?.versao ?? "NFSE_NACIONAL_1.00";
 
   const { xml: cancelamentoXml, infPedRegId } = generateCancelamentoXml({
     chaveAcesso: nota.chaveAcesso,
     ambiente: ambienteApi,
     verAplic,
-    cnpjAutor: nota.prestador.cnpj,
+    cnpjAutor: prestadorDto.cnpj ?? "",
     motivoCodigo,
     motivoDescricao: motivo?.descricao ?? "Cancelamento de NFS-e",
     justificativa,
@@ -943,28 +1009,37 @@ function compressToGzipBase64(value: string): string {
   return compressed.toString("base64");
 }
 
+interface GerarDanfseOptions {
+  certificateId?: string;
+  ambiente?: number;
+}
+
+interface GerarDanfseResponse {
+  buffer: Buffer;
+  filename: string;
+  contentType: string;
+}
+
 export async function gerarDanfse(
   chaveAcesso: string,
-  options: { ambiente?: number; certificateId?: string } = {}
-): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+  options: GerarDanfseOptions = {}
+): Promise<GerarDanfseResponse> {
   const nota = await prisma.notaFiscal.findFirst({
     where: { chaveAcesso },
-    include: {
-      prestador: true,
-      dps: true,
-    },
   });
 
   if (!nota) {
     throw new AppError("NFSe não encontrada", 404);
   }
 
+  const prestadorDto = await getPrestador(nota.prestadorId);
+
   const resolvedCertificate = await resolveCertificateId({
-    prestadorCnpj: nota.prestador.cnpj,
+    prestadorCnpj: prestadorDto.cnpj ?? "",
     provided: options.certificateId,
-    notaCertificado: nota.certificateId,
-    dpsCertificado: nota.dps?.certificadoId,
-    prestadorCertificado: (nota.prestador as { certificadoPadraoId?: string | null })?.certificadoPadraoId,
+    notaCertificado: null,
+    dpsCertificado: null,
+    prestadorCertificado: null,
   });
 
   const ambienteApi = mapAmbienteToApi(nota.ambiente, options.ambiente);

@@ -44,10 +44,13 @@ export interface ServicoBase {
 
 export interface ConfiguracaoBase {
   ambGer: number | null;
+  tpAmb: number | null;
   verAplic: string;
   tpEmis: number;
+  opSimpNac: number | null;
+  regEspTrib: number | null;
   tribISSQN: number;
-  tpImunidade: number;
+  tpImunidade: number | null;
   tpRetISSQN: number;
   pTotTribFed: Prisma.Decimal | number;
   pTotTribEst: Prisma.Decimal | number;
@@ -68,7 +71,8 @@ export interface GenerateDpsXmlInput {
 }
 
 export function generateDpsXml(input: GenerateDpsXmlInput): string {
-  const tpAmb = resolveTpAmb(input.configuracao.ambGer);
+  const tpAmbValue = input.configuracao.tpAmb ?? input.configuracao.ambGer;
+  const tpAmb = resolveTpAmb(tpAmbValue);
   const serieId = resolveSerie(input.serie);
   const numeroId = resolveNumero(input.numero);
   const infDpsId = resolveInfDpsId(input, tpAmb, serieId, numeroId);
@@ -84,7 +88,12 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   const totalTribEstadual = formatMoney(input.configuracao.pTotTribEst ?? 0);
   const totalTribMunicipal = formatMoney(input.configuracao.pTotTribMun ?? 0);
   const aliquotaIss = formatPercentage(input.servico.aliquotaIss);
-  const tpImunidade = input.configuracao.tpImunidade;
+  const shouldIncludeImunidade = input.configuracao.tribISSQN === 2;
+  const tpImunidade = shouldIncludeImunidade
+    ? input.configuracao.tpImunidade ?? 0
+    : null;
+  const opSimpNac = String(input.configuracao.opSimpNac ?? 1);
+  const regEspTrib = String(input.configuracao.regEspTrib ?? 0);
   const serviceDescription = sanitizeDescription(input.servico.descricao);
   const informacoesComplementaresRaw =
     input.observacoes ?? input.servico.informacoesComplementares ?? "";
@@ -105,8 +114,8 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "    <prest>",
     `      <CNPJ>${escapeXml(input.prestador.cnpj)}</CNPJ>`,
     "      <regTrib>",
-    "        <opSimpNac>1</opSimpNac>",
-    "        <regEspTrib>0</regEspTrib>",
+    `        <opSimpNac>${escapeXml(opSimpNac)}</opSimpNac>`,
+    `        <regEspTrib>${escapeXml(regEspTrib)}</regEspTrib>`,
     "      </regTrib>",
     "    </prest>",
     "    <toma>",
@@ -150,7 +159,7 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "      <trib>",
     "        <tribMun>",
     `          <tribISSQN>${input.configuracao.tribISSQN}</tribISSQN>`,
-    tpImunidade ? `          <tpImunidade>${tpImunidade}</tpImunidade>` : null,
+    tpImunidade !== null ? `          <tpImunidade>${tpImunidade}</tpImunidade>` : null,
     aliquotaIss ? `          <pAliq>${aliquotaIss}</pAliq>` : null,
     `          <tpRetISSQN>${input.configuracao.tpRetISSQN}</tpRetISSQN>`,
     "        </tribMun>",
@@ -194,8 +203,8 @@ function resolveInfDpsId(input: GenerateDpsXmlInput, tpAmb: string, serie: strin
   return id;
 }
 
-function resolveTpAmb(ambGer: number | null | undefined): string {
-  const resolved = ambGer ?? 2;
+function resolveTpAmb(value: number | null | undefined): string {
+  const resolved = value ?? 2;
   const normalized = String(resolved);
 
   if (normalized.length !== 1) {

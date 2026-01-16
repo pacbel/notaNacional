@@ -16,5 +16,5 @@ export default async function Page() {
     redirect("/dashboard");
   }
 
-  return <UsuariosPage />;
+  return <UsuariosPage currentUserRole={user.role} />;
 }

@@ -144,3 +144,15 @@ export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
 
   return handleResponse<PrestadorDto>(response);
 }
+
+export async function getPrestador(id: string): Promise<PrestadorDto> {
+  const response = await fetch(`/api/prestadores/${id}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  return handleResponse<PrestadorDto>(response);
+}

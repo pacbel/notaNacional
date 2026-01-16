@@ -66,22 +66,22 @@ const EMPTY_FORM_VALUES: PrestadorUpdateFormValues = {
 
 function mapPrestadorToForm(prestador: PrestadorDto) {
   return {
-    nomeFantasia: prestador.nomeFantasia,
-    razaoSocial: prestador.razaoSocial,
-    cnpj: prestador.cnpj,
+    nomeFantasia: prestador.nomeFantasia ?? "",
+    razaoSocial: prestador.razaoSocial ?? "",
+    cnpj: prestador.cnpj ?? "",
     inscricaoMunicipal: prestador.inscricaoMunicipal ?? "",
-    email: prestador.email,
+    email: prestador.email ?? "",
     telefone: prestador.telefone ?? "",
-    codigoMunicipio: prestador.codigoMunicipio,
-    cidade: prestador.cidade,
-    estado: prestador.estado,
-    cep: prestador.cep,
-    logradouro: prestador.logradouro,
-    numero: prestador.numero,
+    codigoMunicipio: prestador.codigoMunicipio ?? "",
+    cidade: prestador.cidade ?? "",
+    estado: prestador.estado ?? "",
+    cep: prestador.cep ?? "",
+    logradouro: prestador.logradouro ?? "",
+    numero: prestador.numero ?? "",
     complemento: prestador.complemento ?? "",
-    bairro: prestador.bairro,
+    bairro: prestador.bairro ?? "",
     observacoes: prestador.observacoes ?? "",
-    ativo: prestador.ativo,
+    ativo: prestador.ativo ?? true,
   } satisfies PrestadorUpdateFormValues;
 }
 
@@ -114,11 +114,11 @@ export function PrestadorDetailsDrawer({
     }
 
     const parts = [
-      `${prestador.logradouro}, ${prestador.numero}`,
-      prestador.complemento,
-      prestador.bairro,
-      `${prestador.cidade} - ${prestador.estado}`,
-      prestador.cep,
+      `${prestador.logradouro ?? ""}, ${prestador.numero ?? ""}`.trim(),
+      prestador.complemento ?? "",
+      prestador.bairro ?? "",
+      `${prestador.cidade ?? ""} - ${prestador.estado ?? ""}`.trim(),
+      prestador.cep ?? "",
     ].filter(Boolean);
 
     return parts.join(" · ");
@@ -149,7 +149,7 @@ export function PrestadorDetailsDrawer({
             {prestador.nomeFantasia}
           </SheetTitle>
           <SheetDescription className="text-left text-sm text-muted-foreground">
-            {prestador.razaoSocial} · {formatCpfCnpj(prestador.cnpj)}
+            {prestador.razaoSocial ?? ""} · {formatCpfCnpj(prestador.cnpj ?? "")}
           </SheetDescription>
         </SheetHeader>
 
@@ -158,7 +158,9 @@ export function PrestadorDetailsDrawer({
             <Shield className="h-3 w-3" />
             {prestador.ativo ? "Prestador ativo" : "Prestador inativo"}
           </Badge>
-          <Badge variant="secondary">Criado em {new Date(prestador.createdAt).toLocaleString("pt-BR")}</Badge>
+          <Badge variant="secondary">
+            Criado em {prestador.createdAt ? new Date(prestador.createdAt).toLocaleString("pt-BR") : "—"}
+          </Badge>
         </div>
 
         <Separator />

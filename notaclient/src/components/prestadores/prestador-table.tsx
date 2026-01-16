@@ -78,18 +78,18 @@ export function PrestadorTable({
         <TableCell>
           <div className="font-medium flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
-            {prestador.nomeFantasia}
+            {prestador.nomeFantasia ?? "—"}
           </div>
-          <div className="text-xs text-muted-foreground">{prestador.razaoSocial}</div>
+          <div className="text-xs text-muted-foreground">{prestador.razaoSocial ?? "—"}</div>
         </TableCell>
         <TableCell>
-          <div className="text-sm">{formatCpfCnpj(prestador.cnpj)}</div>
+          <div className="text-sm">{formatCpfCnpj(prestador.cnpj ?? "")}</div>
           <div className="text-xs text-muted-foreground">CNPJ</div>
         </TableCell>
         <TableCell>
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <Mail className="h-3 w-3" /> {prestador.email}
+              <Mail className="h-3 w-3" /> {prestador.email ?? "—"}
             </span>
             {prestador.telefone && (
               <span className="inline-flex items-center gap-1">
@@ -105,7 +105,10 @@ export function PrestadorTable({
           </Badge>
         </TableCell>
         <TableCell className="text-right text-xs text-muted-foreground">
-          Atualizado em {format(new Date(prestador.updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+          Atualizado em
+          {prestador.updatedAt
+            ? ` ${format(new Date(prestador.updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}`
+            : " —"}
         </TableCell>
       </TableRow>
     ));
