@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Auth;
 using API_NFSe.Application.Interfaces;
@@ -31,6 +32,10 @@ namespace API_NFSe.API.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(new { mensagem = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { mensagem = ex.Message });
             }
         }
 

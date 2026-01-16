@@ -70,15 +70,23 @@ namespace API_NFSe.Application.Services
             var codigoEnviado = false;
             if (!string.IsNullOrWhiteSpace(emailDestinatario))
             {
-                var smtpSettings = await ObterSmtpSettingsAsync(usuario);
-                var corpoEmail = await MontarCorpoEmailAsync(nomeUsuario, codigo, validade);
-                await _emailService.EnviarAsync(
-                    smtpSettings,
-                    new[] { emailDestinatario },
-                    _mfaSettings.AssuntoEmail,
-                    corpoEmail
-                );
-                codigoEnviado = true;
+                try
+                {
+                    var smtpSettings = await ObterSmtpSettingsAsync(usuario);
+                    var corpoEmail = await MontarCorpoEmailAsync(nomeUsuario, codigo, validade);
+                    await _emailService.EnviarAsync(
+                        smtpSettings,
+                        new[] { emailDestinatario },
+                        _mfaSettings.AssuntoEmail,
+                        corpoEmail
+                    );
+                    codigoEnviado = true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Configuração de e-mail não encontrada, continua sem enviar
+                    codigoEnviado = false;
+                }
             }
 
             return new MfaChallengeResponseDto
