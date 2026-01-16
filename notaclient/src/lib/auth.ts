@@ -29,9 +29,17 @@ export async function getCurrentUser() {
 
   // Extrair informações do usuário do token
   const userId = payload.sub || payload.userId || payload.id || payload.nameid;
-  const userName = payload.name || payload.userName || payload.unique_name;
+  const userName = payload.name || payload.userName || payload.unique_name || payload.nome;
   const userEmail = payload.email;
   const prestadorId = payload.prestadorId || payload.PrestadorId || payload.prestador_id || payload.idPrestador || payload.IdPrestador;
+  
+  // Extrair role - suporta diferentes formatos de claim
+  const role = 
+    payload.role || 
+    payload.Role || 
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+    payload.perfil || 
+    payload.Perfil;
 
   if (!userId) {
     return null;
@@ -43,11 +51,15 @@ export async function getCurrentUser() {
     return null;
   }
 
+  const userRole = String(role || "Operacao");
+  console.log("[Auth] Role extraída do token:", userRole, "| Email:", userEmail);
+
   return {
     id: String(userId),
     nome: String(userName || "Usuário"),
     email: String(userEmail || ""),
     prestadorId: String(prestadorId),
+    role: userRole,
   };
 }
 

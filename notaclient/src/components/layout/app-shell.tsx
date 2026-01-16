@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, LayoutDashboard, FileText, Users, Settings, LogOut } from "lucide-react";
@@ -18,12 +18,14 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { canAccessUsuarios, canAccessConfiguracoes } from "@/lib/permissions";
 
 interface AppShellProps {
   user: {
     id: string;
     nome: string;
     email: string;
+    role: string;
   };
   children: ReactNode;
 }
@@ -42,6 +44,19 @@ export default function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Filtrar navegação baseado nas permissões do usuário
+  const filteredNavigation = useMemo(() => {
+    return navigation.filter((item) => {
+      if (item.href === "/usuarios") {
+        return canAccessUsuarios(user.role);
+      }
+      if (item.href === "/configuracoes") {
+        return canAccessConfiguracoes(user.role);
+      }
+      return true; // Outros itens são acessíveis para todos
+    });
+  }, [user.role]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", {
@@ -69,7 +84,7 @@ export default function AppShell({ user, children }: AppShellProps) {
       </div>
       <Separator />
       <nav className="flex flex-1 flex-col gap-1 px-2">
-        {navigation.map((item) => {
+        {filteredNavigation.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={cn("rounded-md", isActive && "bg-muted")}
@@ -137,10 +152,6 @@ export default function AppShell({ user, children }: AppShellProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/configuracoes">Configurações</Link>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {

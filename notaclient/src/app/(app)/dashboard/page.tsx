@@ -1,11 +1,13 @@
 import { Metadata } from "next";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { startOfMonth, subMonths } from "date-fns";
 
 import { DpsStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getPrestadorById } from "@/lib/services/prestador";
 import {
   Card,
   CardContent,
@@ -56,6 +58,7 @@ async function getDashboardData() {
     notasComValor,
     recentNotas,
     recentLogs,
+    prestadorData,
   ] = await Promise.all([
     prisma.notaFiscal.count({ where: { ativo: true, prestadorId } }),
     prisma.notaFiscal.count({
@@ -119,11 +122,6 @@ async function getDashboardData() {
       take: 6,
       orderBy: { createdAt: "desc" },
       include: {
-        prestador: {
-          select: {
-            nomeFantasia: true,
-          },
-        },
         tomador: {
           select: {
             nomeRazaoSocial: true,
@@ -140,13 +138,26 @@ async function getDashboardData() {
     prisma.logSistema.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
+      where: { ativo: true },
     }),
+    getPrestadorById(prestadorId),
   ]);
 
   const valorTotalMes = notasComValor.reduce((acc, nota) => {
     const valorServico = nota.dps?.servico?.valorUnitario ?? 0;
     return acc + Number(valorServico);
   }, 0);
+
+  const recentNotasWithPrestador = recentNotas.map((nota) => ({
+    ...nota,
+    prestador: prestadorData
+      ? {
+          id: prestadorData.id,
+          nomeFantasia: prestadorData.nomeFantasia,
+          cnpj: prestadorData.cnpj,
+        }
+      : null,
+  }));
 
   return {
     totalNotas,
@@ -157,7 +168,7 @@ async function getDashboardData() {
     tomadoresAtivos,
     servicosAtivos,
     valorTotalMes,
-    recentNotas,
+    recentNotas: recentNotasWithPrestador,
     recentLogs,
   };
 }
@@ -260,7 +271,9 @@ export default async function DashboardPage() {
                     <TableRow key={nota.id}>
                       <TableCell>
                         <div className="font-medium">{nota.numero}</div>
-                        <div className="text-xs text-muted-foreground">{nota.prestador.nomeFantasia}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {nota.prestador?.nomeFantasia || "Prestador"}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{nota.tomador.nomeRazaoSocial}</div>

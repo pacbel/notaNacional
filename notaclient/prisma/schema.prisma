@@ -87,61 +87,10 @@ model ConfiguracaoDps {
   @@index([prestadorId])
 }
 
-model Certificado {
-  id             String      @id @db.VarChar(191)
-  apelido        String?     @db.VarChar(191)
-  cnpj           String?     @db.VarChar(14)
-  numeroSerie    String?     @db.VarChar(191)
-  emissor        String?     @db.VarChar(191)
-  validadeInicio DateTime?
-  validadeFim    DateTime?
-  tipo           String?     @db.VarChar(60)
-  arquivoPath    String?     @db.VarChar(255)
-  senha          String?     @db.VarChar(255)
-  ativo          Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  prestadores    Prestador[] @relation("PrestadorCertificadoPadrao")
-  dps            Dps[]       @relation("CertificadoDps")
-  notas          NotaFiscal[] @relation("CertificadoNotaFiscal")
-
-  @@index([ativo])
-}
-
-model Prestador {
-  id                  String        @id @default(uuid()) @db.Char(36)
-  nomeFantasia        String        @db.VarChar(191)
-  razaoSocial         String        @db.VarChar(191)
-  cnpj                String        @unique @db.VarChar(14)
-  inscricaoMunicipal  String?       @db.VarChar(30)
-  email               String        @db.VarChar(191)
-  telefone            String?       @db.VarChar(20)
-  codigoMunicipio     String        @db.VarChar(7)
-  cidade              String        @db.VarChar(191)
-  estado              String        @db.VarChar(2)
-  cep                 String        @db.VarChar(8)
-  logradouro          String        @db.VarChar(191)
-  numero              String        @db.VarChar(20)
-  complemento         String?       @db.VarChar(60)
-  bairro              String        @db.VarChar(120)
-  observacoes         String?       @db.LongText
-  ativo               Boolean       @default(true)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  certificadoPadraoId String?            @db.VarChar(191)
-  certificadoPadrao   Certificado?       @relation("PrestadorCertificadoPadrao", fields: [certificadoPadraoId], references: [id])
-  dps                 Dps[]
-  notas               NotaFiscal[]
-  tomadores           Tomador[]
-  servicos            Servico[]
-
-  @@index([ativo])
-}
 
 model Tomador {
   id                 String        @id @default(uuid()) @db.Char(36)
   prestadorId        String        @db.Char(36)
-  prestador          Prestador     @relation(fields: [prestadorId], references: [id])
   tipoDocumento      TipoDocumento
   documento          String        @db.VarChar(14)
   nomeRazaoSocial    String        @db.VarChar(191)
@@ -171,7 +120,6 @@ model Tomador {
 model Servico {
   id                        String    @id @default(uuid()) @db.Char(36)
   prestadorId               String    @db.Char(36)
-  prestador                 Prestador @relation(fields: [prestadorId], references: [id])
   descricao                 String    @db.VarChar(191)
   codigoTributacaoMunicipal String    @db.VarChar(20)
   codigoTributacaoNacional  String    @db.VarChar(20)
@@ -205,13 +153,10 @@ model Dps {
   ambiente      Ambiente    @default(HOMOLOGACAO)
   status        DpsStatus   @default(RASCUNHO)
   prestadorId   String      @db.Char(36)
-  prestador     Prestador   @relation(fields: [prestadorId], references: [id])
   tomadorId     String      @db.Char(36)
   tomador       Tomador     @relation(fields: [tomadorId], references: [id])
   servicoId     String      @db.Char(36)
   servico       Servico     @relation(fields: [servicoId], references: [id])
-  certificadoId String?     @db.VarChar(191)
-  certificado   Certificado? @relation("CertificadoDps", fields: [certificadoId], references: [id])
   xmlGerado     String?     @db.LongText
   xmlAssinado   String?     @db.LongText
   jsonEntrada   String?     @db.LongText
@@ -239,12 +184,9 @@ model NotaFiscal {
   dpsId                  String          @unique @db.Char(36)
   dps                    Dps             @relation(fields: [dpsId], references: [id])
   prestadorId            String          @db.Char(36)
-  prestador              Prestador       @relation(fields: [prestadorId], references: [id])
   tomadorId              String          @db.Char(36)
   tomador                Tomador         @relation(fields: [tomadorId], references: [id])
   ambiente               Ambiente        @default(HOMOLOGACAO)
-  certificateId          String?         @db.VarChar(191)
-  certificado            Certificado?    @relation("CertificadoNotaFiscal", fields: [certificateId], references: [id])
   chaveAcesso            String          @db.VarChar(60)
   numero                 String          @db.VarChar(30)
   codigoVerificacao      String?         @db.VarChar(60)

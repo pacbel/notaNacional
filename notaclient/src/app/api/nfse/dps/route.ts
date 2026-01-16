@@ -6,6 +6,7 @@ import { handleRouteError } from "@/lib/http";
 import { createDps } from "@/lib/nfse/service";
 import { dpsCreateSchema } from "@/lib/validators/dps";
 import { getCurrentUser } from "@/lib/auth";
+import { getPrestadoresByIds } from "@/lib/services/prestador";
 
 const DEFAULT_STATUSES: DpsStatus[] = [DpsStatus.RASCUNHO, DpsStatus.ASSINADO];
 const DEFAULT_PAGE = 1;
@@ -90,11 +91,7 @@ export async function POST(request: Request) {
         competencia: dps.competencia.toISOString(),
         dataEmissao: dps.dataEmissao.toISOString(),
         ambiente: dps.ambiente,
-        prestador: {
-          id: dps.prestador.id,
-          nomeFantasia: dps.prestador.nomeFantasia,
-          cnpj: dps.prestador.cnpj,
-        },
+        prestadorId: dps.prestadorId,
         tomador: {
           id: dps.tomador.id,
           nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
@@ -105,7 +102,6 @@ export async function POST(request: Request) {
           descricao: dps.servico.descricao,
           valorUnitario: dps.servico.valorUnitario.toNumber(),
         },
-        certificadoId: dps.certificadoId,
         createdAt: dps.createdAt.toISOString(),
         updatedAt: dps.updatedAt.toISOString(),
       },
@@ -211,15 +207,6 @@ export async function GET(request: Request) {
           },
         },
         {
-          prestador: {
-            is: {
-              nomeFantasia: {
-                contains: search,
-              },
-            },
-          },
-        },
-        {
           tomador: {
             is: {
               nomeRazaoSocial: {
@@ -246,15 +233,6 @@ export async function GET(request: Request) {
       }
 
       if (normalizedDocument.length >= 6) {
-        searchConditions.push({
-          prestador: {
-            is: {
-              cnpj: {
-                contains: normalizedDocument,
-              },
-            },
-          },
-        });
         searchConditions.push({
           tomador: {
             is: {
@@ -288,13 +266,7 @@ export async function GET(request: Request) {
           dataEmissao: true,
           ambiente: true,
           status: true,
-          prestador: {
-            select: {
-              id: true,
-              nomeFantasia: true,
-              cnpj: true,
-            },
-          },
+          prestadorId: true,
           tomador: {
             select: {
               id: true,
@@ -309,7 +281,6 @@ export async function GET(request: Request) {
               valorUnitario: true,
             },
           },
-          certificadoId: true,
           protocolo: true,
           dataEnvio: true,
           dataRetorno: true,
@@ -322,6 +293,10 @@ export async function GET(request: Request) {
         take: perPage,
       }),
     ]);
+
+    // Buscar dados dos prestadores da API
+    const prestadorIds = [...new Set(dpsList.map((d) => d.prestadorId))];
+    const prestadoresMap = await getPrestadoresByIds(prestadorIds);
 
     const payload = dpsList.map((dps) => ({
       id: dps.id,
@@ -336,11 +311,17 @@ export async function GET(request: Request) {
       dataEmissao: dps.dataEmissao.toISOString(),
       ambiente: dps.ambiente,
       status: dps.status,
-      prestador: {
-        id: dps.prestador.id,
-        nomeFantasia: dps.prestador.nomeFantasia,
-        cnpj: dps.prestador.cnpj,
-      },
+      prestador: prestadoresMap.get(dps.prestadorId)
+        ? {
+            id: prestadoresMap.get(dps.prestadorId)!.id,
+            nomeFantasia: prestadoresMap.get(dps.prestadorId)!.nomeFantasia,
+            cnpj: prestadoresMap.get(dps.prestadorId)!.cnpj,
+          }
+        : {
+            id: dps.prestadorId,
+            nomeFantasia: "Prestador",
+            cnpj: "",
+          },
       tomador: {
         id: dps.tomador.id,
         nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
@@ -351,7 +332,6 @@ export async function GET(request: Request) {
         descricao: dps.servico.descricao,
         valorUnitario: dps.servico.valorUnitario.toNumber(),
       },
-      certificadoId: dps.certificadoId,
       protocolo: dps.protocolo,
       dataEnvio: dps.dataEnvio ? dps.dataEnvio.toISOString() : null,
       dataRetorno: dps.dataRetorno ? dps.dataRetorno.toISOString() : null,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
+import { canAccessUsuarios } from "@/lib/permissions";
 
 export async function GET(
   request: Request,
@@ -14,6 +15,14 @@ export async function GET(
       return NextResponse.json(
         { message: "Não autorizado" },
         { status: 401 }
+      );
+    }
+
+    // Verificar permissão
+    if (!canAccessUsuarios(currentUser.role)) {
+      return NextResponse.json(
+        { message: "Acesso negado. Apenas usuários com perfil Gestão podem acessar." },
+        { status: 403 }
       );
     }
 
@@ -68,6 +77,14 @@ export async function PUT(
       return NextResponse.json(
         { message: "Não autorizado" },
         { status: 401 }
+      );
+    }
+
+    // Verificar permissão
+    if (!canAccessUsuarios(currentUser.role)) {
+      return NextResponse.json(
+        { message: "Acesso negado. Apenas usuários com perfil Gestão podem acessar." },
+        { status: 403 }
       );
     }
 
@@ -139,6 +156,14 @@ export async function DELETE(
       return NextResponse.json(
         { message: "Não autorizado" },
         { status: 401 }
+      );
+    }
+
+    // Verificar permissão
+    if (!canAccessUsuarios(currentUser.role)) {
+      return NextResponse.json(
+        { message: "Acesso negado. Apenas usuários com perfil Gestão podem acessar." },
+        { status: 403 }
       );
     }
 

@@ -4,6 +4,7 @@ import { DpsStatus, Ambiente as AmbienteEnum, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 import { getCurrentUser } from "@/lib/auth";
+import { getPrestadoresByIds } from "@/lib/services/prestador";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PER_PAGE = 25;
@@ -156,15 +157,6 @@ export async function GET(request: Request) {
           },
         },
         {
-          prestador: {
-            is: {
-              nomeFantasia: {
-                contains: search,
-              },
-            },
-          },
-        },
-        {
           tomador: {
             is: {
               nomeRazaoSocial: {
@@ -182,16 +174,6 @@ export async function GET(request: Request) {
       }
 
       if (normalizedDocument.length >= 6) {
-        searchConditions.push({
-          prestador: {
-            is: {
-              cnpj: {
-                contains: normalizedDocument,
-              },
-            },
-          },
-        });
-
         searchConditions.push({
           tomador: {
             is: {
@@ -213,13 +195,6 @@ export async function GET(request: Request) {
       prisma.notaFiscal.findMany({
         where,
         include: {
-          prestador: {
-            select: {
-              id: true,
-              nomeFantasia: true,
-              cnpj: true,
-            },
-          },
           tomador: {
             select: {
               id: true,
@@ -233,7 +208,6 @@ export async function GET(request: Request) {
               numero: true,
               serie: true,
               status: true,
-              certificadoId: true,
               servico: {
                 select: {
                   valorUnitario: true,
@@ -251,6 +225,10 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Buscar dados dos prestadores da API
+    const prestadorIds = [...new Set(notas.map((n) => n.prestadorId))];
+    const prestadoresMap = await getPrestadoresByIds(prestadorIds);
+
     const payload = notas.map((nota) => ({
       id: nota.id,
       chaveAcesso: nota.chaveAcesso,
@@ -261,24 +239,28 @@ export async function GET(request: Request) {
       statusCode: nota.statusCode,
       createdAt: nota.createdAt.toISOString(),
       updatedAt: nota.updatedAt.toISOString(),
-      prestador: {
-        id: nota.prestador.id,
-        nomeFantasia: nota.prestador.nomeFantasia,
-        cnpj: nota.prestador.cnpj,
-      },
+      prestador: prestadoresMap.get(nota.prestadorId)
+        ? {
+            id: prestadoresMap.get(nota.prestadorId)!.id,
+            nomeFantasia: prestadoresMap.get(nota.prestadorId)!.nomeFantasia,
+            cnpj: prestadoresMap.get(nota.prestadorId)!.cnpj,
+          }
+        : {
+            id: nota.prestadorId,
+            nomeFantasia: "Prestador",
+            cnpj: "",
+          },
       tomador: {
         id: nota.tomador.id,
         nomeRazaoSocial: nota.tomador.nomeRazaoSocial,
         documento: nota.tomador.documento,
       },
-      certificateId: nota.certificateId ?? undefined,
       dps: nota.dps
         ? {
             id: nota.dps.id,
             numero: nota.dps.numero,
             serie: nota.dps.serie,
             status: nota.dps.status,
-            certificadoId: nota.dps.certificadoId ?? undefined,
             servico: {
               descricao: nota.dps.servico.descricao,
               valorUnitario: nota.dps.servico.valorUnitario.toNumber(),

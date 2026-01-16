@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { Ambiente, Prisma } from "@prisma/client";
-
-import { prisma } from "@/lib/prisma";
-import { handleRouteError } from "@/lib/http";
-import { configuracaoUpdateSchema } from "@/lib/validators/configuracao";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { Ambiente, Prisma } from "@prisma/client";
+import { configuracaoUpdateSchema, type ConfiguracaoDto } from "@/lib/validators/configuracao";
+import { canAccessConfiguracoes } from "@/lib/permissions";
 
 function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>) {
   const numeroInicialDps = (configuracao as typeof configuracao & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
@@ -55,6 +54,14 @@ export async function GET() {
       return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
+    // Verificar permissão
+    if (!canAccessConfiguracoes(currentUser.role)) {
+      return NextResponse.json(
+        { message: "Acesso negado. Apenas usuários com perfil Gestão podem acessar." },
+        { status: 403 }
+      );
+    }
+
     console.log("[Configuracoes] Buscando configuração para prestadorId:", currentUser.prestadorId);
 
     let configuracao = await prisma.configuracaoDps.findUnique({
@@ -65,18 +72,7 @@ export async function GET() {
 
     // Se não existir, criar configuração padrão para o prestador
     if (!configuracao) {
-      console.log("[Configuracoes] Tentando criar configuração para prestadorId:", currentUser.prestadorId);
-      
-      // Verificar se o prestador existe na tabela Prestador
-      const prestadorExists = await prisma.prestador.findUnique({
-        where: { id: currentUser.prestadorId },
-        select: { id: true, nomeFantasia: true },
-      });
-      
-      console.log("[Configuracoes] Prestador existe na tabela local?", prestadorExists ? "SIM" : "NÃO");
-      if (prestadorExists) {
-        console.log("[Configuracoes] Prestador:", prestadorExists);
-      }
+      console.log("[Configuracoes] Criando configuração padrão para prestadorId:", currentUser.prestadorId);
 
       configuracao = await prisma.configuracaoDps.create({
         data: {
@@ -98,7 +94,10 @@ export async function GET() {
     return NextResponse.json(mapConfiguracaoToDto(configuracao));
   } catch (error) {
     console.error("[Configuracoes] Erro detalhado:", error);
-    return handleRouteError(error, "Erro ao carregar configuração");
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Erro ao carregar configuração" },
+      { status: 500 }
+    );
   }
 }
 
@@ -108,6 +107,14 @@ export async function PUT(request: Request) {
 
     if (!currentUser) {
       return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
+    // Verificar permissão
+    if (!canAccessConfiguracoes(currentUser.role)) {
+      return NextResponse.json(
+        { message: "Acesso negado. Apenas usuários com perfil Gestão podem acessar." },
+        { status: 403 }
+      );
     }
 
     const payload = await request.json().catch(() => null);
@@ -179,6 +186,9 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(responseDto);
   } catch (error) {
-    return handleRouteError(error, "Erro ao atualizar configuração");
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Erro ao atualizar configuração" },
+      { status: 500 }
+    );
   }
 }
