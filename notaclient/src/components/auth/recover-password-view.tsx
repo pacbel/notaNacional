@@ -34,17 +34,10 @@ const requestSchema = z.object({
 
 type RequestFormValues = z.infer<typeof requestSchema>;
 
-const resetSchema = z
-  .object({
-    token: z.string().min(1, "Informe o token recebido"),
-    code: z.string().min(1, "Informe o código recebido"),
-    newPassword: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres"),
-    confirmPassword: z.string().min(8, "Confirme a nova senha"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "As senhas não conferem",
-  });
+const resetSchema = z.object({
+  token: z.string().min(1, "Informe o token recebido"),
+  novaSenha: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres"),
+});
 
 type ResetFormValues = z.infer<typeof resetSchema>;
 
@@ -69,9 +62,7 @@ export default function RecoverPasswordView() {
     resolver: zodResolver(resetSchema),
     defaultValues: {
       token: tokenFromUrl,
-      code: "",
-      newPassword: "",
-      confirmPassword: "",
+      novaSenha: "",
     },
   });
 
@@ -128,9 +119,7 @@ export default function RecoverPasswordView() {
         requestForm.reset();
         resetForm.reset({
           token: tokenFromUrl,
-          code: "",
-          newPassword: "",
-          confirmPassword: "",
+          novaSenha: "",
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Erro inesperado";
@@ -236,49 +225,10 @@ export default function RecoverPasswordView() {
 
                 <FormField
                   control={resetForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="000000"
-                          inputMode="numeric"
-                          disabled={isPending}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={resetForm.control}
-                  name="newPassword"
+                  name="novaSenha"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nova senha</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          autoComplete="new-password"
-                          disabled={isPending}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={resetForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar nova senha</FormLabel>
                       <FormControl>
                         <Input
                           type="password"

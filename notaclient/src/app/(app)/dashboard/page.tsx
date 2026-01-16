@@ -123,11 +123,6 @@ async function getDashboardData() {
     prisma.logSistema.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
-      include: {
-        usuario: {
-          select: { nome: true },
-        },
-      },
     }),
   ]);
 
@@ -286,7 +281,7 @@ export default async function DashboardPage() {
                   <Separator />
                   <p className="text-sm text-muted-foreground">{log.mensagem}</p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{log.usuario?.nome ?? "Sistema"}</span>
+                    <span>Sistema</span>
                     <span>{format(log.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                   </div>
                 </div>

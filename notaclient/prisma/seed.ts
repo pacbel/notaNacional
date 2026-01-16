@@ -1,22 +1,10 @@
-import { PrismaClient, UsuarioRole, Ambiente, TipoDocumento, Prisma } from "@prisma/client";
-import { hash } from "bcrypt";
+import { PrismaClient, Ambiente, TipoDocumento, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const senhaPadrao = process.env.SEED_SENHA_PADRAO ?? "Camgfv!@#2025";
-  const senhaHash = await hash(senhaPadrao, 10);
-
-  const usuario = await prisma.usuario.upsert({
-    where: { email: "carlos.pacheco@pacbel.com.br" },
-    update: {},
-    create: {
-      nome: "Carlos Pacheco",
-      email: "carlos.pacheco@pacbel.com.br",
-      senhaHash,
-      role: UsuarioRole.ADMIN,
-    },
-  });
+  // Usuários agora são gerenciados pela API externa
+  console.log("Iniciando seed do banco de dados...");
 
   const configuracaoUpdateData = {
     nomeSistema: "NotaClient",
@@ -149,7 +137,8 @@ async function main() {
     },
   });
 
-  console.log({ usuario, config, prestador, tomador, servico });
+  console.log("Seed concluído com sucesso!");
+  console.log({ config, prestador, tomador, servico });
 }
 
 main()

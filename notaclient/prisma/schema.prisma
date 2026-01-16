@@ -13,16 +13,6 @@ datasource db {
   url = env("DATABASE_URL")
 }
 
-enum UsuarioRole {
-  ADMIN
-  OPERADOR
-}
-
-enum MfaChallengeMotivo {
-  LOGIN
-  RECUPERACAO_SENHA
-}
-
 enum Ambiente {
   PRODUCAO
   HOMOLOGACAO
@@ -56,52 +46,6 @@ enum TokenIntegracaoTipo {
 enum TipoDocumento {
   CPF
   CNPJ
-}
-
-model Usuario {
-  id            String         @id @default(uuid()) @db.Char(36)
-  nome          String         @db.VarChar(191)
-  email         String         @unique @db.VarChar(191)
-  senhaHash     String         @db.VarChar(255)
-  role          UsuarioRole    @default(ADMIN)
-  ativo         Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  sessoes       Sessao[]
-  mfaChallenges MfaChallenge[]
-  logs          LogSistema[]
-}
-
-model Sessao {
-  id        String   @id @default(uuid()) @db.Char(36)
-  usuarioId String   @db.Char(36)
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
-  tokenHash String   @db.VarChar(255)
-  expiresAt DateTime
-  userAgent String?  @db.VarChar(255)
-  ip        String?  @db.VarChar(45)
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([usuarioId, ativo])
-}
-
-model MfaChallenge {
-  id         String             @id @default(uuid()) @db.Char(36)
-  usuarioId  String             @db.Char(36)
-  usuario    Usuario            @relation(fields: [usuarioId], references: [id])
-  token      String             @unique @db.VarChar(191)
-  codeHash   String             @db.VarChar(255)
-  motivo     MfaChallengeMotivo @default(LOGIN)
-  expiresAt  DateTime
-  resolvedAt DateTime?
-  ativo      Boolean            @default(true)
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-
-  @@index([usuarioId])
-  @@index([expiresAt])
 }
 
 model ConfiguracaoDps {
@@ -337,7 +281,6 @@ model TokenIntegracao {
 model LogSistema {
   id        String   @id @default(uuid()) @db.Char(36)
   usuarioId String?  @db.Char(36)
-  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   nivel     LogNivel @default(INFO)
   origem    String   @db.VarChar(120)
   acao      String   @db.VarChar(120)

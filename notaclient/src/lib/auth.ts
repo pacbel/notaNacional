@@ -1,10 +1,8 @@
 import "server-only";
 
 import { cookies, headers } from "next/headers";
-
-import { prisma } from "@/lib/prisma";
-import { hashToken } from "@/lib/security";
 import { SESSION_COOKIE_NAME, SESSION_TTL_HOURS } from "@/lib/constants";
+import { decodeTokenPayload } from "@/lib/notanacional-api";
 
 const SESSION_MAX_AGE_SECONDS = SESSION_TTL_HOURS * 60 * 60;
 
@@ -16,39 +14,36 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const tokenHash = hashToken(sessionToken);
-  const session = await prisma.sessao.findFirst({
-    where: {
-      tokenHash,
-      ativo: true,
-      expiresAt: {
-        gt: new Date(),
-      },
-    },
-    include: {
-      usuario: true,
-    },
-  });
+  // Decodificar o token JWT da API externa
+  const payload = decodeTokenPayload(sessionToken);
 
-  if (!session || !session.usuario.ativo) {
+  if (!payload) {
+    return null;
+  }
+
+  // Verificar se o token expirou
+  const exp = payload.exp as number | undefined;
+  if (exp && exp * 1000 < Date.now()) {
+    return null;
+  }
+
+  // Extrair informações do usuário do token
+  const userId = payload.sub || payload.userId || payload.id || payload.nameid;
+  const userName = payload.name || payload.userName || payload.unique_name;
+  const userEmail = payload.email;
+
+  if (!userId) {
     return null;
   }
 
   return {
-    id: session.usuario.id,
-    nome: session.usuario.nome,
-    email: session.usuario.email,
+    id: String(userId),
+    nome: String(userName || "Usuário"),
+    email: String(userEmail || ""),
   };
 }
 
-export async function invalidateSession(token: string) {
-  const tokenHash = hashToken(token);
-
-  await prisma.sessao.updateMany({
-    where: { tokenHash },
-    data: { ativo: false },
-  });
-}
+// Função removida - sessões são gerenciadas pela API externa
 
 export function buildSessionCookie(token: string) {
   return {

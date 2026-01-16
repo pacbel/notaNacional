@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 
 const credentialsSchema = z.object({
   email: z.string().email("Informe um e-mail válido"),
-  password: z.string().min(1, "Informe a senha"),
+  senha: z.string().min(1, "Informe a senha"),
 });
 
 type CredentialsFormValues = z.infer<typeof credentialsSchema>;
@@ -58,11 +58,13 @@ export default function LoginView() {
   const [mfaCode, setMfaCode] = useState("");
   const [mfaError, setMfaError] = useState<string | null>(null);
 
+  const [userEmail, setUserEmail] = useState<string>("");
+
   const credentialsForm = useForm<CredentialsFormValues>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: {
       email: "",
-      password: "",
+      senha: "",
     },
   });
 
@@ -80,6 +82,7 @@ export default function LoginView() {
 
   function handleCredentialsSubmit(values: CredentialsFormValues) {
     setIsCredentialsPending(true);
+    setUserEmail(values.email);
 
     fetch("/api/auth/login", {
       method: "POST",
@@ -94,8 +97,8 @@ export default function LoginView() {
           throw new Error(data?.message ?? "Não foi possível autenticar");
         }
 
-        const data = (await response.json()) as { challengeToken: string };
-        setChallengeToken(data.challengeToken);
+        const data = await response.json();
+        setChallengeToken(data.challengeToken || "mfa-required");
         setStep("mfa");
         toast.success("Código enviado para seu e-mail");
       })
@@ -111,8 +114,8 @@ export default function LoginView() {
   function handleMfaSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!challengeToken) {
-      toast.error("Desafio MFA inválido. Tente novamente.");
+    if (!userEmail) {
+      toast.error("E-mail não encontrado. Tente novamente.");
       setStep("credentials");
       return;
     }
@@ -129,7 +132,7 @@ export default function LoginView() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ challengeToken, code: mfaCode }),
+      body: JSON.stringify({ email: userEmail, codigo: mfaCode }),
     })
       .then(async (response) => {
         if (!response.ok) {
@@ -198,7 +201,7 @@ export default function LoginView() {
 
                 <FormField
                   control={credentialsForm.control}
-                  name="password"
+                  name="senha"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
