@@ -4,8 +4,7 @@ import { Ambiente, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 import { configuracaoUpdateSchema } from "@/lib/validators/configuracao";
-
-const CONFIG_ID = 1;
+import { getCurrentUser } from "@/lib/auth";
 
 function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>) {
   const numeroInicialDps = (configuracao as typeof configuracao & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
@@ -50,12 +49,31 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
 
 export async function GET() {
   try {
-    const configuracao = await prisma.configuracaoDps.findUnique({
-      where: { id: CONFIG_ID },
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
+    let configuracao = await prisma.configuracaoDps.findUnique({
+      where: { prestadorId: currentUser.prestadorId },
     });
 
+    // Se não existir, criar configuração padrão para o prestador
     if (!configuracao) {
-      return NextResponse.json({ message: "Configuração não encontrada" }, { status: 404 });
+      configuracao = await prisma.configuracaoDps.create({
+        data: {
+          prestadorId: currentUser.prestadorId,
+          nomeSistema: "NotaClient",
+          versaoAplicacao: "1.0.0",
+          verAplic: "1.0.0",
+          xLocEmi: "1",
+          xLocPrestacao: "1",
+          nNFSe: "1",
+          xTribNac: "01.07.00",
+          xNBS: "1.0101.10.00",
+        },
+      });
     }
 
     return NextResponse.json(mapConfiguracaoToDto(configuracao));
@@ -66,6 +84,12 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const payload = await request.json().catch(() => null);
     const parseResult = configuracaoUpdateSchema.safeParse(payload);
 
@@ -111,10 +135,22 @@ export async function PUT(request: Request) {
       pTotTribMun: data.totTrib.pTotTribMun ?? undefined,
     };
 
-    const response = await prisma.configuracaoDps.update({
-      where: { id: CONFIG_ID },
-      data: updateData,
+    // Buscar ou criar configuração do prestador
+    const existing = await prisma.configuracaoDps.findUnique({
+      where: { prestadorId: currentUser.prestadorId },
     });
+
+    const response = existing
+      ? await prisma.configuracaoDps.update({
+          where: { prestadorId: currentUser.prestadorId },
+          data: updateData,
+        })
+      : await prisma.configuracaoDps.create({
+          data: {
+            prestadorId: currentUser.prestadorId,
+            ...updateData,
+          } as Prisma.ConfiguracaoDpsCreateInput,
+        });
 
     const responseDto = {
       ...mapConfiguracaoToDto(response),

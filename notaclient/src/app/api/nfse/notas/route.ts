@@ -3,6 +3,7 @@ import { DpsStatus, Ambiente as AmbienteEnum, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
+import { getCurrentUser } from "@/lib/auth";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PER_PAGE = 25;
@@ -69,6 +70,12 @@ function resolveStatuses(param: string | null): DpsStatus[] | undefined {
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
     const ambienteParam = searchParams.get("ambiente")?.trim().toUpperCase() as AmbienteEnum | undefined;
@@ -76,7 +83,6 @@ export async function GET(request: Request) {
     const endDate = resolveDateParam(searchParams.get("endDate"));
     const minValueParam = searchParams.get("minValue");
     const maxValueParam = searchParams.get("maxValue");
-    const prestadorIds = searchParams.getAll("prestadorId").filter(Boolean);
     const tomadorIds = searchParams.getAll("tomadorId").filter(Boolean);
     const statuses = resolveStatuses(searchParams.get("status"));
     const page = Math.max(1, resolveNumberParam(searchParams.get("page"), DEFAULT_PAGE));
@@ -85,16 +91,11 @@ export async function GET(request: Request) {
 
     const where: Prisma.NotaFiscalWhereInput = {
       ativo: true,
+      prestadorId: currentUser.prestadorId, // Forçar filtro por prestador
     };
 
     if (ambienteParam === AmbienteEnum.PRODUCAO || ambienteParam === AmbienteEnum.HOMOLOGACAO) {
       where.ambiente = ambienteParam;
-    }
-
-    if (prestadorIds.length > 0) {
-      where.prestadorId = {
-        in: prestadorIds,
-      };
     }
 
     if (tomadorIds.length > 0) {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 import { createDps } from "@/lib/nfse/service";
 import { dpsCreateSchema } from "@/lib/validators/dps";
+import { getCurrentUser } from "@/lib/auth";
 
 const DEFAULT_STATUSES: DpsStatus[] = [DpsStatus.RASCUNHO, DpsStatus.ASSINADO];
 const DEFAULT_PAGE = 1;
@@ -59,11 +60,22 @@ function parseDecimal(param: string | null): Prisma.Decimal | null {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const payload = await request.json().catch(() => null);
     const parseResult = dpsCreateSchema.safeParse(payload);
 
     if (!parseResult.success) {
       return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });
+    }
+
+    // Validar que o prestadorId do payload é o mesmo do usuário logado
+    if (parseResult.data.prestadorId !== currentUser.prestadorId) {
+      return NextResponse.json({ message: "Acesso negado" }, { status: 403 });
     }
 
     const dps = await createDps(parseResult.data);
@@ -123,6 +135,12 @@ function resolveStatuses(param: string | null): DpsStatus[] {
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
     const search = searchParams.get("search")?.trim();
@@ -131,7 +149,6 @@ export async function GET(request: Request) {
     const endDate = resolveDateParam(searchParams.get("endDate"));
     const minValueParam = searchParams.get("minValue");
     const maxValueParam = searchParams.get("maxValue");
-    const prestadorIds = searchParams.getAll("prestadorId").filter(Boolean);
     const tomadorIds = searchParams.getAll("tomadorId").filter(Boolean);
     const servicoIds = searchParams.getAll("servicoId").filter(Boolean);
     const page = Math.max(1, resolveNumberParam(searchParams.get("page"), DEFAULT_PAGE));
@@ -142,6 +159,7 @@ export async function GET(request: Request) {
 
     const where: Prisma.DpsWhereInput = {
       ativo: true,
+      prestadorId: currentUser.prestadorId, // Forçar filtro por prestador
       status: {
         in: statuses,
       },
@@ -149,12 +167,6 @@ export async function GET(request: Request) {
 
     if (ambienteParam === AmbienteEnum.PRODUCAO || ambienteParam === AmbienteEnum.HOMOLOGACAO) {
       where.ambiente = ambienteParam;
-    }
-
-    if (prestadorIds.length > 0) {
-      where.prestadorId = {
-        in: prestadorIds,
-      };
     }
 
     if (tomadorIds.length > 0) {

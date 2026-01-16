@@ -229,9 +229,21 @@ export async function createDps(payload: CreateDpsInput) {
 
   const [prestador, tomador, servico, configuracao] = await Promise.all([
     prisma.prestador.findUnique({ where: { id: data.prestadorId, ativo: true } }),
-    prisma.tomador.findUnique({ where: { id: data.tomadorId, ativo: true } }),
-    prisma.servico.findUnique({ where: { id: data.servicoId, ativo: true } }),
-    resolveConfiguracaoDps(),
+    prisma.tomador.findFirst({ 
+      where: { 
+        id: data.tomadorId, 
+        prestadorId: data.prestadorId,
+        ativo: true 
+      } 
+    }),
+    prisma.servico.findFirst({ 
+      where: { 
+        id: data.servicoId,
+        prestadorId: data.prestadorId, 
+        ativo: true 
+      } 
+    }),
+    resolveConfiguracaoDps(data.prestadorId),
   ]);
 
   if (!prestador) {
@@ -239,11 +251,11 @@ export async function createDps(payload: CreateDpsInput) {
   }
 
   if (!tomador) {
-    throw new AppError("Tomador não encontrado ou inativo", 404);
+    throw new AppError("Tomador não encontrado, inativo ou não pertence ao prestador", 404);
   }
 
   if (!servico) {
-    throw new AppError("Serviço não encontrado ou inativo", 404);
+    throw new AppError("Serviço não encontrado, inativo ou não pertence ao prestador", 404);
   }
 
   const competencia = new Date(data.competencia);
@@ -354,9 +366,9 @@ export async function createDps(payload: CreateDpsInput) {
       },
     });
 
-    // Incrementar o numeroInicialDps nas configurações
+    // Incrementar o numeroInicialDps nas configurações do prestador
     await tx.configuracaoDps.update({
-      where: { id: 1 },
+      where: { prestadorId: prestador.id },
       data: {
         numeroInicialDps: numeroInicialDps + 1,
       },
@@ -391,11 +403,24 @@ export async function obterCertificados(): Promise<CertificadoDto[]> {
   return listarCertificados();
 }
 
-async function resolveConfiguracaoDps() {
-  const config = await prisma.configuracaoDps.findUnique({ where: { id: 1 } });
+async function resolveConfiguracaoDps(prestadorId: string) {
+  let config = await prisma.configuracaoDps.findUnique({ where: { prestadorId } });
 
+  // Se não existir, criar configuração padrão para o prestador
   if (!config) {
-    throw new AppError("Configuração de DPS não encontrada", 500);
+    config = await prisma.configuracaoDps.create({
+      data: {
+        prestadorId,
+        nomeSistema: "NotaClient",
+        versaoAplicacao: "1.0.0",
+        verAplic: "1.0.0",
+        xLocEmi: "1",
+        xLocPrestacao: "1",
+        nNFSe: "1",
+        xTribNac: "01.07.00",
+        xNBS: "1.0101.10.00",
+      },
+    });
   }
 
   return config;

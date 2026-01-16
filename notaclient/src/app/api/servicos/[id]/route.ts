@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 import { servicoUpdateSchema } from "@/lib/validators/servico";
 import { servicoSelect, serializeServico } from "../utils";
+import { getCurrentUser } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{
@@ -13,11 +14,20 @@ interface RouteParams {
 }
 
 export async function GET(_request: Request, context: RouteParams) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
 
   try {
-    const servico = await prisma.servico.findUnique({
-      where: { id },
+    const servico = await prisma.servico.findFirst({
+      where: { 
+        id,
+        prestadorId: currentUser.prestadorId,
+      },
       select: servicoSelect,
     });
 
@@ -32,7 +42,22 @@ export async function GET(_request: Request, context: RouteParams) {
 }
 
 export async function PATCH(request: Request, context: RouteParams) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
+
+  // Verificar se o serviço pertence ao prestador
+  const existing = await prisma.servico.findFirst({
+    where: { id, prestadorId: currentUser.prestadorId },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: "Serviço não encontrado" }, { status: 404 });
+  }
 
   try {
     const payload = await request.json().catch(() => null);
@@ -101,7 +126,22 @@ export async function PATCH(request: Request, context: RouteParams) {
 }
 
 export async function DELETE(_request: Request, context: RouteParams) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
+
+  // Verificar se o serviço pertence ao prestador
+  const existing = await prisma.servico.findFirst({
+    where: { id, prestadorId: currentUser.prestadorId },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: "Serviço não encontrado" }, { status: 404 });
+  }
 
   try {
     const servico = await prisma.servico.update({

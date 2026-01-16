@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { DpsStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import {
   Card,
   CardContent,
@@ -33,6 +34,13 @@ function formatCurrency(value: number) {
 }
 
 async function getDashboardData() {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    throw new Error("Usuário não autenticado");
+  }
+
+  const prestadorId = currentUser.prestadorId;
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -49,10 +57,11 @@ async function getDashboardData() {
     recentNotas,
     recentLogs,
   ] = await Promise.all([
-    prisma.notaFiscal.count({ where: { ativo: true } }),
+    prisma.notaFiscal.count({ where: { ativo: true, prestadorId } }),
     prisma.notaFiscal.count({
       where: {
         ativo: true,
+        prestadorId,
         createdAt: {
           gte: startOfMonth,
         },
@@ -61,6 +70,7 @@ async function getDashboardData() {
     prisma.notaFiscal.count({
       where: {
         ativo: true,
+        prestadorId,
         createdAt: {
           gte: startOfToday,
         },
@@ -69,17 +79,20 @@ async function getDashboardData() {
     prisma.dps.count({
       where: {
         ativo: true,
+        prestadorId,
         status: {
           in: [DpsStatus.RASCUNHO, DpsStatus.ASSINADO],
         },
       },
     }),
-    prisma.prestador.count({ where: { ativo: true } }),
-    prisma.tomador.count({ where: { ativo: true } }),
-    prisma.servico.count({ where: { ativo: true } }),
+    // Prestador: sempre 1 (o próprio)
+    Promise.resolve(1),
+    prisma.tomador.count({ where: { ativo: true, prestadorId } }),
+    prisma.servico.count({ where: { ativo: true, prestadorId } }),
     prisma.notaFiscal.findMany({
       where: {
         ativo: true,
+        prestadorId,
         createdAt: {
           gte: startOfMonth,
         },
@@ -99,6 +112,10 @@ async function getDashboardData() {
       },
     }),
     prisma.notaFiscal.findMany({
+      where: {
+        ativo: true,
+        prestadorId,
+      },
       take: 6,
       orderBy: { createdAt: "desc" },
       include: {
