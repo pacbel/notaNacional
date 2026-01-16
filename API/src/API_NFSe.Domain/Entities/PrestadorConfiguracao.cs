@@ -8,12 +8,7 @@ namespace API_NFSe.Domain.Entities
         public Guid PrestadorId { get; private set; }
         public Prestador Prestador { get; private set; } = null!;
 
-        public int Ambiente { get; private set; }
         public string VersaoAplicacao { get; private set; } = string.Empty;
-        public string SeriePadrao { get; private set; } = string.Empty;
-        public long NumeroAtual { get; private set; }
-        public string? UrlEnvio { get; private set; }
-        public string? UrlConsulta { get; private set; }
         public bool EnviaEmailAutomatico { get; private set; }
         public Guid AtualizadoPorUsuarioId { get; private set; }
         public string? SmtpHost { get; private set; }
@@ -29,12 +24,7 @@ namespace API_NFSe.Domain.Entities
 
         public PrestadorConfiguracao(
             Guid prestadorId,
-            int ambiente,
             string versaoAplicacao,
-            string seriePadrao,
-            long numeroAtual,
-            string? urlEnvio,
-            string? urlConsulta,
             bool enviaEmailAutomatico,
             Guid atualizadoPorUsuarioId,
             string? smtpHost,
@@ -51,18 +41,8 @@ namespace API_NFSe.Domain.Entities
                 throw new ArgumentException("A versão da aplicação é obrigatória", nameof(versaoAplicacao));
             }
 
-            if (string.IsNullOrWhiteSpace(seriePadrao))
-            {
-                throw new ArgumentException("A série padrão é obrigatória", nameof(seriePadrao));
-            }
-
             PrestadorId = prestadorId;
-            Ambiente = ambiente;
             VersaoAplicacao = versaoAplicacao.Trim();
-            SeriePadrao = seriePadrao.Trim();
-            NumeroAtual = numeroAtual;
-            UrlEnvio = string.IsNullOrWhiteSpace(urlEnvio) ? null : urlEnvio.Trim();
-            UrlConsulta = string.IsNullOrWhiteSpace(urlConsulta) ? null : urlConsulta.Trim();
             EnviaEmailAutomatico = enviaEmailAutomatico;
             AtualizadoPorUsuarioId = atualizadoPorUsuarioId;
 
@@ -80,12 +60,7 @@ namespace API_NFSe.Domain.Entities
         }
 
         public void Atualizar(
-            int ambiente,
             string versaoAplicacao,
-            string seriePadrao,
-            long numeroAtual,
-            string? urlEnvio,
-            string? urlConsulta,
             bool enviaEmailAutomatico,
             Guid atualizadoPorUsuarioId,
             string? smtpHost,
@@ -97,12 +72,7 @@ namespace API_NFSe.Domain.Entities
             string? smtpFromName,
             string? smtpResetPasswordUrl)
         {
-            Ambiente = ambiente;
             VersaoAplicacao = string.IsNullOrWhiteSpace(versaoAplicacao) ? VersaoAplicacao : versaoAplicacao.Trim();
-            SeriePadrao = string.IsNullOrWhiteSpace(seriePadrao) ? SeriePadrao : seriePadrao.Trim();
-            NumeroAtual = numeroAtual;
-            UrlEnvio = string.IsNullOrWhiteSpace(urlEnvio) ? null : urlEnvio.Trim();
-            UrlConsulta = string.IsNullOrWhiteSpace(urlConsulta) ? null : urlConsulta.Trim();
             EnviaEmailAutomatico = enviaEmailAutomatico;
             AtualizadoPorUsuarioId = atualizadoPorUsuarioId;
 
@@ -123,13 +93,6 @@ namespace API_NFSe.Domain.Entities
         {
             PrestadorId = prestador.Id;
             Prestador = prestador;
-        }
-
-        public long GerarProximoNumero()
-        {
-            NumeroAtual += 1;
-            AtualizarDataAtualizacao();
-            return NumeroAtual;
         }
 
         public void DefinirSmtpConfiguracao(

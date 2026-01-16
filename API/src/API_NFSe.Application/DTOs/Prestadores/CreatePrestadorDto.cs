@@ -24,22 +24,6 @@ namespace API_NFSe.Application.DTOs.Prestadores
         [StringLength(20)]
         public string? InscricaoEstadual { get; set; }
 
-        [StringLength(10)]
-        public string? Cnae { get; set; }
-
-        [Required]
-        public int TipoEmissao { get; set; }
-
-        [Required]
-        [StringLength(7, MinimumLength = 7)]
-        public string CodigoMunicipioIbge { get; set; } = string.Empty;
-
-        [Required]
-        public int OptanteSimplesNacional { get; set; }
-
-        [Required]
-        public int RegimeEspecialTributario { get; set; }
-
         [Phone]
         public string? Telefone { get; set; }
 

@@ -5,12 +5,7 @@ namespace API_NFSe.Application.DTOs.Prestadores
     public class PrestadorConfiguracaoDto
     {
         public Guid Id { get; set; }
-        public int Ambiente { get; set; }
         public string VersaoAplicacao { get; set; } = string.Empty;
-        public string SeriePadrao { get; set; } = string.Empty;
-        public long NumeroAtual { get; set; }
-        public string? UrlEnvio { get; set; }
-        public string? UrlConsulta { get; set; }
         public bool EnviaEmailAutomatico { get; set; }
         public Guid AtualizadoPorUsuarioId { get; set; }
         public DateTime DataCriacao { get; set; }

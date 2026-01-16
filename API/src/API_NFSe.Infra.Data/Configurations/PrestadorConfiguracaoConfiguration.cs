@@ -12,25 +12,9 @@ namespace API_NFSe.Infra.Data.Configurations
 
             builder.HasKey(pc => pc.Id);
 
-            builder.Property(pc => pc.Ambiente)
-                .IsRequired();
-
             builder.Property(pc => pc.VersaoAplicacao)
                 .IsRequired()
                 .HasMaxLength(50);
-
-            builder.Property(pc => pc.SeriePadrao)
-                .IsRequired()
-                .HasMaxLength(5);
-
-            builder.Property(pc => pc.NumeroAtual)
-                .IsRequired();
-
-            builder.Property(pc => pc.UrlEnvio)
-                .HasMaxLength(255);
-
-            builder.Property(pc => pc.UrlConsulta)
-                .HasMaxLength(255);
 
             builder.Property(pc => pc.AtualizadoPorUsuarioId)
                 .IsRequired();

@@ -10,11 +10,6 @@ namespace API_NFSe.Application.DTOs.Prestadores
         public string NomeFantasia { get; set; } = string.Empty;
         public string InscricaoMunicipal { get; set; } = string.Empty;
         public string? InscricaoEstadual { get; set; }
-        public string? Cnae { get; set; }
-        public int TipoEmissao { get; set; }
-        public string CodigoMunicipioIbge { get; set; } = string.Empty;
-        public int OptanteSimplesNacional { get; set; }
-        public int RegimeEspecialTributario { get; set; }
         public string? Telefone { get; set; }
         public string? Email { get; set; }
         public string? Website { get; set; }

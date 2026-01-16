@@ -31,13 +31,6 @@ namespace API_NFSe.Infra.Data.Configurations
             builder.Property(p => p.InscricaoEstadual)
                 .HasMaxLength(20);
 
-            builder.Property(p => p.Cnae)
-                .HasMaxLength(10);
-
-            builder.Property(p => p.CodigoMunicipioIbge)
-                .IsRequired()
-                .HasMaxLength(7);
-
             builder.Property(p => p.Telefone)
                 .HasMaxLength(20);
 

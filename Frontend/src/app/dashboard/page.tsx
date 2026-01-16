@@ -62,7 +62,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const codigo = prestador.codigoMunicipioIbge?.trim() || prestador.endereco?.codigoMunicipioIbge?.trim();
+      const codigo = prestador.endereco?.codigoMunicipioIbge?.trim();
       if (codigo) {
         mapa.add(codigo);
       }
@@ -131,8 +131,7 @@ export default function DashboardPage() {
         nomeFantasia: prestador.nomeFantasia,
         cnpj: prestador.cnpj,
         dataCriacao: prestador.dataCriacao,
-        codigoIbge:
-          prestador.endereco.codigoMunicipioIbge?.trim() || prestador.codigoMunicipioIbge?.trim() || "",
+        codigoIbge: prestador.endereco.codigoMunicipioIbge?.trim() || "",
         cidade: prestador.endereco.cidade,
       }))
       .sort((a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime())

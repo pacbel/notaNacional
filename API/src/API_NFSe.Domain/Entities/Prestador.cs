@@ -12,11 +12,6 @@ namespace API_NFSe.Domain.Entities
         public string NomeFantasia { get; private set; } = string.Empty;
         public string InscricaoMunicipal { get; private set; } = string.Empty;
         public string? InscricaoEstadual { get; private set; }
-        public string? Cnae { get; private set; }
-        public int TipoEmissao { get; private set; }
-        public string CodigoMunicipioIbge { get; private set; } = string.Empty;
-        public int OptanteSimplesNacional { get; private set; }
-        public int RegimeEspecialTributario { get; private set; }
         public string? Telefone { get; private set; }
         public string? Email { get; private set; }
         public string? Website { get; private set; }
@@ -38,11 +33,6 @@ namespace API_NFSe.Domain.Entities
             string nomeFantasia,
             string inscricaoMunicipal,
             string? inscricaoEstadual,
-            string? cnae,
-            int tipoEmissao,
-            string codigoMunicipioIbge,
-            int optanteSimplesNacional,
-            int regimeEspecialTributario,
             string? telefone,
             string? email,
             string? website,
@@ -69,21 +59,11 @@ namespace API_NFSe.Domain.Entities
                 throw new ArgumentException("A inscrição municipal é obrigatória", nameof(inscricaoMunicipal));
             }
 
-            if (string.IsNullOrWhiteSpace(codigoMunicipioIbge))
-            {
-                throw new ArgumentException("O código IBGE do município é obrigatório", nameof(codigoMunicipioIbge));
-            }
-
             Cnpj = cnpj.Trim();
             RazaoSocial = razaoSocial.Trim();
             NomeFantasia = nomeFantasia.Trim();
             InscricaoMunicipal = inscricaoMunicipal.Trim();
             InscricaoEstadual = string.IsNullOrWhiteSpace(inscricaoEstadual) ? null : inscricaoEstadual.Trim();
-            Cnae = string.IsNullOrWhiteSpace(cnae) ? null : cnae.Trim();
-            TipoEmissao = tipoEmissao;
-            CodigoMunicipioIbge = codigoMunicipioIbge.Trim();
-            OptanteSimplesNacional = optanteSimplesNacional;
-            RegimeEspecialTributario = regimeEspecialTributario;
             Telefone = string.IsNullOrWhiteSpace(telefone) ? null : telefone.Trim();
             Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
             Website = string.IsNullOrWhiteSpace(website) ? null : website.Trim();
@@ -97,11 +77,6 @@ namespace API_NFSe.Domain.Entities
             string nomeFantasia,
             string inscricaoMunicipal,
             string? inscricaoEstadual,
-            string? cnae,
-            int tipoEmissao,
-            string codigoMunicipioIbge,
-            int optanteSimplesNacional,
-            int regimeEspecialTributario,
             string? telefone,
             string? email,
             string? website,
@@ -113,11 +88,6 @@ namespace API_NFSe.Domain.Entities
             NomeFantasia = string.IsNullOrWhiteSpace(nomeFantasia) ? NomeFantasia : nomeFantasia.Trim();
             InscricaoMunicipal = string.IsNullOrWhiteSpace(inscricaoMunicipal) ? InscricaoMunicipal : inscricaoMunicipal.Trim();
             InscricaoEstadual = string.IsNullOrWhiteSpace(inscricaoEstadual) ? null : inscricaoEstadual.Trim();
-            Cnae = string.IsNullOrWhiteSpace(cnae) ? null : cnae.Trim();
-            TipoEmissao = tipoEmissao;
-            CodigoMunicipioIbge = string.IsNullOrWhiteSpace(codigoMunicipioIbge) ? CodigoMunicipioIbge : codigoMunicipioIbge.Trim();
-            OptanteSimplesNacional = optanteSimplesNacional;
-            RegimeEspecialTributario = regimeEspecialTributario;
             Telefone = string.IsNullOrWhiteSpace(telefone) ? null : telefone.Trim();
             Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
             Website = string.IsNullOrWhiteSpace(website) ? null : website.Trim();

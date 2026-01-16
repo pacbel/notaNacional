@@ -88,11 +88,6 @@ namespace API_NFSe.API.Services
                         NomeFantasia = "Sistema Virtual",
                         InscricaoMunicipal = "3106200015",
                         InscricaoEstadual = "49728840071",
-                        Cnae = "6203100",
-                        TipoEmissao = 1,
-                        CodigoMunicipioIbge = "3205309",
-                        OptanteSimplesNacional = 1,
-                        RegimeEspecialTributario = 1,
                         Telefone = "+55 (31) 3191-9870",
                         Email = "carlos.pacheco@pacbel.com.br",
                         Website = "https://www.pacbel.com.br",
@@ -137,12 +132,7 @@ namespace API_NFSe.API.Services
 
             var configuracaoDto = new UpsertPrestadorConfiguracaoDto
             {
-                Ambiente = 2,
                 VersaoAplicacao = "1.0.0",
-                SeriePadrao = "A1",
-                NumeroAtual = configuracaoExistente?.NumeroAtual ?? 1,
-                UrlEnvio = configuracaoExistente?.UrlEnvio,
-                UrlConsulta = configuracaoExistente?.UrlConsulta,
                 EnviaEmailAutomatico = true,
                 SmtpHost = "smtp.task.com.br",
                 SmtpPort = 587,

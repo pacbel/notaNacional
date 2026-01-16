@@ -61,13 +61,6 @@ const prestadorSchema = z.object({
   inscricaoMunicipal: z.string().min(3, "Informe a inscrição municipal"),
   inscricaoEstadual: z.string().optional().or(z.literal("")),
   cnae: z.string().optional().or(z.literal("")),
-  tipoEmissao: z.coerce.number().int().min(1),
-  codigoMunicipioIbge: z
-    .string()
-    .min(7, "Código IBGE deve conter 7 dígitos")
-    .max(7, "Código IBGE deve conter 7 dígitos"),
-  optanteSimplesNacional: z.coerce.number().int().min(0).max(1),
-  regimeEspecialTributario: z.coerce.number().int().min(0),
   telefone: z.string().optional().or(z.literal("")),
   email: z.string().email("Informe um e-mail válido").optional().or(z.literal("")),
   website: z.string().url("Informe uma URL válida").optional().or(z.literal("")),
@@ -93,10 +86,7 @@ const prestadorSchema = z.object({
 type PrestadorFormValues = z.infer<typeof prestadorSchema>;
 
 const configuracaoSchema = z.object({
-  ambiente: z.coerce.number().int().min(1).max(2),
   versaoAplicacao: z.string().min(1, "Informe a versão da aplicação"),
-  seriePadrao: z.string().min(1, "Informe a série padrão"),
-  numeroAtual: z.coerce.number().int().min(1, "Número atual deve ser maior que zero"),
   enviaEmailAutomatico: z.boolean(),
   smtpHost: z.string().min(1, "Informe o host SMTP"),
   smtpPort: z.coerce.number().int().min(1).max(65535),
@@ -108,11 +98,6 @@ const configuracaoSchema = z.object({
 });
 
 type ConfigFormValues = z.infer<typeof configuracaoSchema>;
-
-const ambienteOptions = [
-  { label: "Produção", value: 1 },
-  { label: "Homologação", value: 2 },
-];
 
 interface ViaCepResponse {
   cep?: string;
@@ -201,10 +186,6 @@ export default function PrestadoresPage() {
       inscricaoMunicipal: "",
       inscricaoEstadual: "",
       cnae: "",
-      tipoEmissao: 1,
-      codigoMunicipioIbge: "",
-      optanteSimplesNacional: 0,
-      regimeEspecialTributario: 0,
       telefone: "",
       email: "",
       website: "",
@@ -224,10 +205,7 @@ export default function PrestadoresPage() {
   const configForm = useForm<ConfigFormValues>({
     resolver: zodResolver(configuracaoSchema),
     defaultValues: {
-      ambiente: 2,
       versaoAplicacao: "",
-      seriePadrao: "",
-      numeroAtual: 1,
       enviaEmailAutomatico: true,
       smtpHost: "",
       smtpPort: 587,
@@ -572,9 +550,11 @@ export default function PrestadoresPage() {
   );
 
   const cidadeWatch = useWatch({ control: form.control, name: "endereco.cidade" });
-  const codigoMunicipioWatch = useWatch({ control: form.control, name: "endereco.codigoMunicipioIbge" });
-
   const ufWatch = useWatch({ control: form.control, name: "endereco.uf" });
+  const codigoMunicipioIbgeWatch = useWatch({
+    control: form.control,
+    name: "endereco.codigoMunicipioIbge",
+  });
   const consultarCep = useCallback(
     async (value: string) => {
       const cepDigits = onlyDigits(value);
@@ -708,7 +688,7 @@ export default function PrestadoresPage() {
       const newOption: MunicipioOption = {
         label: normalizedCity,
         value: normalizedCity,
-        ibge: codigoMunicipioWatch ?? "",
+        ibge: codigoMunicipioIbgeWatch ?? "",
       };
 
       const exists = options.some((option) => option.value === newOption.value);
@@ -718,7 +698,7 @@ export default function PrestadoresPage() {
 
       return [newOption, ...options];
     });
-  }, [cidadeWatch, codigoMunicipioWatch]);
+  }, [cidadeWatch, codigoMunicipioIbgeWatch]);
 
   useEffect(() => {
     const loadMunicipios = async () => {
@@ -768,7 +748,7 @@ export default function PrestadoresPage() {
   }, [ufWatch, ufs, form]);
 
   useEffect(() => {
-    const codigoAtual = codigoMunicipioWatch?.trim();
+    const codigoAtual = codigoMunicipioIbgeWatch?.trim();
     if (!codigoAtual) {
       return;
     }
@@ -780,21 +760,21 @@ export default function PrestadoresPage() {
         shouldValidate: true,
       });
     }
-  }, [codigoMunicipioWatch, municipioOptions, form]);
+  }, [codigoMunicipioIbgeWatch, municipioOptions, form]);
 
   useEffect(() => {
-    const enderecoCodigo = codigoMunicipioWatch?.trim();
+    const enderecoCodigo = codigoMunicipioIbgeWatch?.trim();
     if (!enderecoCodigo) {
       return;
     }
 
-    if (form.getValues("codigoMunicipioIbge") !== enderecoCodigo) {
-      form.setValue("codigoMunicipioIbge", enderecoCodigo, {
+    if (form.getValues("endereco.codigoMunicipioIbge") !== enderecoCodigo) {
+      form.setValue("endereco.codigoMunicipioIbge", enderecoCodigo, {
         shouldDirty: false,
         shouldValidate: true,
       });
     }
-  }, [codigoMunicipioWatch, form]);
+  }, [codigoMunicipioIbgeWatch, form]);
 
   const handleCidadeChange = useCallback(
     (cidade: string) => {
@@ -807,10 +787,6 @@ export default function PrestadoresPage() {
       if (match) {
         form.setValue("endereco.codigoMunicipioIbge", match.ibge, {
           shouldDirty: true,
-          shouldValidate: true,
-        });
-        form.setValue("codigoMunicipioIbge", match.ibge, {
-          shouldDirty: false,
           shouldValidate: true,
         });
       }
@@ -826,10 +802,6 @@ export default function PrestadoresPage() {
       inscricaoMunicipal: "",
       inscricaoEstadual: "",
       cnae: "",
-      tipoEmissao: 1,
-      codigoMunicipioIbge: "",
-      optanteSimplesNacional: 0,
-      regimeEspecialTributario: 0,
       telefone: "",
       email: "",
       website: "",
@@ -858,10 +830,6 @@ export default function PrestadoresPage() {
       inscricaoMunicipal: prestador.inscricaoMunicipal,
       inscricaoEstadual: prestador.inscricaoEstadual ?? "",
       cnae: prestador.cnae ?? "",
-      tipoEmissao: prestador.tipoEmissao,
-      codigoMunicipioIbge: prestador.codigoMunicipioIbge,
-      optanteSimplesNacional: prestador.optanteSimplesNacional,
-      regimeEspecialTributario: prestador.regimeEspecialTributario,
       telefone: prestador.telefone ? onlyDigits(prestador.telefone).slice(0, 11) : "",
       email: prestador.email ?? "",
       website: prestador.website ?? "",
@@ -907,10 +875,6 @@ export default function PrestadoresPage() {
       inscricaoMunicipal: values.inscricaoMunicipal,
       inscricaoEstadual: values.inscricaoEstadual || undefined,
       cnae: values.cnae || undefined,
-      tipoEmissao: values.tipoEmissao,
-      codigoMunicipioIbge: values.codigoMunicipioIbge,
-      optanteSimplesNacional: values.optanteSimplesNacional,
-      regimeEspecialTributario: values.regimeEspecialTributario,
       telefone: values.telefone || undefined,
       email: values.email || undefined,
       website: values.website || undefined,
@@ -933,10 +897,6 @@ export default function PrestadoresPage() {
         inscricaoMunicipal: values.inscricaoMunicipal,
         inscricaoEstadual: values.inscricaoEstadual || undefined,
         cnae: values.cnae || undefined,
-        tipoEmissao: values.tipoEmissao,
-        codigoMunicipioIbge: values.codigoMunicipioIbge,
-        optanteSimplesNacional: values.optanteSimplesNacional,
-        regimeEspecialTributario: values.regimeEspecialTributario,
         telefone: values.telefone || undefined,
         email: values.email || undefined,
         website: values.website || undefined,
@@ -976,10 +936,7 @@ export default function PrestadoresPage() {
       const data = await obterConfiguracaoPrestador(prestador.id);
       setConfigData(data);
       configForm.reset({
-        ambiente: data.ambiente,
         versaoAplicacao: data.versaoAplicacao ?? "",
-        seriePadrao: data.seriePadrao ?? "",
-        numeroAtual: data.numeroAtual ?? 1,
         enviaEmailAutomatico: data.enviaEmailAutomatico ?? false,
         smtpHost: data.smtpHost ?? "",
         smtpPort: data.smtpPort ?? 587,
@@ -992,10 +949,7 @@ export default function PrestadoresPage() {
     } catch (error) {
       console.error(error);
       configForm.reset({
-        ambiente: 2,
         versaoAplicacao: "",
-        seriePadrao: "",
-        numeroAtual: 1,
         enviaEmailAutomatico: true,
         smtpHost: "",
         smtpPort: 587,
@@ -1013,10 +967,7 @@ export default function PrestadoresPage() {
   useEffect(() => {
     if (!configPrestador) {
       configForm.reset({
-        ambiente: 2,
         versaoAplicacao: "",
-        seriePadrao: "",
-        numeroAtual: 1,
         enviaEmailAutomatico: true,
         smtpHost: "",
         smtpPort: 587,
@@ -1050,10 +1001,7 @@ export default function PrestadoresPage() {
   const onSubmitConfiguracao = configForm.handleSubmit(async (values) => {
     if (!configPrestador) return;
     const payload: UpsertPrestadorConfiguracaoDto = {
-      ambiente: values.ambiente,
       versaoAplicacao: values.versaoAplicacao,
-      seriePadrao: values.seriePadrao,
-      numeroAtual: values.numeroAtual,
       enviaEmailAutomatico: values.enviaEmailAutomatico,
       smtpHost: values.smtpHost,
       smtpPort: values.smtpPort,
@@ -1305,70 +1253,6 @@ export default function PrestadoresPage() {
                   {form.formState.errors.cnae && (
                     <span className="text-sm text-red-600">
                       {form.formState.errors.cnae.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="codigoMunicipioIbge">
-                    Código Município IBGE
-                  </label>
-                  <Input
-                    id="codigoMunicipioIbge"
-                    maxLength={7}
-                    {...form.register("codigoMunicipioIbge")}
-                  />
-                  {form.formState.errors.codigoMunicipioIbge && (
-                    <span className="text-sm text-red-600">
-                      {form.formState.errors.codigoMunicipioIbge.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="tipoEmissao">
-                    Tipo de Emissão
-                  </label>
-                  <Select id="tipoEmissao" {...form.register("tipoEmissao")}>
-                    <option value={1}>1 - Normal</option>
-                    <option value={2}>2 - Contingência</option>
-                  </Select>
-                  {form.formState.errors.tipoEmissao && (
-                    <span className="text-sm text-red-600">
-                      {form.formState.errors.tipoEmissao.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-sm font-medium text-slate-600"
-                    htmlFor="optanteSimplesNacional"
-                  >
-                    Optante Simples Nacional
-                  </label>
-                  <Select id="optanteSimplesNacional" {...form.register("optanteSimplesNacional")}>
-                    <option value={1}>Sim</option>
-                    <option value={0}>Não</option>
-                  </Select>
-                  {form.formState.errors.optanteSimplesNacional && (
-                    <span className="text-sm text-red-600">
-                      {form.formState.errors.optanteSimplesNacional.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-sm font-medium text-slate-600"
-                    htmlFor="regimeEspecialTributario"
-                  >
-                    Regime Especial Tributário
-                  </label>
-                  <Input
-                    id="regimeEspecialTributario"
-                    type="number"
-                    {...form.register("regimeEspecialTributario")}
-                  />
-                  {form.formState.errors.regimeEspecialTributario && (
-                    <span className="text-sm text-red-600">
-                      {form.formState.errors.regimeEspecialTributario.message}
                     </span>
                   )}
                 </div>
@@ -1649,23 +1533,6 @@ export default function PrestadoresPage() {
               <form onSubmit={onSubmitConfiguracao} className="space-y-4 px-4 pb-5 sm:px-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-600" htmlFor="ambiente">
-                      Ambiente
-                    </label>
-                    <Select id="ambiente" {...configForm.register("ambiente")}>
-                      {ambienteOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.value} - {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                    {configForm.formState.errors.ambiente && (
-                      <span className="text-sm text-red-600">
-                        {configForm.formState.errors.ambiente.message}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-600" htmlFor="versaoAplicacao">
                       Versão da aplicação
                     </label>
@@ -1673,33 +1540,6 @@ export default function PrestadoresPage() {
                     {configForm.formState.errors.versaoAplicacao && (
                       <span className="text-sm text-red-600">
                         {configForm.formState.errors.versaoAplicacao.message}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-600" htmlFor="seriePadrao">
-                      Série padrão
-                    </label>
-                    <Input id="seriePadrao" maxLength={5} {...configForm.register("seriePadrao")} />
-                    {configForm.formState.errors.seriePadrao && (
-                      <span className="text-sm text-red-600">
-                        {configForm.formState.errors.seriePadrao.message}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-600" htmlFor="numeroAtual">
-                      Número atual
-                    </label>
-                    <Input
-                      id="numeroAtual"
-                      type="number"
-                      min={1}
-                      {...configForm.register("numeroAtual", { valueAsNumber: true })}
-                    />
-                    {configForm.formState.errors.numeroAtual && (
-                      <span className="text-sm text-red-600">
-                        {configForm.formState.errors.numeroAtual.message}
                       </span>
                     )}
                   </div>

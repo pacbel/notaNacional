@@ -6,10 +6,6 @@ export interface PrestadorDto {
   inscricaoMunicipal: string;
   inscricaoEstadual?: string | null;
   cnae?: string | null;
-  tipoEmissao: number;
-  codigoMunicipioIbge: string;
-  optanteSimplesNacional: number;
-  regimeEspecialTributario: number;
   telefone?: string | null;
   email?: string | null;
   website?: string | null;
@@ -26,10 +22,6 @@ export interface CreatePrestadorDto {
   inscricaoMunicipal: string;
   inscricaoEstadual?: string | null;
   cnae?: string | null;
-  tipoEmissao: number;
-  codigoMunicipioIbge: string;
-  optanteSimplesNacional: number;
-  regimeEspecialTributario: number;
   telefone?: string | null;
   email?: string | null;
   website?: string | null;
@@ -52,10 +44,7 @@ export interface UpdatePrestadorDto extends CreatePrestadorDto {
 }
 
 export interface PrestadorConfiguracaoDto {
-  ambiente: number;
   versaoAplicacao: string;
-  seriePadrao: string;
-  numeroAtual: number;
   enviaEmailAutomatico: boolean;
   smtpHost?: string | null;
   smtpPort?: number | null;
@@ -68,10 +57,7 @@ export interface PrestadorConfiguracaoDto {
 }
 
 export interface UpsertPrestadorConfiguracaoDto {
-  ambiente: number;
   versaoAplicacao: string;
-  seriePadrao: string;
-  numeroAtual: number;
   enviaEmailAutomatico: boolean;
   smtpHost: string;
   smtpPort: number;

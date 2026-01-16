@@ -4,24 +4,8 @@ namespace API_NFSe.Application.DTOs.Prestadores
 {
     public class UpsertPrestadorConfiguracaoDto
     {
-        [Required]
-        [Range(1, 2)]
-        public int Ambiente { get; set; }
-
         [StringLength(50)]
         public string? VersaoAplicacao { get; set; }
-
-        [StringLength(5)]
-        public string? SeriePadrao { get; set; }
-
-        [Range(1, long.MaxValue)]
-        public long? NumeroAtual { get; set; }
-
-        [Url]
-        public string? UrlEnvio { get; set; }
-
-        [Url]
-        public string? UrlConsulta { get; set; }
 
         public bool? EnviaEmailAutomatico { get; set; }
 

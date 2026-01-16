@@ -88,11 +88,6 @@ namespace API_NFSe.Application.Services
                 dto.NomeFantasia,
                 dto.InscricaoMunicipal,
                 dto.InscricaoEstadual,
-                dto.Cnae,
-                dto.TipoEmissao,
-                dto.CodigoMunicipioIbge,
-                dto.OptanteSimplesNacional,
-                dto.RegimeEspecialTributario,
                 dto.Telefone,
                 dto.Email,
                 dto.Website,
@@ -132,11 +127,6 @@ namespace API_NFSe.Application.Services
                 dto.NomeFantasia,
                 dto.InscricaoMunicipal,
                 dto.InscricaoEstadual,
-                dto.Cnae,
-                dto.TipoEmissao,
-                dto.CodigoMunicipioIbge,
-                dto.OptanteSimplesNacional,
-                dto.RegimeEspecialTributario,
                 dto.Telefone,
                 dto.Email,
                 dto.Website,
@@ -193,25 +183,9 @@ namespace API_NFSe.Application.Services
                             throw new ArgumentException("Versão da aplicação é obrigatória para criar a configuração.", nameof(dto.VersaoAplicacao));
                         }
 
-                        var seriePadrao = dto.SeriePadrao?.Trim();
-                        if (string.IsNullOrWhiteSpace(seriePadrao))
-                        {
-                            throw new ArgumentException("Série padrão é obrigatória para criar a configuração.", nameof(dto.SeriePadrao));
-                        }
-
-                        if (!dto.NumeroAtual.HasValue)
-                        {
-                            throw new ArgumentException("Número atual é obrigatório para criar a configuração.", nameof(dto.NumeroAtual));
-                        }
-
                         var configuracao = new PrestadorConfiguracao(
                             prestadorId,
-                            dto.Ambiente,
                             versaoAplicacao,
-                            seriePadrao,
-                            dto.NumeroAtual.Value,
-                            dto.UrlEnvio,
-                            dto.UrlConsulta,
                             dto.EnviaEmailAutomatico ?? false,
                             usuarioId,
                             dto.SmtpHost,
@@ -236,13 +210,6 @@ namespace API_NFSe.Application.Services
                             ? configuracao.VersaoAplicacao
                             : string.IsNullOrWhiteSpace(dto.VersaoAplicacao) ? configuracao.VersaoAplicacao : dto.VersaoAplicacao.Trim();
 
-                        var seriePadrao = dto.SeriePadrao is null
-                            ? configuracao.SeriePadrao
-                            : string.IsNullOrWhiteSpace(dto.SeriePadrao) ? configuracao.SeriePadrao : dto.SeriePadrao.Trim();
-
-                        var numeroAtual = dto.NumeroAtual ?? configuracao.NumeroAtual;
-                        var urlEnvio = dto.UrlEnvio ?? configuracao.UrlEnvio;
-                        var urlConsulta = dto.UrlConsulta ?? configuracao.UrlConsulta;
                         var enviaEmailAutomatico = dto.EnviaEmailAutomatico ?? configuracao.EnviaEmailAutomatico;
                         var smtpHost = dto.SmtpHost is null
                             ? configuracao.SmtpHost
@@ -266,12 +233,7 @@ namespace API_NFSe.Application.Services
                             : string.IsNullOrWhiteSpace(dto.SmtpResetPasswordUrl) ? configuracao.SmtpResetPasswordUrl : dto.SmtpResetPasswordUrl.Trim();
 
                         prestador.Configuracao.Atualizar(
-                            dto.Ambiente,
                             versaoAplicacao,
-                            seriePadrao,
-                            numeroAtual,
-                            urlEnvio,
-                            urlConsulta,
                             enviaEmailAutomatico,
                             usuarioId,
                             smtpHost,
