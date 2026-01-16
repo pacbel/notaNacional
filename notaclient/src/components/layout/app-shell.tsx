@@ -3,7 +3,7 @@
 import { ReactNode, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, LayoutDashboard, FileText, Users, Settings, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, FileText, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
@@ -17,6 +17,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { canAccessUsuarios, canAccessConfiguracoes } from "@/lib/permissions";
 
@@ -44,6 +50,7 @@ export default function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Filtrar navegação baseado nas permissões do usuário
   const filteredNavigation = useMemo(() => {
@@ -74,48 +81,123 @@ export default function AppShell({ user, children }: AppShellProps) {
     .slice(0, 2)
     .toUpperCase();
 
-  const sidebarContent = (
-    <div className="flex h-full flex-col gap-4 bg-background">
-      <div className="flex h-16 items-center justify-between px-4">
-        <div>
-          <p className="text-sm font-semibold">NotaClient</p>
-          <p className="text-xs text-muted-foreground">Gestão NFSe</p>
+  const sidebarContent = (collapsed: boolean) => (
+    <TooltipProvider delayDuration={0}>
+      <div className="flex h-full flex-col bg-background">
+        {/* Header com Ícone e Nome */}
+        <div className={cn(
+          "flex h-16 items-center border-b",
+          collapsed ? "justify-center px-2" : "justify-between px-4"
+        )}>
+          {collapsed ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+              <Building2 className="h-5 w-5 text-primary-foreground" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+                <Building2 className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Nota Client</p>
+                <p className="text-xs text-muted-foreground">Gestão NFSe</p>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-      <Separator />
-      <nav className="flex flex-1 flex-col gap-1 px-2">
-        {filteredNavigation.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link key={item.href} href={item.href} className={cn("rounded-md", isActive && "bg-muted")}
-            >
+
+        {/* Navegação */}
+        <nav className="flex flex-1 flex-col gap-1 p-2">
+          {filteredNavigation.map((item) => {
+            const isActive = pathname === item.href;
+            const button = (
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start gap-3",
+                  "w-full",
+                  collapsed ? "justify-center px-2" : "justify-start gap-3",
                   isActive && "bg-muted text-primary"
                 )}
+                asChild
               >
-                <item.icon className="h-4 w-4" />
-                {item.name}
+                <Link href={item.href}>
+                  <item.icon className="h-4 w-4" />
+                  {!collapsed && <span>{item.name}</span>}
+                </Link>
               </Button>
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="px-4 pb-4">
-        <Button variant="ghost" className="w-full justify-start gap-3" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-          Sair
-        </Button>
+            );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>{button}</TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{item.name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return <div key={item.href}>{button}</div>;
+          })}
+        </nav>
+
+        {/* Botão Sair */}
+        <div className="border-t p-2">
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-center px-2"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Sair</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sair</span>
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 
   return (
     <div className="min-h-screen bg-muted/10">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 border-r bg-background lg:block">{sidebarContent}</aside>
+        {/* Sidebar Desktop */}
+        <aside className={cn(
+          "hidden border-r bg-background lg:block transition-all duration-300 relative",
+          isCollapsed ? "w-16" : "w-64"
+        )}>
+          {sidebarContent(isCollapsed)}
+          
+          {/* Botão Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </aside>
 
         <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
           <SheetTrigger asChild>
@@ -124,14 +206,13 @@ export default function AppShell({ user, children }: AppShellProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0 shadow-lg lg:hidden">
-            {sidebarContent}
+            {sidebarContent(false)}
           </SheetContent>
         </Sheet>
 
         <div className="flex flex-1 flex-col">
           <header className="flex h-16 items-center justify-between border-b bg-background px-4">
             <div className="hidden lg:flex lg:items-center lg:gap-3">
-              <p className="text-lg font-semibold">NotaClient</p>
               <Separator orientation="vertical" className="h-6" />
               <p className="text-sm text-muted-foreground">
                 Portal operacional de emissão de NFSe

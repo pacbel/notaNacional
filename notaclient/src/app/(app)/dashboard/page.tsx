@@ -230,7 +230,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Parceiros ativos</CardDescription>
+            <CardDescription>Prestadores ativos</CardDescription>
             <CardTitle className="text-2xl">
               {formatNumber(data.prestadoresAtivos + data.tomadoresAtivos)}
             </CardTitle>
