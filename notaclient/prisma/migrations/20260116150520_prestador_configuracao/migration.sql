@@ -1,8 +1,2 @@
--- DropIndex
-DROP INDEX `LogSistema_usuarioId_fkey` ON `LogSistema`;
-
--- AlterTable
-ALTER TABLE `Servico` ALTER COLUMN `prestadorId` DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE `Tomador` ALTER COLUMN `prestadorId` DROP DEFAULT;
+-- DropForeignKey
+ALTER TABLE `ConfiguracaoDps` DROP FOREIGN KEY `ConfiguracaoDps_prestadorId_fkey`;

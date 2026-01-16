@@ -6,6 +6,7 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import {
   Card,
@@ -86,49 +87,6 @@ export default function ConfiguracaoNfseForm() {
     if (value === null || value === undefined) return "";
     const numValue = typeof value === 'string' ? Number.parseFloat(value) : value;
     if (isNaN(numValue)) return "";
-    return numValue.toLocaleString('pt-BR', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    });
-  };
-
-  const defaultValues: ConfiguracaoFormValues = {
-    nomeSistema: "",
-    versaoAplicacao: "",
-    ambientePadrao: "HOMOLOGACAO",
-    seriePadrao: 1,
-    numeroInicialDps: 1,
-    verAplic: "",
-    emailRemetente: null,
-    robotClientId: null,
-    robotClientSecret: null,
-    robotTokenCacheMinutos: 50,
-    mfaCodigoExpiracaoMinutos: 10,
-    enviarNotificacaoEmailPrestador: true,
-    ativo: true,
-    xLocEmi: "",
-    xLocPrestacao: "",
-    nNFSe: "",
-    xTribNac: "",
-    xNBS: "",
-    ambGer: 2,
-    tpEmis: 1,
-    procEmi: 1,
-    cStat: 100,
-    dhProc: null,
-    nDFSe: "",
-    tribMun: {
-      tribISSQN: 2,
-      tpImunidade: 3,
-      tpRetISSQN: 1,
-    },
-    totTrib: {
-      pTotTribFed: null,
-      pTotTribEst: null,
-      pTotTribMun: null,
-    },
-  };
-
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
     queryKey: ["configuracoes"],
     queryFn: getConfiguracao,
@@ -140,21 +98,24 @@ export default function ConfiguracaoNfseForm() {
     enabled: Boolean(selectedUf),
   });
 
-  const form = useForm<ConfiguracaoFormValues>({
-    resolver: zodResolver(configuracaoUpdateSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues,
   });
 
   useEffect(() => {
     if (configuracaoQuery.data) {
-      const { updatedAt: _updatedAt, ...formValues } = configuracaoQuery.data;
-      
-      // Garantir que os valores de tributação sejam números
-      const sanitizedValues = {
-        ...formValues,
-        totTrib: {
-          pTotTribFed: formValues.totTrib.pTotTribFed !== null && formValues.totTrib.pTotTribFed !== undefined
-            ? Number(formValues.totTrib.pTotTribFed)
+      const data = configuracaoQuery.data;
+      form.reset({
+        numeroInicialDps: data.numeroInicialDps ?? 1,
+        procEmi: data.procEmi ?? 1,
+        xTribNac: data.xTribNac ?? "",
+        xNBS: data.xNBS ?? "",
+        ativo: data.ativo ?? true,
+        tribMun: {
+          tribISSQN: data.tribMun.tribISSQN,
+          tpRetISSQN: data.tribMun.tpRetISSQN,
+          tpImunidade: data.tribMun.tpImunidade,
             : null,
           pTotTribEst: formValues.totTrib.pTotTribEst !== null && formValues.totTrib.pTotTribEst !== undefined
             ? Number(formValues.totTrib.pTotTribEst)
@@ -206,24 +167,54 @@ export default function ConfiguracaoNfseForm() {
     }));
   }, [municipiosQuery.data]);
 
-  const handleSubmit = async (values: ConfiguracaoFormValues) => {
-    // Garantir que os valores de tributação sejam números ou null
-    const sanitizedValues = {
-      ...values,
-      totTrib: {
-        pTotTribFed: values.totTrib.pTotTribFed === null || values.totTrib.pTotTribFed === undefined 
-          ? null 
+  const handleSubmit = async (values: FormValues) => {
+    console.log("[ConfiguracaoNfseForm] handleSubmit chamado");
+    console.log("[ConfiguracaoNfseForm] Valores:", values);
+
+    const base = configuracaoQuery.data ?? defaultValues;
+
+    const sanitizedTotTrib = {
+      pTotTribFed:
+        values.totTrib.pTotTribFed === null || values.totTrib.pTotTribFed === undefined
+          ? null
           : Number(values.totTrib.pTotTribFed),
-        pTotTribEst: values.totTrib.pTotTribEst === null || values.totTrib.pTotTribEst === undefined 
-          ? null 
+      pTotTribEst:
+        values.totTrib.pTotTribEst === null || values.totTrib.pTotTribEst === undefined
+          ? null
           : Number(values.totTrib.pTotTribEst),
-        pTotTribMun: values.totTrib.pTotTribMun === null || values.totTrib.pTotTribMun === undefined 
-          ? null 
+      pTotTribMun:
+        values.totTrib.pTotTribMun === null || values.totTrib.pTotTribMun === undefined
+          ? null
           : Number(values.totTrib.pTotTribMun),
-      },
     };
-    
-    await updateMutation.mutateAsync(sanitizedValues);
+
+    const payload: ConfiguracaoFormValues = {
+      ...base,
+      numeroInicialDps: values.numeroInicialDps,
+      procEmi: values.procEmi,
+      xTribNac: values.xTribNac,
+      xNBS: values.xNBS,
+      ativo: values.ativo,
+      totTrib: {
+        ...base.totTrib,
+        ...sanitizedTotTrib,
+      },
+      tribMun: {
+        ...base.tribMun,
+        ...values.tribMun,
+      },
+      nDFSe: values.nDFSe && values.nDFSe.trim().length > 0 ? values.nDFSe : base.nDFSe ?? "1",
+      nNFSe: values.nNFSe && values.nNFSe.trim().length > 0 ? values.nNFSe : base.nNFSe ?? "1",
+    };
+
+    console.log("[ConfiguracaoNfseForm] Payload final:", payload);
+
+    try {
+      await updateMutation.mutateAsync(payload);
+      console.log("[ConfiguracaoNfseForm] Atualização concluída com sucesso");
+    } catch (error) {
+      console.error("[ConfiguracaoNfseForm] Erro ao atualizar:", error);
+    }
   };
 
   if (configuracaoQuery.isLoading) {
@@ -241,7 +232,14 @@ export default function ConfiguracaoNfseForm() {
       </header>
 
       <Form {...form}>
-        <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+        <form
+          className="space-y-6"
+          onSubmit={(event) => {
+            console.log("[ConfiguracaoNfseForm] Form onSubmit acionado");
+            console.log("[ConfiguracaoNfseForm] Erros atuais:", form.formState.errors);
+            form.handleSubmit(handleSubmit)(event);
+          }}
+        >
           <Card>
             <CardContent className="grid gap-4 sm:grid-cols-2 pt-6">
               <FormField
@@ -587,7 +585,16 @@ export default function ConfiguracaoNfseForm() {
           </Card>
 
           <div className="flex justify-start">
-            <Button type="submit" disabled={updateMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={updateMutation.isPending}
+              onClick={(event) => {
+                console.log("[ConfiguracaoNfseForm] Botão Salvar clicado", {
+                  isPending: updateMutation.isPending,
+                  defaultPrevented: event.defaultPrevented,
+                });
+              }}
+            >
               {updateMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...

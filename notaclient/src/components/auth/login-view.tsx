@@ -240,8 +240,7 @@ export default function LoginView() {
                     </>
                   ) : (
                     <>
-                      <Lock className="mr-2 h-4 w-4" /> Entrar com MFA
-                    </>
+                      <Lock className="mr-2 h-4 w-4" /> Entrar</>
                   )}
                 </Button>
 

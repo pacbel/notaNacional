@@ -51,7 +51,6 @@ enum TipoDocumento {
 model ConfiguracaoDps {
   id                              String   @id @default(uuid()) @db.Char(36)
   prestadorId                     String   @unique @db.Char(36)
-  prestador                       Prestador @relation(fields: [prestadorId], references: [id], onDelete: Cascade)
   nomeSistema                     String   @db.VarChar(191)
   versaoAplicacao                 String   @db.VarChar(50)
   ambientePadrao                  Ambiente @default(HOMOLOGACAO)
@@ -131,7 +130,6 @@ model Prestador {
   updatedAt           DateTime      @updatedAt
   certificadoPadraoId String?            @db.VarChar(191)
   certificadoPadrao   Certificado?       @relation("PrestadorCertificadoPadrao", fields: [certificadoPadraoId], references: [id])
-  configuracao        ConfiguracaoDps?
   dps                 Dps[]
   notas               NotaFiscal[]
   tomadores           Tomador[]

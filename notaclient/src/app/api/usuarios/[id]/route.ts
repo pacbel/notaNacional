@@ -39,6 +39,15 @@ export async function GET(
     }
 
     const data = await response.json();
+    
+    // Validar se o usuário pertence ao prestador
+    if (data.prestadorId !== currentUser.prestadorId) {
+      return NextResponse.json(
+        { message: "Acesso negado" },
+        { status: 403 }
+      );
+    }
+    
     return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json(
@@ -67,13 +76,38 @@ export async function PUT(
     const token = await getRobotToken();
     const env = getEnv();
 
+    // Primeiro buscar o usuário para validar ownership
+    const checkResponse = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (checkResponse.ok) {
+      const userData = await checkResponse.json();
+      if (userData.prestadorId !== currentUser.prestadorId) {
+        return NextResponse.json(
+          { message: "Acesso negado" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Garantir que não mude o prestadorId
+    const payload = {
+      ...body,
+      prestadorId: currentUser.prestadorId,
+    };
+
     const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -111,6 +145,25 @@ export async function DELETE(
     const { id } = await params;
     const token = await getRobotToken();
     const env = getEnv();
+
+    // Primeiro buscar o usuário para validar ownership
+    const checkResponse = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (checkResponse.ok) {
+      const userData = await checkResponse.json();
+      if (userData.prestadorId !== currentUser.prestadorId) {
+        return NextResponse.json(
+          { message: "Acesso negado" },
+          { status: 403 }
+        );
+      }
+    }
 
     const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
       method: "DELETE",

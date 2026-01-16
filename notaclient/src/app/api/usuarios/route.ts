@@ -17,16 +17,8 @@ export async function GET() {
     const token = await getRobotToken();
     const env = getEnv();
 
-    // Extrair prestadorId do token
-    const prestadorId = getPrestadorIdFromToken(token);
-    
-    if (!prestadorId) {
-      console.error("[Usuarios] PrestadorId não encontrado no token");
-      return NextResponse.json(
-        { message: "PrestadorId não encontrado no token" },
-        { status: 400 }
-      );
-    }
+    // Usar prestadorId do usuário logado
+    const prestadorId = currentUser.prestadorId;
 
     console.log("[Usuarios] Consultando usuários com prestadorId:", prestadorId);
 
@@ -76,13 +68,19 @@ export async function POST(request: Request) {
     const token = await getRobotToken();
     const env = getEnv();
 
+    // Garantir que o usuário seja criado para o prestador correto
+    const payload = {
+      ...body,
+      prestadorId: currentUser.prestadorId,
+    };
+
     const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

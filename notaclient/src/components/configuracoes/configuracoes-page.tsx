@@ -82,6 +82,7 @@ const ufOptions = [
 ];
 
 export default function ConfiguracoesPage() {
+  console.log("[ConfiguracoesPage] Componente renderizado");
   const [selectedUf, setSelectedUf] = useState<string>("MG");
 
   const handleIntegerChange = (onChange: (value: number | undefined) => void) =>
@@ -178,7 +179,14 @@ export default function ConfiguracoesPage() {
   }, [municipiosQuery.data]);
 
   const handleSubmit = async (values: ConfiguracaoFormValues) => {
-    await updateMutation.mutateAsync(values);
+    console.log("[ConfiguracoesPage] handleSubmit chamado");
+    console.log("[ConfiguracoesPage] Valores:", values);
+    try {
+      await updateMutation.mutateAsync(values);
+      console.log("[ConfiguracoesPage] Atualização concluída com sucesso");
+    } catch (error) {
+      console.error("[ConfiguracoesPage] Erro ao atualizar:", error);
+    }
   };
 
   const dhProcFormatted = form.watch("dhProc");
@@ -194,7 +202,14 @@ export default function ConfiguracoesPage() {
       </header>
 
       <Form {...form}>
-        <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+        <form 
+          className="space-y-6" 
+          onSubmit={(e) => {
+            console.log("[ConfiguracoesPage] Form onSubmit event triggered");
+            console.log("[ConfiguracoesPage] Form errors:", form.formState.errors);
+            form.handleSubmit(handleSubmit)(e);
+          }}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Dados gerais</CardTitle>
@@ -880,7 +895,16 @@ export default function ConfiguracoesPage() {
               </Alert>
             )}
 
-            <Button type="submit" className="ml-auto" disabled={updateMutation.isPending}>
+            <Button 
+              type="submit" 
+              className="ml-auto" 
+              disabled={updateMutation.isPending}
+              onClick={(e) => {
+                console.log("[ConfiguracoesPage] Botão Salvar clicado");
+                console.log("[ConfiguracoesPage] Event:", e);
+                console.log("[ConfiguracoesPage] isPending:", updateMutation.isPending);
+              }}
+            >
               {updateMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...

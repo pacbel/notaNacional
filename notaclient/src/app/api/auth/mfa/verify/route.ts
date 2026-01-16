@@ -3,6 +3,17 @@ import { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { buildSessionCookie } from "@/lib/auth";
 
+function decodeJWT(token: string): { prestadorId?: string } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 const verifySchema = z.object({
   email: z.string().email(),
   codigo: z.string().min(1),
@@ -47,6 +58,13 @@ export async function POST(request: Request) {
         { message: "Token não retornado pela API" },
         { status: 500 }
       );
+    }
+
+    // Decodificar token para obter prestadorId
+    const decoded = decodeJWT(sessionToken);
+    if (decoded?.prestadorId) {
+      console.log("[MFA] PrestadorId detectado no token:", decoded.prestadorId);
+      // Não precisa mais sincronizar prestador localmente
     }
 
     const result = NextResponse.json({ success: true });

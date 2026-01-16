@@ -55,12 +55,29 @@ export async function GET() {
       return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
+    console.log("[Configuracoes] Buscando configuração para prestadorId:", currentUser.prestadorId);
+
     let configuracao = await prisma.configuracaoDps.findUnique({
       where: { prestadorId: currentUser.prestadorId },
     });
 
+    console.log("[Configuracoes] Configuração encontrada:", configuracao ? "SIM" : "NÃO");
+
     // Se não existir, criar configuração padrão para o prestador
     if (!configuracao) {
+      console.log("[Configuracoes] Tentando criar configuração para prestadorId:", currentUser.prestadorId);
+      
+      // Verificar se o prestador existe na tabela Prestador
+      const prestadorExists = await prisma.prestador.findUnique({
+        where: { id: currentUser.prestadorId },
+        select: { id: true, nomeFantasia: true },
+      });
+      
+      console.log("[Configuracoes] Prestador existe na tabela local?", prestadorExists ? "SIM" : "NÃO");
+      if (prestadorExists) {
+        console.log("[Configuracoes] Prestador:", prestadorExists);
+      }
+
       configuracao = await prisma.configuracaoDps.create({
         data: {
           prestadorId: currentUser.prestadorId,
@@ -74,10 +91,13 @@ export async function GET() {
           xNBS: "1.0101.10.00",
         },
       });
+      
+      console.log("[Configuracoes] Configuração criada com sucesso!");
     }
 
     return NextResponse.json(mapConfiguracaoToDto(configuracao));
   } catch (error) {
+    console.error("[Configuracoes] Erro detalhado:", error);
     return handleRouteError(error, "Erro ao carregar configuração");
   }
 }
