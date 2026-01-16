@@ -12,7 +12,7 @@ namespace API_NFSe.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Operacao)]
+    [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Operacao + "," + RoleNames.Robot)]
     public class PrestadoresController : ControllerBase
     {
         private readonly IPrestadorService _prestadorService;
