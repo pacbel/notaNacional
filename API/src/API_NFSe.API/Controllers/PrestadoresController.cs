@@ -162,11 +162,14 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Operacao + "," + RoleNames.Robot)]
         public async Task<IActionResult> GetAll()
         {
             try
             {
-                if (UsuarioEhAdministrador)
+                var usuarioEhRobot = _currentUserService.PossuiRole(RoleNames.Robot);
+                
+                if (UsuarioEhAdministrador || usuarioEhRobot)
                 {
                     var prestadoresAdmin = await _prestadorService.ObterTodosAsync();
                     return Ok(prestadoresAdmin);
