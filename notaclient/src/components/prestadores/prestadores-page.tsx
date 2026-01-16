@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Loader2, AlertCircle, Mail, Phone, MapPin } from "lucide-react";
+import { Building2, Loader2, AlertCircle, MapPin, Mail, Phone, Globe } from "lucide-react";
 
 import { listPrestadores, type PrestadoresListResponse } from "@/services/prestadores";
+import { listMunicipios, type MunicipioDto } from "@/services/municipios";
+import { formatPhone } from "@/lib/formatters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 
@@ -16,6 +17,57 @@ export default function PrestadoresPage() {
   });
 
   const prestador = data?.data?.[0];
+
+  const codigoMunicipioTributarioRaw = prestador?.codigoMunicipioIbge;
+  const codigoMunicipioEnderecoRaw = prestador?.endereco?.codigoMunicipioIbge;
+
+  const codigoMunicipioTributario = codigoMunicipioTributarioRaw
+    ? String(codigoMunicipioTributarioRaw).padStart(7, "0")
+    : undefined;
+  const codigoMunicipioEndereco = codigoMunicipioEnderecoRaw
+    ? String(codigoMunicipioEnderecoRaw).padStart(7, "0")
+    : undefined;
+  const codigoMunicipioParaDescricao = codigoMunicipioEndereco ?? codigoMunicipioTributario;
+
+  const ufMunicipio = (prestador?.endereco?.uf ?? prestador?.estado)?.toUpperCase();
+
+  const { data: municipios, isLoading: isLoadingMunicipios } = useQuery<MunicipioDto[]>({
+    queryKey: ["municipios", ufMunicipio],
+    queryFn: () => listMunicipios(ufMunicipio),
+    enabled: Boolean(ufMunicipio && codigoMunicipioParaDescricao),
+    staleTime: 1000 * 60 * 60,
+    refetchOnWindowFocus: false,
+  });
+
+  const findMunicipioNome = (codigo?: string) => {
+    if (!codigo || !municipios) {
+      return undefined;
+    }
+
+    return municipios.find((municipio) => municipio.codigo.padStart(7, "0") === codigo)?.nome;
+  };
+
+  const municipioDescricaoTributario = findMunicipioNome(codigoMunicipioTributario);
+  const municipioDescricaoEndereco = findMunicipioNome(codigoMunicipioEndereco);
+
+  const hasInformacoesTributarias = Boolean(
+    prestador?.codigoMunicipioIbge ||
+      prestador?.optanteSimplesNacional !== undefined ||
+      prestador?.regimeEspecialTributario !== undefined,
+  );
+
+  const hasEndereco = Boolean(
+    prestador?.endereco &&
+      (prestador.endereco.logradouro ||
+        prestador.endereco.numero ||
+        prestador.endereco.complemento ||
+        prestador.endereco.bairro ||
+        prestador.endereco.uf ||
+        prestador.endereco.cep ||
+        prestador.endereco.codigoMunicipioIbge),
+  );
+
+  const hasContato = Boolean(prestador?.email || prestador?.telefone || prestador?.website || prestador?.site || prestador?.url);
 
   return (
     <div className="space-y-6">
@@ -79,60 +131,112 @@ export default function PrestadoresPage() {
               )}
             </div>
 
-            <Separator />
+            {hasInformacoesTributarias && (
+              <>
+                <Separator />
 
-            {/* Informações Tributárias */}
-            <div className="grid gap-4 md:grid-cols-3">
-              {prestador.codigoMunicipioIbge && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Código Município IBGE</h3>
-                  <p className="text-sm text-muted-foreground">{prestador.codigoMunicipioIbge}</p>
+                {/* Informações Tributárias */}
+                <div className="grid gap-4 md:grid-cols-3">
+                  {codigoMunicipioTributario && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-medium">Município (IBGE)</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {codigoMunicipioTributario}
+                        {municipioDescricaoTributario && ` - ${municipioDescricaoTributario}`}
+                        {!municipioDescricaoTributario && isLoadingMunicipios && " - Buscando descrição..."}
+                      </p>
+                    </div>
+                  )}
+                  {prestador.optanteSimplesNacional !== undefined && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-medium">Optante Simples Nacional</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {prestador.optanteSimplesNacional === 1 ? "Sim" : "Não"}
+                      </p>
+                    </div>
+                  )}
+                  {prestador.regimeEspecialTributario !== undefined && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-medium">Regime Especial Tributário</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {prestador.regimeEspecialTributario === 0 ? "Nenhum" : prestador.regimeEspecialTributario}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-              {prestador.optanteSimplesNacional !== undefined && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Optante Simples Nacional</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {prestador.optanteSimplesNacional === 1 ? "Sim" : "Não"}
-                  </p>
-                </div>
-              )}
-              {prestador.regimeEspecialTributario !== undefined && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Regime Especial Tributário</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {prestador.regimeEspecialTributario === 0 ? "Nenhum" : prestador.regimeEspecialTributario}
-                  </p>
-                </div>
-              )}
-            </div>
+              </>
+            )}
 
-            <Separator />
+            {hasContato && (
+              <>
+                <Separator />
 
-            {/* Endereço */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Endereço</h3>
-              <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
-                  {prestador.endereco?.logradouro && prestador.endereco?.numero && (
-                    <p>
-                      {prestador.endereco.logradouro}, {prestador.endereco.numero}
-                      {prestador.endereco.complemento && ` - ${prestador.endereco.complemento}`}
-                    </p>
-                  )}
-                  {prestador.endereco?.bairro && (
-                    <p>{prestador.endereco.bairro}</p>
-                  )}
-                  {prestador.endereco?.uf && (
-                    <p>{prestador.endereco.uf}</p>
-                  )}
-                  {prestador.endereco?.cep && (
-                    <p>CEP: {prestador.endereco.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2")}</p>
-                  )}
+                  <h3 className="mb-3 text-sm font-medium">Contatos</h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {prestador.email && (
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>{prestador.email}</span>
+                      </div>
+                    )}
+                    {prestador.telefone && (
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Phone className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>{formatPhone(prestador.telefone)}</span>
+                      </div>
+                    )}
+                    {(prestador.website || prestador.site || prestador.url) && (
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Globe className="mt-0.5 h-4 w-4 shrink-0" />
+                        <a
+                          href={(prestador.website || prestador.site || prestador.url) ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate text-primary hover:underline"
+                        >
+                          {prestador.website || prestador.site || prestador.url}
+                        </a>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
+
+            {hasEndereco && (
+              <>
+                <Separator />
+
+                {/* Endereço */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium">Endereço</h3>
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      {prestador.endereco?.logradouro && prestador.endereco?.numero && (
+                        <p>
+                          {prestador.endereco.logradouro}, {prestador.endereco.numero}
+                          {prestador.endereco.complemento && ` - ${prestador.endereco.complemento}`}
+                        </p>
+                      )}
+                      {prestador.endereco?.bairro && <p>{prestador.endereco.bairro}</p>}
+                      {codigoMunicipioEndereco && (
+                        <p>
+                          Município (IBGE): {codigoMunicipioEndereco}
+                          {municipioDescricaoEndereco && ` - ${municipioDescricaoEndereco}`}
+                          {!municipioDescricaoEndereco && isLoadingMunicipios && " - Buscando descrição..."}
+                        </p>
+                      )}
+                      {prestador.endereco?.uf && <p>{prestador.endereco.uf}</p>}
+                      {prestador.endereco?.cep && (
+                        <p>CEP: {prestador.endereco.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2")}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Tipo de Emissão */}
             {prestador.tipoEmissao !== undefined && (

@@ -1,32 +1,51 @@
-import type { Prestador } from "@prisma/client";
-
 import type {
   PrestadorCreateInput,
   PrestadorUpdateInput,
 } from "@/lib/validators/prestador";
 
-export type PrestadorDto = Omit<Prestador, "createdAt" | "updatedAt"> & {
-  createdAt: string;
-  updatedAt: string;
-  cnae?: string;
-  tipoEmissao?: number;
-  codigoMunicipioIbge?: string;
-  optanteSimplesNacional?: number;
-  regimeEspecialTributario?: number;
+export interface PrestadorDto {
+  id: string;
+  nomeFantasia?: string | null;
+  razaoSocial?: string | null;
+  cnpj?: string | null;
+  inscricaoMunicipal?: string | null;
+  email?: string | null;
+  telefone?: string | null;
+  site?: string | null;
+  website?: string | null;
+  url?: string | null;
+  cnae?: string | null;
+  tipoEmissao?: number | null;
+  codigoMunicipio?: string | null;
+  codigoMunicipioIbge?: string | null;
+  optanteSimplesNacional?: number | null;
+  regimeEspecialTributario?: number | null;
+  cidade?: string | null;
+  estado?: string | null;
+  cep?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  observacoes?: string | null;
+  ativo?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   endereco?: {
-    logradouro?: string;
-    numero?: string;
-    complemento?: string;
-    bairro?: string;
-    codigoMunicipioIbge?: string;
-    uf?: string;
-    cep?: string;
-  };
-  configuracao?: any;
-  criadoPorUsuarioId?: string;
-  dataCriacao?: string;
-  dataAtualizacao?: string;
-};
+    logradouro?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    codigoMunicipioIbge?: string | null;
+    uf?: string | null;
+    cep?: string | null;
+  } | null;
+  configuracao?: unknown;
+  criadoPorUsuarioId?: string | null;
+  dataCriacao?: string | null;
+  dataAtualizacao?: string | null;
+  [key: string]: unknown;
+}
 
 export interface PrestadoresListResponse {
   data: PrestadorDto[];
