@@ -84,9 +84,90 @@ export default function ConfiguracaoNfseForm() {
     };
 
   const formatDecimalValue = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) return "";
-    const numValue = typeof value === 'string' ? Number.parseFloat(value) : value;
-    if (isNaN(numValue)) return "";
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    const numValue = typeof value === "string" ? Number.parseFloat(value) : value;
+
+    if (Number.isNaN(numValue)) {
+      return "";
+    }
+
+    return numValue.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const toNumberOrNull = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    const numeric = typeof value === "number" ? value : Number(value);
+    return Number.isNaN(numeric) ? null : numeric;
+  };
+
+  const formSchema = z.object({
+    numeroInicialDps: z.number().int().min(1),
+    procEmi: z.number().int().min(1),
+    xTribNac: z.string().min(1),
+    xNBS: z.string().min(1),
+    ativo: z.boolean(),
+    tribMun: z.object({
+      tribISSQN: z.number().int().min(0).max(9),
+      tpRetISSQN: z.number().int().min(0).max(9),
+      tpImunidade: z.number().int().min(0).max(9),
+    }),
+    totTrib: z.object({
+      pTotTribFed: z.number().min(0).nullable(),
+      pTotTribEst: z.number().min(0).nullable(),
+      pTotTribMun: z.number().min(0).nullable(),
+    }),
+    nNFSe: z.string().min(1),
+    nDFSe: z.string().min(1),
+  });
+
+  type FormValues = z.infer<typeof formSchema>;
+
+  const defaultFormValues: FormValues = {
+    numeroInicialDps: 1,
+    procEmi: 1,
+    xTribNac: "",
+    xNBS: "",
+    ativo: true,
+    tribMun: {
+      tribISSQN: 2,
+      tpRetISSQN: 1,
+      tpImunidade: 3,
+    },
+    totTrib: {
+      pTotTribFed: null,
+      pTotTribEst: null,
+      pTotTribMun: null,
+    },
+    nNFSe: "1",
+    nDFSe: "1",
+  };
+
+  const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => ({
+    numeroInicialDps: data.numeroInicialDps ?? defaultFormValues.numeroInicialDps,
+    procEmi: data.procEmi ?? defaultFormValues.procEmi,
+    xTribNac: data.xTribNac ?? defaultFormValues.xTribNac,
+    xNBS: data.xNBS ?? defaultFormValues.xNBS,
+    ativo: data.ativo ?? defaultFormValues.ativo,
+    tribMun: {
+      tribISSQN: data.tribMun?.tribISSQN ?? defaultFormValues.tribMun.tribISSQN,
+      tpRetISSQN: data.tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
+      tpImunidade: data.tribMun?.tpImunidade ?? defaultFormValues.tribMun.tpImunidade,
+    },
+    totTrib: {
+      pTotTribFed: toNumberOrNull(data.totTrib?.pTotTribFed),
+      pTotTribEst: toNumberOrNull(data.totTrib?.pTotTribEst),
+      pTotTribMun: toNumberOrNull(data.totTrib?.pTotTribMun),
+    },
+    nNFSe: data.nNFSe?.trim().length ? data.nNFSe : defaultFormValues.nNFSe,
+    nDFSe: data.nDFSe?.trim().length ? data.nDFSe : defaultFormValues.nDFSe,
+  });
+
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
     queryKey: ["configuracoes"],
     queryFn: getConfiguracao,
@@ -100,33 +181,12 @@ export default function ConfiguracaoNfseForm() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: defaultFormValues,
   });
 
   useEffect(() => {
     if (configuracaoQuery.data) {
-      const data = configuracaoQuery.data;
-      form.reset({
-        numeroInicialDps: data.numeroInicialDps ?? 1,
-        procEmi: data.procEmi ?? 1,
-        xTribNac: data.xTribNac ?? "",
-        xNBS: data.xNBS ?? "",
-        ativo: data.ativo ?? true,
-        tribMun: {
-          tribISSQN: data.tribMun.tribISSQN,
-          tpRetISSQN: data.tribMun.tpRetISSQN,
-          tpImunidade: data.tribMun.tpImunidade,
-            : null,
-          pTotTribEst: formValues.totTrib.pTotTribEst !== null && formValues.totTrib.pTotTribEst !== undefined
-            ? Number(formValues.totTrib.pTotTribEst)
-            : null,
-          pTotTribMun: formValues.totTrib.pTotTribMun !== null && formValues.totTrib.pTotTribMun !== undefined
-            ? Number(formValues.totTrib.pTotTribMun)
-            : null,
-        },
-      };
-      
-      form.reset(sanitizedValues);
+      form.reset(mapDtoToFormValues(configuracaoQuery.data));
     }
   }, [configuracaoQuery.data, form]);
 
@@ -134,25 +194,7 @@ export default function ConfiguracaoNfseForm() {
     mutationFn: updateConfiguracao,
     onSuccess: (data) => {
       toast.success("Configurações atualizadas com sucesso");
-      const { updatedAt: _updatedAt, ...formValues } = data;
-      
-      // Garantir que os valores de tributação sejam números
-      const sanitizedValues = {
-        ...formValues,
-        totTrib: {
-          pTotTribFed: formValues.totTrib.pTotTribFed !== null && formValues.totTrib.pTotTribFed !== undefined
-            ? Number(formValues.totTrib.pTotTribFed)
-            : null,
-          pTotTribEst: formValues.totTrib.pTotTribEst !== null && formValues.totTrib.pTotTribEst !== undefined
-            ? Number(formValues.totTrib.pTotTribEst)
-            : null,
-          pTotTribMun: formValues.totTrib.pTotTribMun !== null && formValues.totTrib.pTotTribMun !== undefined
-            ? Number(formValues.totTrib.pTotTribMun)
-            : null,
-        },
-      };
-      
-      form.reset(sanitizedValues);
+      form.reset(mapDtoToFormValues(data));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -168,24 +210,17 @@ export default function ConfiguracaoNfseForm() {
   }, [municipiosQuery.data]);
 
   const handleSubmit = async (values: FormValues) => {
-    console.log("[ConfiguracaoNfseForm] handleSubmit chamado");
-    console.log("[ConfiguracaoNfseForm] Valores:", values);
+    if (!configuracaoQuery.data) {
+      toast.error("Configuração ainda não carregou. Tente novamente.");
+      return;
+    }
 
-    const base = configuracaoQuery.data ?? defaultValues;
+    const base = configuracaoQuery.data;
 
     const sanitizedTotTrib = {
-      pTotTribFed:
-        values.totTrib.pTotTribFed === null || values.totTrib.pTotTribFed === undefined
-          ? null
-          : Number(values.totTrib.pTotTribFed),
-      pTotTribEst:
-        values.totTrib.pTotTribEst === null || values.totTrib.pTotTribEst === undefined
-          ? null
-          : Number(values.totTrib.pTotTribEst),
-      pTotTribMun:
-        values.totTrib.pTotTribMun === null || values.totTrib.pTotTribMun === undefined
-          ? null
-          : Number(values.totTrib.pTotTribMun),
+      pTotTribFed: toNumberOrNull(values.totTrib.pTotTribFed),
+      pTotTribEst: toNumberOrNull(values.totTrib.pTotTribEst),
+      pTotTribMun: toNumberOrNull(values.totTrib.pTotTribMun),
     };
 
     const payload: ConfiguracaoFormValues = {
@@ -195,23 +230,18 @@ export default function ConfiguracaoNfseForm() {
       xTribNac: values.xTribNac,
       xNBS: values.xNBS,
       ativo: values.ativo,
-      totTrib: {
-        ...base.totTrib,
-        ...sanitizedTotTrib,
-      },
+      totTrib: sanitizedTotTrib,
       tribMun: {
-        ...base.tribMun,
-        ...values.tribMun,
+        tribISSQN: values.tribMun.tribISSQN,
+        tpRetISSQN: values.tribMun.tpRetISSQN,
+        tpImunidade: values.tribMun.tpImunidade,
       },
       nDFSe: values.nDFSe && values.nDFSe.trim().length > 0 ? values.nDFSe : base.nDFSe ?? "1",
       nNFSe: values.nNFSe && values.nNFSe.trim().length > 0 ? values.nNFSe : base.nNFSe ?? "1",
     };
 
-    console.log("[ConfiguracaoNfseForm] Payload final:", payload);
-
     try {
       await updateMutation.mutateAsync(payload);
-      console.log("[ConfiguracaoNfseForm] Atualização concluída com sucesso");
     } catch (error) {
       console.error("[ConfiguracaoNfseForm] Erro ao atualizar:", error);
     }
@@ -232,14 +262,7 @@ export default function ConfiguracaoNfseForm() {
       </header>
 
       <Form {...form}>
-        <form
-          className="space-y-6"
-          onSubmit={(event) => {
-            console.log("[ConfiguracaoNfseForm] Form onSubmit acionado");
-            console.log("[ConfiguracaoNfseForm] Erros atuais:", form.formState.errors);
-            form.handleSubmit(handleSubmit)(event);
-          }}
-        >
+        <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
           <Card>
             <CardContent className="grid gap-4 sm:grid-cols-2 pt-6">
               <FormField
@@ -404,7 +427,11 @@ export default function ConfiguracaoNfseForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="2">2 - Tributado no Município</SelectItem>
+                        {tributacaoISSQNOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value.toString()}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -585,16 +612,7 @@ export default function ConfiguracaoNfseForm() {
           </Card>
 
           <div className="flex justify-start">
-            <Button
-              type="submit"
-              disabled={updateMutation.isPending}
-              onClick={(event) => {
-                console.log("[ConfiguracaoNfseForm] Botão Salvar clicado", {
-                  isPending: updateMutation.isPending,
-                  defaultPrevented: event.defaultPrevented,
-                });
-              }}
-            >
+            <Button type="submit" disabled={updateMutation.isPending}>
               {updateMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...
