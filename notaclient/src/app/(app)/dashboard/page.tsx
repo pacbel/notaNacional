@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { ChartNotasMes } from "@/components/dashboard/chart-notas-mes";
 
 export const metadata: Metadata = {
   title: "Dashboard | NotaClient",
@@ -47,6 +48,18 @@ async function getDashboardData() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+  // Calcular últimos 6 meses para o gráfico
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const date = subMonths(now, 5 - i);
+    return {
+      month: format(date, "MMM/yy", { locale: ptBR }),
+      year: date.getFullYear(),
+      monthNumber: date.getMonth() + 1,
+      startDate: new Date(date.getFullYear(), date.getMonth(), 1),
+      endDate: new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59),
+    };
+  });
+
   const [
     totalNotas,
     notasMes,
@@ -57,7 +70,7 @@ async function getDashboardData() {
     servicosAtivos,
     notasComValor,
     recentNotas,
-    recentLogs,
+    notasPorMes,
     prestadorData,
   ] = await Promise.all([
     prisma.notaFiscal.count({ where: { ativo: true, prestadorId } }),
@@ -135,11 +148,25 @@ async function getDashboardData() {
         },
       },
     }),
-    prisma.logSistema.findMany({
-      take: 6,
-      orderBy: { createdAt: "desc" },
-      where: { ativo: true },
-    }),
+    // Buscar contagem de notas por mês
+    Promise.all(
+      last6Months.map(async (monthData) => {
+        const count = await prisma.notaFiscal.count({
+          where: {
+            ativo: true,
+            prestadorId,
+            createdAt: {
+              gte: monthData.startDate,
+              lte: monthData.endDate,
+            },
+          },
+        });
+        return {
+          mes: monthData.month,
+          total: count,
+        };
+      })
+    ),
     getPrestadorById(prestadorId),
   ]);
 
@@ -169,7 +196,7 @@ async function getDashboardData() {
     servicosAtivos,
     valorTotalMes,
     recentNotas: recentNotasWithPrestador,
-    recentLogs,
+    notasPorMes,
   };
 }
 
@@ -295,28 +322,11 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Logs recentes</CardTitle>
-            <CardDescription>Monitoramento das últimas ações registradas</CardDescription>
+            <CardTitle>Notas Emitidas por Mês</CardTitle>
+            <CardDescription>Evolução das emissões nos últimos 6 meses</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {data.recentLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum log registrado.</p>
-            ) : (
-              data.recentLogs.map((log) => (
-                <div key={log.id} className="space-y-1 rounded-md border p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{log.acao}</span>
-                    <Badge variant="secondary">{log.nivel}</Badge>
-                  </div>
-                  <Separator />
-                  <p className="text-sm text-muted-foreground">{log.mensagem}</p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Sistema</span>
-                    <span>{format(log.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                  </div>
-                </div>
-              ))
-            )}
+          <CardContent>
+            <ChartNotasMes data={data.notasPorMes} />
           </CardContent>
         </Card>
       </div>
