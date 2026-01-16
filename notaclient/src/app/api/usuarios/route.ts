@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getRobotToken } from "@/lib/notanacional-api";
+import { getRobotToken, getPrestadorIdFromToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
 
 export async function GET() {
@@ -17,7 +17,24 @@ export async function GET() {
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios`, {
+    // Extrair prestadorId do token
+    const prestadorId = getPrestadorIdFromToken(token);
+    
+    if (!prestadorId) {
+      console.error("[Usuarios] PrestadorId não encontrado no token");
+      return NextResponse.json(
+        { message: "PrestadorId não encontrado no token" },
+        { status: 400 }
+      );
+    }
+
+    console.log("[Usuarios] Consultando usuários com prestadorId:", prestadorId);
+
+    // Adicionar prestadorId como query parameter
+    const url = new URL(`${env.NOTA_API_BASE_URL}/api/Usuarios`);
+    url.searchParams.append("prestadorId", prestadorId);
+
+    const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

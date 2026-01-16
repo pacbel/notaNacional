@@ -76,6 +76,39 @@ function decodeTokenExp(accessToken: string): number | null {
   }
 }
 
+export function decodeTokenPayload(accessToken: string): Record<string, unknown> | null {
+  if (!accessToken) {
+    return null;
+  }
+
+  const [, payload] = accessToken.split(".");
+
+  if (!payload) return null;
+
+  try {
+    const json = Buffer.from(payload, "base64").toString("utf-8");
+    const data = JSON.parse(json) as Record<string, unknown>;
+
+    return data;
+  } catch (error) {
+    console.error("[NotaAPI] Erro ao decodificar token", error);
+    return null;
+  }
+}
+
+export function getPrestadorIdFromToken(accessToken: string): string | null {
+  const payload = decodeTokenPayload(accessToken);
+  
+  if (!payload) {
+    return null;
+  }
+
+  // Possíveis nomes de campos para o prestadorId no token
+  const prestadorId = payload.prestadorId || payload.PrestadorId || payload.prestador_id || payload.idPrestador || payload.IdPrestador;
+  
+  return prestadorId ? String(prestadorId) : null;
+}
+
 function resolveExpiration(accessToken: string, expiresIn?: number): Date {
   if (expiresIn && expiresIn > 0) {
     return new Date(Date.now() + (expiresIn - SAFETY_WINDOW_SECONDS) * 1000);
@@ -106,6 +139,17 @@ async function requestRobotToken(): Promise<string> {
     console.error("[NotaAPI] Resposta sem access_token", { data });
     throw new Error("Token de robô não retornado pela API Nota");
   }
+
+  // Log do token client para debug
+  console.log("[NotaAPI] Token client obtido:", accessToken);
+  
+  // Decodificar e logar o payload do token
+  const payload = decodeTokenPayload(accessToken);
+  console.log("[NotaAPI] Payload do token:", JSON.stringify(payload, null, 2));
+  
+  // Extrair e logar o prestadorId
+  const prestadorId = getPrestadorIdFromToken(accessToken);
+  console.log("[NotaAPI] PrestadorId extraído do token:", prestadorId);
 
   const expiresAt = resolveExpiration(accessToken, expiresIn);
   await persistToken(accessToken, expiresAt);
