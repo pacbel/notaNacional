@@ -3,11 +3,18 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { tomadorCreateSchema } from "@/lib/validators/tomador";
+import { getCurrentUser } from "@/lib/auth";
 
 const DEFAULT_PER_PAGE = 10;
 const MAX_PER_PAGE = 50;
 
 export async function GET(request: Request) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const pageParam = Number(searchParams.get("page") ?? "1");
   const perPageParam = Number(searchParams.get("perPage") ?? String(DEFAULT_PER_PAGE));
@@ -20,7 +27,9 @@ export async function GET(request: Request) {
     ? DEFAULT_PER_PAGE
     : Math.min(Math.max(perPageParam, 1), MAX_PER_PAGE);
 
-  const where: Prisma.TomadorWhereInput = {};
+  const where: Prisma.TomadorWhereInput = {
+    prestadorId: currentUser.prestadorId,
+  };
 
   if (query) {
     where.OR = [
@@ -58,6 +67,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const payload = await request.json().catch(() => null);
   const parseResult = tomadorCreateSchema.safeParse(payload);
 
@@ -67,7 +82,10 @@ export async function POST(request: Request) {
 
   try {
     const tomador = await prisma.tomador.create({
-      data: parseResult.data,
+      data: {
+        ...parseResult.data,
+        prestadorId: currentUser.prestadorId,
+      },
     });
 
     return NextResponse.json(tomador, { status: 201 });

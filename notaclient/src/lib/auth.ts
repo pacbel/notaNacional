@@ -31,8 +31,15 @@ export async function getCurrentUser() {
   const userId = payload.sub || payload.userId || payload.id || payload.nameid;
   const userName = payload.name || payload.userName || payload.unique_name;
   const userEmail = payload.email;
+  const prestadorId = payload.prestadorId || payload.PrestadorId || payload.prestador_id || payload.idPrestador || payload.IdPrestador;
 
   if (!userId) {
+    return null;
+  }
+
+  // PrestadorId é obrigatório para isolar dados
+  if (!prestadorId) {
+    console.error("[Auth] Token sem prestadorId", { payload });
     return null;
   }
 
@@ -40,6 +47,7 @@ export async function getCurrentUser() {
     id: String(userId),
     nome: String(userName || "Usuário"),
     email: String(userEmail || ""),
+    prestadorId: String(prestadorId),
   };
 }
 

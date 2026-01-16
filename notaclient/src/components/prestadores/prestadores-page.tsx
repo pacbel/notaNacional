@@ -1,239 +1,154 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Filter, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { Building2, Loader2, AlertCircle, Mail, Phone, MapPin } from "lucide-react";
 
-import {
-  listPrestadores,
-  createPrestador,
-  updatePrestador,
-  inactivatePrestador,
-  reactivatePrestador,
-  type PrestadorDto,
-  type PrestadorStatusFilter,
-  type PrestadoresListResponse,
-} from "@/services/prestadores";
-import { prestadorCreateSchema, prestadorUpdateSchema, type PrestadorUpdateInput } from "@/lib/validators/prestador";
-import { PrestadorFormDialog } from "@/components/prestadores/prestador-form-dialog";
-import { PrestadorDetailsDrawer } from "@/components/prestadores/prestador-details-drawer";
-import { PrestadorToolbar } from "@/components/prestadores/prestador-toolbar";
-import { PrestadorTable } from "@/components/prestadores/prestador-table";
-import { Button } from "@/components/ui/button";
-
-interface PrestadoresFilters {
-  search: string;
-  status: PrestadorStatusFilter;
-  page: number;
-  perPage: number;
-}
-
-const DEFAULT_FILTERS: PrestadoresFilters = {
-  search: "",
-  status: "ativos",
-  page: 1,
-  perPage: 10,
-};
-
-function usePrestadores(filters: PrestadoresFilters) {
-  const queryClient = useQueryClient();
-
-  const query = useQuery<PrestadoresListResponse>({
-    queryKey: ["prestadores", filters],
-    queryFn: () => listPrestadores(filters),
-    placeholderData: (previousData) => previousData,
-  });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["prestadores"] });
-
-  return { ...query, invalidate };
-}
+import { listPrestadores, type PrestadoresListResponse } from "@/services/prestadores";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 export default function PrestadoresPage() {
-  const [filters, setFilters] = useState<PrestadoresFilters>(DEFAULT_FILTERS);
-  const [selectedPrestador, setSelectedPrestador] = useState<PrestadorDto | null>(null);
-  const [showForm, setShowForm] = useState(false);
-
-  const { data, isLoading, invalidate, isFetching } = usePrestadores(filters);
-
-  const createMutation = useMutation({
-    mutationFn: createPrestador,
-    onSuccess: () => {
-      toast.success("Prestador cadastrado!");
-      setShowForm(false);
-      invalidate();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
+  const { data, isLoading, error } = useQuery<PrestadoresListResponse>({
+    queryKey: ["prestadores"],
+    queryFn: () => listPrestadores({ search: "", status: "ativos", page: 1, perPage: 1 }),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: PrestadorUpdateInput }) => updatePrestador(id, input),
-    onSuccess: (prestador) => {
-      toast.success("Prestador atualizado!");
-      setSelectedPrestador(prestador);
-      invalidate();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const inactivateMutation = useMutation({
-    mutationFn: inactivatePrestador,
-    onSuccess: () => {
-      toast.success("Prestador inativado");
-      setSelectedPrestador(null);
-      invalidate();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const reactivateMutation = useMutation({
-    mutationFn: reactivatePrestador,
-    onSuccess: (prestador) => {
-      toast.success("Prestador reativado");
-      setSelectedPrestador(prestador);
-      invalidate();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const isMutating =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    inactivateMutation.isPending ||
-    reactivateMutation.isPending;
-
-  const handleCreate = async (values: unknown) => {
-    const parsed = prestadorCreateSchema.safeParse(values);
-    if (!parsed.success) {
-      return Promise.reject(new Error("Verifique os dados e tente novamente."));
-    }
-
-    await createMutation.mutateAsync(parsed.data);
-  };
-
-  const handleUpdate = async (id: string, values: unknown) => {
-    const parsed = prestadorUpdateSchema.safeParse(values);
-    if (!parsed.success) {
-      return Promise.reject(new Error("Verifique os dados e tente novamente."));
-    }
-
-    await updateMutation.mutateAsync({ id, input: parsed.data });
-  };
-
-  const handleInactivate = async (id: string) => {
-    await inactivateMutation.mutateAsync(id);
-  };
-
-  const handleReactivate = async (id: string) => {
-    await reactivateMutation.mutateAsync(id);
-  };
-
-  const handleFiltersChange = (values: Partial<PrestadoresFilters>) => {
-    setFilters((prev) => {
-      const next = {
-        ...prev,
-        ...values,
-      };
-
-      const shouldResetPage =
-        (values.search !== undefined && values.search !== prev.search) ||
-        (values.status !== undefined && values.status !== prev.status) ||
-        (values.perPage !== undefined && values.perPage !== prev.perPage);
-
-      if (shouldResetPage) {
-        next.page = 1;
-      } else if (values.page !== undefined) {
-        next.page = values.page;
-      }
-
-      return next;
-    });
-  };
+  const prestador = data?.data?.[0];
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Prestadores</h1>
-          <p className="text-sm text-muted-foreground">
-            Gerencie prestadores, tokens e configurações de emissão.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PrestadorToolbar
-            filters={filters}
-            onChangeFilters={handleFiltersChange}
-            disabled={isLoading || isMutating}
-          />
-          <Button
-            onClick={() => {
-              setSelectedPrestador(null);
-              setShowForm(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Novo prestador
-          </Button>
-        </div>
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight">Dados do Prestador</h1>
+        <p className="text-sm text-muted-foreground">
+          Informações do prestador associado à sua conta
+        </p>
       </header>
 
-      <section className="rounded-lg border bg-card shadow-sm">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Search className="h-4 w-4" />
-            {filters.search ? (
-              <span>
-                Resultados para <strong>"{filters.search}"</strong>
-              </span>
-            ) : (
-              <span>Todos os prestadores ({filters.status})</span>
+      {isLoading && (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <p className="text-sm text-muted-foreground">Erro ao carregar dados do prestador</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {prestador && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Building2 className="h-8 w-8 text-primary" />
+              <div>
+                <CardTitle>{prestador.nomeFantasia}</CardTitle>
+                <CardDescription>{prestador.razaoSocial}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Dados Cadastrais */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <h3 className="mb-2 text-sm font-medium">CNPJ</h3>
+                <p className="text-sm text-muted-foreground">
+                  {prestador.cnpj?.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") || prestador.cnpj}
+                </p>
+              </div>
+              {prestador.inscricaoMunicipal && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Inscrição Municipal</h3>
+                  <p className="text-sm text-muted-foreground">{prestador.inscricaoMunicipal}</p>
+                </div>
+              )}
+              {prestador.cnae && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">CNAE</h3>
+                  <p className="text-sm text-muted-foreground">{prestador.cnae}</p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Informações Tributárias */}
+            <div className="grid gap-4 md:grid-cols-3">
+              {prestador.codigoMunicipioIbge && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Código Município IBGE</h3>
+                  <p className="text-sm text-muted-foreground">{prestador.codigoMunicipioIbge}</p>
+                </div>
+              )}
+              {prestador.optanteSimplesNacional !== undefined && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Optante Simples Nacional</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {prestador.optanteSimplesNacional === 1 ? "Sim" : "Não"}
+                  </p>
+                </div>
+              )}
+              {prestador.regimeEspecialTributario !== undefined && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Regime Especial Tributário</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {prestador.regimeEspecialTributario === 0 ? "Nenhum" : prestador.regimeEspecialTributario}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Endereço */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Endereço</h3>
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  {prestador.endereco?.logradouro && prestador.endereco?.numero && (
+                    <p>
+                      {prestador.endereco.logradouro}, {prestador.endereco.numero}
+                      {prestador.endereco.complemento && ` - ${prestador.endereco.complemento}`}
+                    </p>
+                  )}
+                  {prestador.endereco?.bairro && (
+                    <p>{prestador.endereco.bairro}</p>
+                  )}
+                  {prestador.endereco?.uf && (
+                    <p>{prestador.endereco.uf}</p>
+                  )}
+                  {prestador.endereco?.cep && (
+                    <p>CEP: {prestador.endereco.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2")}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tipo de Emissão */}
+            {prestador.tipoEmissao !== undefined && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Tipo de Emissão</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {prestador.tipoEmissao === 1 ? "Normal" : prestador.tipoEmissao === 2 ? "Contingência" : "Outro"}
+                  </p>
+                </div>
+              </>
             )}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span>{data?.total ?? 0} encontrados</span>
-            <RefreshCw
-              className={`h-4 w-4 ${isFetching ? "animate-spin" : "cursor-pointer"}`}
-              onClick={() => invalidate()}
-            />
-          </div>
-        </div>
-
-        <PrestadorTable
-          data={data?.data ?? []}
-          isLoading={isLoading}
-          page={filters.page}
-          perPage={filters.perPage}
-          total={data?.total ?? 0}
-          onPageChange={(page: number) => handleFiltersChange({ page })}
-          onSelectPrestador={setSelectedPrestador}
-          isRefreshing={isFetching}
-        />
-      </section>
-
-      <PrestadorFormDialog
-        open={showForm}
-        onOpenChange={setShowForm}
-        onSubmit={handleCreate}
-        isSubmitting={createMutation.isPending}
-      />
-
-      <PrestadorDetailsDrawer
-        prestador={selectedPrestador}
-        onClose={() => setSelectedPrestador(null)}
-        onUpdate={handleUpdate}
-        onInactivate={handleInactivate}
-        onReactivate={handleReactivate}
-        isMutating={isMutating}
-      />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

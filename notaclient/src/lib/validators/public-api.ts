@@ -3,7 +3,10 @@ import { z } from "zod";
 import { tomadorCreateSchema } from "./tomador";
 import { dpsCreateSchema } from "./dps";
 
-export const publicTomadorCreateSchema = tomadorCreateSchema;
+// API pública requer prestadorId explícito
+export const publicTomadorCreateSchema = tomadorCreateSchema.extend({
+  prestadorId: z.string().uuid({ message: "Prestador inválido" }),
+});
 
 export const publicDpsCreateSchema = dpsCreateSchema;
 

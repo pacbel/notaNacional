@@ -1,69 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { getCurrentUser } from "@/lib/auth";
+import { getRobotToken } from "@/lib/notanacional-api";
+import { getEnv } from "@/lib/env";
 
-import { prisma } from "@/lib/prisma";
-import { prestadorUpdateSchema } from "@/lib/validators/prestador";
-
+/**
+ * GET /api/prestadores/[id]
+ * Retorna o prestador da API externa apenas se for o prestador do usuário logado
+ */
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const prestador = await prisma.prestador.findUnique({ where: { id } });
-
-  if (!prestador) {
-    return NextResponse.json({ message: "Prestador não encontrado" }, { status: 404 });
-  }
-
-  return NextResponse.json(prestador);
-}
-
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const payload = await request.json().catch(() => null);
-  const parseResult = prestadorUpdateSchema.safeParse(payload);
-
-  if (!parseResult.success) {
-    return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });
-  }
-
   try {
-    const prestador = await prisma.prestador.update({
-      where: { id },
-      data: parseResult.data,
-    });
+    const currentUser = await getCurrentUser();
 
-    return NextResponse.json(prestador);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2025") {
-        return NextResponse.json({ message: "Prestador não encontrado" }, { status: 404 });
-      }
-
-      if (error.code === "P2002") {
-        return NextResponse.json({ message: "CNPJ já cadastrado" }, { status: 409 });
-      }
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
-    console.error("Erro ao atualizar prestador", error);
-    return NextResponse.json({ message: "Erro interno ao atualizar prestador" }, { status: 500 });
-  }
-}
+    const { id } = await context.params;
 
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  try {
-    const prestador = await prisma.prestador.update({
-      where: { id },
-      data: {
-        ativo: false,
+    // Apenas permitir acesso ao próprio prestador
+    if (id !== currentUser.prestadorId) {
+      return NextResponse.json({ message: "Acesso negado" }, { status: 403 });
+    }
+
+    const token = await getRobotToken();
+    const env = getEnv();
+
+    const url = `${env.NOTA_API_BASE_URL}/api/Prestadores/${id}`;
+    
+    console.log("[Prestadores] Buscando prestador por ID:", id);
+    console.log("[Prestadores] URL:", url);
+    console.log("[Prestadores] Token presente:", !!token);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
+      cache: "no-store",
     });
 
-    return NextResponse.json(prestador);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return NextResponse.json({ message: "Prestador não encontrado" }, { status: 404 });
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Prestadores] Erro ao buscar por ID:", error);
+      return NextResponse.json(
+        { message: error || "Erro ao buscar prestador" },
+        { status: response.status }
+      );
     }
 
-    console.error("Erro ao inativar prestador", error);
-    return NextResponse.json({ message: "Erro interno ao inativar prestador" }, { status: 500 });
+    const prestador = await response.json();
+    return NextResponse.json(prestador);
+  } catch (error) {
+    console.error("[Prestadores] Erro:", error);
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Erro ao buscar prestador" },
+      { status: 500 }
+    );
   }
 }
+
+// POST, PATCH e DELETE removidos - prestadores são gerenciados pela API externa

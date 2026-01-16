@@ -3,8 +3,9 @@ import { PrismaClient, Ambiente, TipoDocumento, Prisma } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Usuários agora são gerenciados pela API externa
+  // Usuários, Prestadores, Tomadores e Serviços agora são gerenciados pela API externa
   console.log("Iniciando seed do banco de dados...");
+  console.log("Apenas configurando dados do sistema...");
 
   const configuracaoUpdateData = {
     nomeSistema: "NotaClient",
@@ -68,77 +69,9 @@ async function main() {
     create: configuracaoCreateData,
   });
 
-  const prestador = await prisma.prestador.upsert({
-    where: { cnpj: "05065736000161" },
-    update: {
-      nomeFantasia: "PACBEL PROGRAMAS LTDA",
-      razaoSocial: "PACBEL PROGRAMAS LTDA",
-      email: "carlos.pacheco@pacbel.com.br",
-    },
-    create: {
-      nomeFantasia: "PACBEL PROGRAMAS LTDA",
-      razaoSocial: "PACBEL PROGRAMAS LTDA",
-      cnpj: "05065736000161",
-      inscricaoMunicipal: "123456",
-      email: "carlos.pacheco@pacbel.com.br",
-      telefone: "31996800154",
-      codigoMunicipio: "3106200",
-      cidade: "Belo Horizonte",
-      estado: "MG",
-      cep: "30627222",
-      logradouro: "Rua Solange Bernardes Declie",
-      numero: "150",
-      complemento: "Sala 101",
-      bairro: "Diamante (Barreiro)",
-    },
-  });
-
-  const tomador = await prisma.tomador.upsert({
-    where: { documento: "76798259634" },
-    update: {
-      nomeRazaoSocial: "CARLOS ROBERTO PACHECO LIMA",
-      email: "carlos.pacheco@pacbel.com.br",
-    },
-    create: {
-      tipoDocumento: TipoDocumento.CPF,
-      documento: "76798259634",
-      nomeRazaoSocial: "CARLOS ROBERTO PACHECO LIMA",
-      email: "carlos.pacheco@pacbel.com.br",
-      telefone: "31996800154",
-      codigoMunicipio: "3106200",
-      cidade: "Belo Horizonte",
-      estado: "MG",
-      cep: "30627222",
-      logradouro: "Rua Solange Bernardes Declie",
-      numero: "150",
-      complemento: "101",
-      bairro: "Diamante (Barreiro)",
-    },
-  });
-
-  const servicoId = "6f5c0eac-5a44-4aa4-bc71-2df42d4a9f8a";
-
-  const servico = await prisma.servico.upsert({
-    where: { id: servicoId },
-    update: {
-      descricao: "Serviço de tecnologia",
-      valorUnitario: 152.3,
-    },
-    create: {
-      id: servicoId,
-      descricao: "Serviço de tecnologia",
-      codigoTributacaoMunicipal: "001",
-      codigoTributacaoNacional: "040101",
-      codigoNbs: "123012100",
-      codigoMunicipioPrestacao: "3106200",
-      municipioPrestacao: "Belo Horizonte",
-      informacoesComplementares: "Nota Avulsa AVU-20251230235416",
-      valorUnitario: 152.3,
-    },
-  });
-
   console.log("Seed concluído com sucesso!");
-  console.log({ config, prestador, tomador, servico });
+  console.log("Configuração do sistema criada/atualizada.");
+  console.log({ config });
 }
 
 main()

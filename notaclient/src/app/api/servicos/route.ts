@@ -6,12 +6,19 @@ import { prisma } from "@/lib/prisma";
 import { handleRouteError } from "@/lib/http";
 import { servicoCreateSchema } from "@/lib/validators/servico";
 import { servicoSelect, serializeServico } from "./utils";
+import { getCurrentUser } from "@/lib/auth";
 
 const DEFAULT_PER_PAGE = 10;
 const MAX_PER_PAGE = 50;
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get("search") ?? "").trim();
     const statusParam = searchParams.get("status") ?? "ativos";
@@ -23,7 +30,9 @@ export async function GET(request: Request) {
       ? DEFAULT_PER_PAGE
       : Math.min(Math.max(perPageParam, 1), MAX_PER_PAGE);
 
-    const where: Prisma.ServicoWhereInput = {};
+    const where: Prisma.ServicoWhereInput = {
+      prestadorId: currentUser.prestadorId,
+    };
 
     if (search) {
       const normalized = search.trim();
@@ -72,6 +81,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+
     const payload = await request.json().catch(() => null);
     const result = servicoCreateSchema.safeParse(payload);
 
@@ -83,6 +98,7 @@ export async function POST(request: Request) {
 
     const servico = await prisma.servico.create({
       data: {
+        prestadorId: currentUser.prestadorId,
         descricao: data.descricao,
         codigoTributacaoMunicipal: data.codigoTributacaoMunicipal,
         codigoTributacaoNacional: data.codigoTributacaoNacional,

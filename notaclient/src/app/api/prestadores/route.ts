@@ -1,81 +1,78 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { getCurrentUser } from "@/lib/auth";
+import { getRobotToken } from "@/lib/notanacional-api";
+import { getEnv } from "@/lib/env";
 
-import { prisma } from "@/lib/prisma";
-import { prestadorCreateSchema } from "@/lib/validators/prestador";
-
-const DEFAULT_PER_PAGE = 10;
-const MAX_PER_PAGE = 50;
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const pageParam = Number(searchParams.get("page") ?? "1");
-  const perPageParam = Number(searchParams.get("perPage") ?? String(DEFAULT_PER_PAGE));
-  const query = (searchParams.get("q") ?? "").trim();
-  const statusParam = searchParams.get("status") ?? "ativos";
-
-  const page = Number.isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
-  const perPage = Number.isNaN(perPageParam)
-    ? DEFAULT_PER_PAGE
-    : Math.min(Math.max(perPageParam, 1), MAX_PER_PAGE);
-
-  const where: Prisma.PrestadorWhereInput = {};
-
-  if (query) {
-    where.OR = [
-      { nomeFantasia: { contains: query } },
-      { razaoSocial: { contains: query } },
-      { cnpj: { contains: query.replace(/\D/g, "") } },
-      { email: { contains: query } },
-    ];
-  }
-
-  if (statusParam === "ativos") {
-    where.ativo = true;
-  } else if (statusParam === "inativos") {
-    where.ativo = false;
-  }
-
-  const [total, data] = await Promise.all([
-    prisma.prestador.count({ where }),
-    prisma.prestador.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-      skip: (page - 1) * perPage,
-      take: perPage,
-    }),
-  ]);
-
-  return NextResponse.json({
-    data,
-    total,
-    page,
-    perPage,
-  });
-}
-
-export async function POST(request: Request) {
-  const payload = await request.json().catch(() => null);
-  const parseResult = prestadorCreateSchema.safeParse(payload);
-
-  if (!parseResult.success) {
-    return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });
-  }
-
+/**
+ * GET /api/prestadores
+ * Retorna o prestador do usuário logado da API externa
+ */
+export async function GET() {
   try {
-    const prestador = await prisma.prestador.create({
-      data: {
-        ...parseResult.data,
-      },
-    });
+    const currentUser = await getCurrentUser();
 
-    return NextResponse.json(prestador, { status: 201 });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json({ message: "CNPJ já cadastrado" }, { status: 409 });
+    if (!currentUser) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
-    console.error("Erro ao criar prestador", error);
-    return NextResponse.json({ message: "Erro interno ao criar prestador" }, { status: 500 });
+    const token = await getRobotToken();
+    const env = getEnv();
+
+    // Buscar lista de prestadores da API externa (retorna apenas os do usuário)
+    const url = `${env.NOTA_API_BASE_URL}/api/Prestadores`;
+    
+    console.log("[Prestadores] Buscando prestadores");
+    console.log("[Prestadores] URL:", url);
+    console.log("[Prestadores] Token presente:", !!token);
+    console.log("[Prestadores] Token (primeiros 50 chars):", token?.substring(0, 50));
+    console.log("[Prestadores] PrestadorId do usuário:", currentUser.prestadorId);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Prestadores] Erro ao buscar:", error);
+      console.error("[Prestadores] Status:", response.status);
+      return NextResponse.json(
+        { message: error || "Erro ao buscar prestador" },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    console.log("[Prestadores] Resposta da API:", data);
+
+    // A API retorna lista de prestadores do token
+    // Filtrar pelo prestadorId do usuário se necessário
+    const prestadores = Array.isArray(data) ? data : [data];
+    const prestador = prestadores.find((p: any) => p.id === currentUser.prestadorId) || prestadores[0];
+
+    if (!prestador) {
+      return NextResponse.json(
+        { message: "Prestador não encontrado" },
+        { status: 404 }
+      );
+    }
+
+    // Retornar no formato de lista para compatibilidade com frontend
+    return NextResponse.json({
+      data: [prestador],
+      total: 1,
+      page: 1,
+      perPage: 1,
+    });
+  } catch (error) {
+    console.error("[Prestadores] Erro:", error);
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Erro ao buscar prestador" },
+      { status: 500 }
+    );
   }
 }

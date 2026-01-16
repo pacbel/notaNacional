@@ -129,14 +129,18 @@ model Prestador {
   certificadoPadrao   Certificado?  @relation("PrestadorCertificadoPadrao", fields: [certificadoPadraoId], references: [id])
   dps                 Dps[]
   notas               NotaFiscal[]
+  tomadores           Tomador[]
+  servicos            Servico[]
 
   @@index([ativo])
 }
 
 model Tomador {
   id                 String        @id @default(uuid()) @db.Char(36)
+  prestadorId        String        @db.Char(36)
+  prestador          Prestador     @relation(fields: [prestadorId], references: [id])
   tipoDocumento      TipoDocumento
-  documento          String        @unique @db.VarChar(14)
+  documento          String        @db.VarChar(14)
   nomeRazaoSocial    String        @db.VarChar(191)
   email              String        @db.VarChar(191)
   telefone           String?       @db.VarChar(20)
@@ -155,27 +159,32 @@ model Tomador {
   dps                Dps[]
   notas              NotaFiscal[]
 
+  @@unique([prestadorId, documento])
+  @@index([prestadorId])
   @@index([documento])
   @@index([ativo])
 }
 
 model Servico {
-  id                        String   @id @default(uuid()) @db.Char(36)
-  descricao                 String   @db.VarChar(191)
-  codigoTributacaoMunicipal String   @db.VarChar(20)
-  codigoTributacaoNacional  String   @db.VarChar(20)
-  codigoNbs                 String?  @db.VarChar(20)
-  codigoMunicipioPrestacao  String   @db.VarChar(7)
-  municipioPrestacao        String   @db.VarChar(191)
-  informacoesComplementares String?  @db.LongText
-  valorUnitario             Decimal  @db.Decimal(12, 2)
-  aliquotaIss               Decimal? @db.Decimal(5, 2)
-  issRetido                 Boolean  @default(false)
-  ativo                     Boolean  @default(true)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  id                        String    @id @default(uuid()) @db.Char(36)
+  prestadorId               String    @db.Char(36)
+  prestador                 Prestador @relation(fields: [prestadorId], references: [id])
+  descricao                 String    @db.VarChar(191)
+  codigoTributacaoMunicipal String    @db.VarChar(20)
+  codigoTributacaoNacional  String    @db.VarChar(20)
+  codigoNbs                 String?   @db.VarChar(20)
+  codigoMunicipioPrestacao  String    @db.VarChar(7)
+  municipioPrestacao        String    @db.VarChar(191)
+  informacoesComplementares String?   @db.LongText
+  valorUnitario             Decimal   @db.Decimal(12, 2)
+  aliquotaIss               Decimal?  @db.Decimal(5, 2)
+  issRetido                 Boolean   @default(false)
+  ativo                     Boolean   @default(true)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
   dps                       Dps[]
 
+  @@index([prestadorId])
   @@index([ativo])
 }
 

@@ -3,10 +3,22 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { tomadorUpdateSchema } from "@/lib/validators/tomador";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
-  const tomador = await prisma.tomador.findUnique({ where: { id } });
+  const tomador = await prisma.tomador.findFirst({ 
+    where: { 
+      id,
+      prestadorId: currentUser.prestadorId,
+    } 
+  });
 
   if (!tomador) {
     return NextResponse.json({ message: "Tomador não encontrado" }, { status: 404 });
@@ -16,12 +28,27 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
   const payload = await request.json().catch(() => null);
   const parseResult = tomadorUpdateSchema.safeParse(payload);
 
   if (!parseResult.success) {
     return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });
+  }
+
+  // Verificar se o tomador pertence ao prestador
+  const existing = await prisma.tomador.findFirst({
+    where: { id, prestadorId: currentUser.prestadorId },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: "Tomador não encontrado" }, { status: 404 });
   }
 
   try {
@@ -48,7 +75,23 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 }
 
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+  }
+
   const { id } = await context.params;
+
+  // Verificar se o tomador pertence ao prestador
+  const existing = await prisma.tomador.findFirst({
+    where: { id, prestadorId: currentUser.prestadorId },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ message: "Tomador não encontrado" }, { status: 404 });
+  }
+
   try {
     const tomador = await prisma.tomador.update({
       where: { id },

@@ -8,6 +8,24 @@ import type {
 export type PrestadorDto = Omit<Prestador, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
+  cnae?: string;
+  tipoEmissao?: number;
+  codigoMunicipioIbge?: string;
+  optanteSimplesNacional?: number;
+  regimeEspecialTributario?: number;
+  endereco?: {
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    codigoMunicipioIbge?: string;
+    uf?: string;
+    cep?: string;
+  };
+  configuracao?: any;
+  criadoPorUsuarioId?: string;
+  dataCriacao?: string;
+  dataAtualizacao?: string;
 };
 
 export interface PrestadoresListResponse {
