@@ -22,7 +22,12 @@ import {
   atualizarSenhaCertificadoPrestador,
   removerCertificadoPrestador,
 } from "@/services/prestadores";
-import { listarUfs, listarMunicipiosPorUf, type IbgeUf } from "@/services/ibge";
+import {
+  listarUfs,
+  listarMunicipiosPorUf,
+  obterMunicipioPorCodigoIbge,
+  type IbgeUf,
+} from "@/services/ibge";
 import { ApiError } from "@/services/http";
 import {
   PrestadorDto,
@@ -60,7 +65,6 @@ const prestadorSchema = z.object({
   nomeFantasia: z.string().min(3, "Informe o nome fantasia"),
   inscricaoMunicipal: z.string().min(3, "Informe a inscrição municipal"),
   inscricaoEstadual: z.string().optional().or(z.literal("")),
-  cnae: z.string().optional().or(z.literal("")),
   telefone: z.string().optional().or(z.literal("")),
   email: z.string().email("Informe um e-mail válido").optional().or(z.literal("")),
   website: z.string().url("Informe uma URL válida").optional().or(z.literal("")),
@@ -185,7 +189,6 @@ export default function PrestadoresPage() {
       nomeFantasia: "",
       inscricaoMunicipal: "",
       inscricaoEstadual: "",
-      cnae: "",
       telefone: "",
       email: "",
       website: "",
@@ -555,6 +558,59 @@ export default function PrestadoresPage() {
     control: form.control,
     name: "endereco.codigoMunicipioIbge",
   });
+  const carregarMunicipioPorCodigo = useCallback(
+    async (codigo?: string | null) => {
+      const normalized = codigo?.trim();
+      if (!normalized || normalized.length !== 7) {
+        return;
+      }
+
+      try {
+        setIsIbgeLoading(true);
+        const municipio = await obterMunicipioPorCodigoIbge(normalized);
+        const ibgeCodigo = String(municipio.id).padStart(7, "0");
+        const cidadeNome = municipio.nome;
+        const ufSigla = municipio.microrregiao?.mesorregiao?.UF?.sigla ?? "";
+
+        setMunicipioOptions((options) => {
+          const newOption: MunicipioOption = {
+            label: cidadeNome,
+            value: cidadeNome,
+            ibge: ibgeCodigo,
+          };
+
+          const exists = options.some((option) => option.ibge === ibgeCodigo);
+          if (exists) {
+            return options.map((option) => (option.ibge === ibgeCodigo ? newOption : option));
+          }
+
+          return [newOption, ...options];
+        });
+
+        form.setValue("endereco.cidade", cidadeNome, {
+          shouldDirty: false,
+          shouldValidate: true,
+        });
+        form.setValue("endereco.codigoMunicipioIbge", ibgeCodigo, {
+          shouldDirty: false,
+          shouldValidate: true,
+        });
+        if (ufSigla) {
+          form.setValue("endereco.uf", ufSigla, {
+            shouldDirty: false,
+            shouldValidate: true,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Não foi possível carregar o município pelo código IBGE.");
+      } finally {
+        setIsIbgeLoading(false);
+      }
+    },
+    [form, obterMunicipioPorCodigoIbge]
+  );
+
   const consultarCep = useCallback(
     async (value: string) => {
       const cepDigits = onlyDigits(value);
@@ -754,13 +810,18 @@ export default function PrestadoresPage() {
     }
 
     const match = municipioOptions.find((municipio) => municipio.ibge === codigoAtual);
-    if (match && form.getValues("endereco.cidade") !== match.value) {
-      form.setValue("endereco.cidade", match.value, {
-        shouldDirty: false,
-        shouldValidate: true,
-      });
+    if (match) {
+      if (form.getValues("endereco.cidade") !== match.value) {
+        form.setValue("endereco.cidade", match.value, {
+          shouldDirty: false,
+          shouldValidate: true,
+        });
+      }
+      return;
     }
-  }, [codigoMunicipioIbgeWatch, municipioOptions, form]);
+
+    void carregarMunicipioPorCodigo(codigoAtual);
+  }, [codigoMunicipioIbgeWatch, municipioOptions, form, carregarMunicipioPorCodigo]);
 
   useEffect(() => {
     const enderecoCodigo = codigoMunicipioIbgeWatch?.trim();
@@ -801,7 +862,6 @@ export default function PrestadoresPage() {
       nomeFantasia: "",
       inscricaoMunicipal: "",
       inscricaoEstadual: "",
-      cnae: "",
       telefone: "",
       email: "",
       website: "",
@@ -829,7 +889,6 @@ export default function PrestadoresPage() {
       nomeFantasia: prestador.nomeFantasia,
       inscricaoMunicipal: prestador.inscricaoMunicipal,
       inscricaoEstadual: prestador.inscricaoEstadual ?? "",
-      cnae: prestador.cnae ?? "",
       telefone: prestador.telefone ? onlyDigits(prestador.telefone).slice(0, 11) : "",
       email: prestador.email ?? "",
       website: prestador.website ?? "",
@@ -858,6 +917,7 @@ export default function PrestadoresPage() {
     );
     lastConsultedCepRef.current = prestador.endereco.cep ?? null;
     setIsFormOpen(true);
+    void carregarMunicipioPorCodigo(prestador.endereco.codigoMunicipioIbge);
   };
 
   const closeFormModal = () => {
@@ -874,7 +934,6 @@ export default function PrestadoresPage() {
       nomeFantasia: values.nomeFantasia,
       inscricaoMunicipal: values.inscricaoMunicipal,
       inscricaoEstadual: values.inscricaoEstadual || undefined,
-      cnae: values.cnae || undefined,
       telefone: values.telefone || undefined,
       email: values.email || undefined,
       website: values.website || undefined,
@@ -896,7 +955,6 @@ export default function PrestadoresPage() {
         nomeFantasia: values.nomeFantasia,
         inscricaoMunicipal: values.inscricaoMunicipal,
         inscricaoEstadual: values.inscricaoEstadual || undefined,
-        cnae: values.cnae || undefined,
         telefone: values.telefone || undefined,
         email: values.email || undefined,
         website: values.website || undefined,
@@ -1242,17 +1300,6 @@ export default function PrestadoresPage() {
                   {form.formState.errors.inscricaoEstadual && (
                     <span className="text-sm text-red-600">
                       {form.formState.errors.inscricaoEstadual.message}
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="cnae">
-                    CNAE
-                  </label>
-                  <Input id="cnae" {...form.register("cnae")} />
-                  {form.formState.errors.cnae && (
-                    <span className="text-sm text-red-600">
-                      {form.formState.errors.cnae.message}
                     </span>
                   )}
                 </div>

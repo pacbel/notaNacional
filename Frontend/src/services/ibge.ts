@@ -11,6 +11,18 @@ export interface IbgeMunicipio {
   nome: string;
 }
 
+export interface IbgeMunicipioDetalhado extends IbgeMunicipio {
+  microrregiao?: {
+    mesorregiao?: {
+      UF?: {
+        id: number;
+        sigla: string;
+        nome: string;
+      };
+    };
+  };
+}
+
 async function fetchFromIbge<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${IBGE_BASE_URL}${endpoint}`);
 
@@ -29,4 +41,14 @@ export async function listarUfs(): Promise<IbgeUf[]> {
 export async function listarMunicipiosPorUf(ufId: number): Promise<IbgeMunicipio[]> {
   const municipios = await fetchFromIbge<IbgeMunicipio[]>(`/estados/${ufId}/municipios`);
   return municipios.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+export async function obterMunicipioPorCodigoIbge(codigo: string | number): Promise<IbgeMunicipioDetalhado> {
+  const municipioId = typeof codigo === "number" ? codigo : Number.parseInt(codigo, 10);
+
+  if (Number.isNaN(municipioId)) {
+    throw new Error("Código IBGE inválido");
+  }
+
+  return fetchFromIbge<IbgeMunicipioDetalhado>(`/municipios/${municipioId}`);
 }
