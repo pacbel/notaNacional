@@ -26,20 +26,36 @@ export const notaApi = axios.create({
 const SAFETY_WINDOW_SECONDS = 60;
 
 async function persistToken(token: string, expiresAt: Date) {
-  await prisma.tokenIntegracao.upsert({
-    where: { id: "robot-token" },
-    update: {
-      token,
-      expiresAt,
-      ativo: true,
-    },
-    create: {
-      id: "robot-token",
-      tipo: TokenIntegracaoTipo.ROBOT,
-      token,
-      expiresAt,
-    },
-  });
+  try {
+    await prisma.tokenIntegracao.upsert({
+      where: { id: "robot-token" },
+      update: {
+        token,
+        expiresAt,
+        ativo: true,
+      },
+      create: {
+        id: "robot-token",
+        tipo: TokenIntegracaoTipo.ROBOT,
+        token,
+        expiresAt,
+      },
+    });
+  } catch (error: unknown) {
+    // Se falhar por constraint de PRIMARY (race condition), tenta apenas update
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      await prisma.tokenIntegracao.update({
+        where: { id: "robot-token" },
+        data: {
+          token,
+          expiresAt,
+          ativo: true,
+        },
+      });
+    } else {
+      throw error;
+    }
+  }
 }
 
 async function fetchStoredToken(): Promise<string | null> {
