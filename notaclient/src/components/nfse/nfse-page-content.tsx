@@ -12,7 +12,7 @@ import {
   Send,
   Building2,
   User2,
-  Receipt,
+  ScrollText,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -120,6 +120,30 @@ interface CreateFormState {
   competencia: string;
   dataEmissao: string;
   observacoes: string;
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return fallback;
+  }
 }
 
 interface CertificatesResponseItem {
@@ -546,7 +570,6 @@ export default function NfsePageContent() {
   const [actionState, setActionState] = useState<ActionState | null>(null);
   const [selectedCertificateId, setSelectedCertificateId] = useState<string>("");
   const DEFAULT_SIGNATURE_TAG = "infDPS";
-  const [selectedAmbiente, setSelectedAmbiente] = useState<string>("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState>(() => ({
     prestadorId: "",
@@ -682,7 +705,7 @@ export default function NfsePageContent() {
       setSelectedCertificateId(variables.certificateId ?? "");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Erro ao assinar DPS");
+      toast.error(extractErrorMessage(error, "Erro ao assinar DPS"));
     },
   });
 
@@ -695,7 +718,7 @@ export default function NfsePageContent() {
       setActionState(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Erro ao emitir NFSe");
+      toast.error(extractErrorMessage(error, "Erro ao emitir NFSe"));
     },
   });
 
@@ -707,7 +730,7 @@ export default function NfsePageContent() {
       setCancelState(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Erro ao cancelar NFSe");
+      toast.error(extractErrorMessage(error, "Erro ao cancelar NFSe"));
     },
   });
 
@@ -723,7 +746,7 @@ export default function NfsePageContent() {
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Erro ao criar DPS");
+      toast.error(extractErrorMessage(error, "Erro ao criar DPS"));
     },
   });
 
@@ -764,7 +787,6 @@ export default function NfsePageContent() {
 
     const firstCertificate = certificados[0]?.id ?? "";
     setSelectedCertificateId(actionState.dps.certificadoId ?? firstCertificate);
-    setSelectedAmbiente(actionState.dps.ambiente === "PRODUCAO" ? "1" : "2");
   }, [actionState, certificados]);
 
   const isActionLoading = actionState?.type === "sign" ? assinarMutation.isPending : emitirMutation.isPending;
@@ -774,21 +796,21 @@ export default function NfsePageContent() {
   useEffect(() => {
     if (certificadosQuery.error) {
       const error = certificadosQuery.error;
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar certificados");
+      toast.error(extractErrorMessage(error, "Falha ao carregar certificados"));
     }
   }, [certificadosQuery.error]);
 
   useEffect(() => {
     if (dpsQuery.error) {
       const error = dpsQuery.error;
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar DPS");
+      toast.error(extractErrorMessage(error, "Falha ao carregar DPS"));
     }
   }, [dpsQuery.error]);
 
   useEffect(() => {
     if (notasQuery.error) {
       const error = notasQuery.error;
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar NFSe");
+      toast.error(extractErrorMessage(error, "Falha ao carregar NFSe"));
     }
   }, [notasQuery.error]);
 
@@ -839,6 +861,7 @@ export default function NfsePageContent() {
       page: 1,
     }));
   };
+
 
   const handlePerPageChange = (value: number) => {
     handleFiltersChange((previous) => ({
@@ -1045,19 +1068,31 @@ export default function NfsePageContent() {
     }
 
     if (actionState.type === "sign") {
-      await assinarMutation.mutateAsync({
-        dpsId: actionState.dps.id,
-        tag: DEFAULT_SIGNATURE_TAG,
-      });
+      try {
+        await assinarMutation.mutateAsync({
+          dpsId: actionState.dps.id,
+          tag: DEFAULT_SIGNATURE_TAG,
+        });
+      } catch {
+        // handled pela mutation via toast
+      }
       return;
     }
 
-    const ambienteNumber = selectedAmbiente ? Number(selectedAmbiente) : undefined;
+    const ambienteNumber = actionState.dps.ambiente === "PRODUCAO"
+      ? 1
+      : actionState.dps.ambiente === "HOMOLOGACAO"
+        ? 2
+        : configuracoesQuery.data?.tpAmb ?? (configuracoesQuery.data?.ambientePadrao === "PRODUCAO" ? 1 : 2);
 
-    await emitirMutation.mutateAsync({
-      dpsId: actionState.dps.id,
-      ambiente: ambienteNumber,
-    });
+    try {
+      await emitirMutation.mutateAsync({
+        dpsId: actionState.dps.id,
+        ambiente: ambienteNumber,
+      });
+    } catch {
+      // handled pela mutation via toast
+    }
   };
 
   return (
@@ -1366,7 +1401,7 @@ export default function NfsePageContent() {
               {isDpsTab
                 ? selectedServicos.map((item) => (
                     <Badge key={`servico-tag-${item.id}`} variant="outline" className="flex items-center gap-2">
-                      <Receipt className="h-3.5 w-3.5" /> {item.label}
+                      <ScrollText className="h-3.5 w-3.5" /> {item.label}
                       <button onClick={() => handleArrayFilterChange("servicoIds", item.id, false)} aria-label="Remover serviço">
                         ×
                       </button>
@@ -1400,7 +1435,6 @@ export default function NfsePageContent() {
                     <TableHead>DPS</TableHead>
                     <TableHead>Prestador</TableHead>
                     <TableHead>Tomador</TableHead>
-                    <TableHead>Serviço</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -1408,13 +1442,13 @@ export default function NfsePageContent() {
                 <TableBody>
                   {dpsQuery.isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                         Carregando declarações...
                       </TableCell>
                     </TableRow>
                   ) : dpsData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                         Nenhuma DPS encontrada para os filtros selecionados.
                       </TableCell>
                     </TableRow>
@@ -1442,13 +1476,6 @@ export default function NfsePageContent() {
                             {dps.tomador.nomeRazaoSocial}
                           </div>
                           <div className="text-xs text-muted-foreground">Documento {dps.tomador.documento}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Receipt className="h-4 w-4 text-muted-foreground" />
-                            {dps.servico.descricao}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Valor {formatCurrency(dps.servico.valorUnitario)}</div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_BADGE_VARIANT[dps.status]}>{STATUS_LABELS[dps.status]}</Badge>
@@ -1611,7 +1638,7 @@ export default function NfsePageContent() {
                                 })
                               }
                             >
-                              <Receipt className="mr-2 h-4 w-4" /> DANFSE
+                              <ScrollText className="mr-2 h-4 w-4" /> DANFSE
                             </Button>
                             <Button
                               type="button"
@@ -1701,30 +1728,24 @@ export default function NfsePageContent() {
 
           {actionState ? (
             <div className="space-y-4">
-              <div className="rounded border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">DPS nº {actionState.dps.numero}</p>
-                <p className="text-muted-foreground">
-                  Prestador: {actionState.dps.prestador.nomeFantasia} · Tomador: {actionState.dps.tomador.nomeRazaoSocial}
-                </p>
+              <div className="space-y-2 rounded border bg-muted/30 p-3 text-sm">
+                <div>
+                  <p className="font-medium">DPS nº {actionState.dps.numero}</p>
+                  <p className="text-xs text-muted-foreground">Atualizada em {formatDate(actionState.dps.updatedAt)}</p>
+                </div>
+                <div className="space-y-1 text-muted-foreground">
+                  <p>
+                    <span className="font-medium text-foreground">Prestador:</span> {actionState.dps.prestador.nomeFantasia}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Tomador:</span> {actionState.dps.tomador.nomeRazaoSocial}
+                  </p>
+                </div>
               </div>
 
               {actionState.type === "sign" ? null : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="ambiente">
-                    Ambiente de emissão
-                  </label>
-                  <Select value={selectedAmbiente} onValueChange={setSelectedAmbiente}>
-                    <SelectTrigger id="ambiente">
-                      <SelectValue placeholder="Selecione o ambiente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AMBIENTE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Ambiente:</span> {resolveAmbienteLabel(actionState.dps.ambiente ?? configuracoesQuery.data?.ambientePadrao ?? "HOMOLOGACAO")}
                 </div>
               )}
               <p className="text-xs text-muted-foreground">

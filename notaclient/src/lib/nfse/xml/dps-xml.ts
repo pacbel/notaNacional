@@ -15,6 +15,9 @@ function compactXml(xml: string): string {
 export interface PartyBase {
   cnpj: string;
   codigoMunicipio: string;
+  inscricaoMunicipal?: string | null;
+  telefone?: string | null;
+  email?: string | null;
 }
 
 export interface TomadorBase {
@@ -111,6 +114,9 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     `    <cLocEmi>${escapeXml(input.prestador.codigoMunicipio)}</cLocEmi>`,
     "    <prest>",
     `      <CNPJ>${escapeXml(input.prestador.cnpj)}</CNPJ>`,
+    input.prestador.inscricaoMunicipal ? `      <IM>${escapeXml(input.prestador.inscricaoMunicipal)}</IM>` : null,
+    input.prestador.telefone ? `      <fone>${escapeXml(input.prestador.telefone)}</fone>` : null,
+    input.prestador.email ? `      <email>${escapeXml(input.prestador.email)}</email>` : null,
     "      <regTrib>",
     `        <opSimpNac>${escapeXml(opSimpNac)}</opSimpNac>`,
     `        <regEspTrib>${escapeXml(regEspTrib)}</regEspTrib>`,
@@ -294,6 +300,10 @@ function formatPercentage(value: Prisma.Decimal | number | null | undefined): st
   }
 
   const numeric = value instanceof Prisma.Decimal ? value.toNumber() : value;
+
+  if (numeric === 0) {
+    return null;
+  }
 
   return numeric.toFixed(2);
 }

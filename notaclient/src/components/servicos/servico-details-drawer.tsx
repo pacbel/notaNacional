@@ -11,10 +11,9 @@ import { ptBR } from "date-fns/locale";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
@@ -173,15 +172,16 @@ export function ServicoDetailsDrawer({
       }}
     >
       <SheetContent widthClass="w-full max-w-4xl border-l" className="flex flex-col gap-6 overflow-y-auto p-6">
-        <div className="space-y-3">
+        <SheetHeader className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Editar dados</h2>
+            <SheetTitle className="text-lg font-semibold">Editar dados</SheetTitle>
             {!isEditing && (
               <Button variant="ghost" onClick={() => setIsEditing(true)} disabled={isMutating}>
                 Editar
               </Button>
             )}
           </div>
+        </SheetHeader>
 
           {isEditing ? (
             <Form {...form}>

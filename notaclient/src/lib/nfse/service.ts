@@ -50,6 +50,9 @@ interface PrestadorApi {
   codigoMunicipio: string;
   cidade: string;
   estado: string;
+  inscricaoMunicipal?: string;
+  telefone?: string;
+  email?: string;
 }
 
 interface TomadorApi {
@@ -181,6 +184,116 @@ function minifyXml(value: string): string {
   return value.replace(/>\s+</g, "><").replace(/\r?\n/g, "");
 }
 
+function resolveSefinErrorFromRecord(record: Record<string, unknown>): string | null {
+  const erros = record.erros;
+
+  if (Array.isArray(erros)) {
+    for (const item of erros) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+
+      const entry = item as Record<string, unknown>;
+      const rawDescricao = entry.Descricao ?? entry.descricao;
+
+      if (typeof rawDescricao === "string" && rawDescricao.trim()) {
+        return rawDescricao.trim();
+      }
+    }
+  }
+
+  const descricaoDireta = record.Descricao ?? record.descricao;
+
+  if (typeof descricaoDireta === "string" && descricaoDireta.trim()) {
+    return descricaoDireta.trim();
+  }
+
+  return null;
+}
+
+function resolveErrorMessageFromUnknown(value: unknown, depth = 0): string | null {
+  if (depth > 5) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const nested = resolveErrorMessageFromUnknown(parsed, depth + 1);
+
+        if (nested) {
+          return nested;
+        }
+      } catch {
+        // ignore parse error and use trimmed string
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = resolveErrorMessageFromUnknown(item, depth + 1);
+
+      if (nested) {
+        return nested;
+      }
+    }
+
+    return null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  const sefinMessage = resolveSefinErrorFromRecord(record);
+
+  if (sefinMessage) {
+    return sefinMessage;
+  }
+
+  const direct = resolveErrorMessageFromUnknown(record.message, depth + 1)
+    ?? resolveErrorMessageFromUnknown((record as { mensagem?: unknown }).mensagem, depth + 1)
+    ?? resolveErrorMessageFromUnknown((record as { Message?: unknown }).Message, depth + 1);
+
+  if (direct) {
+    return direct;
+  }
+
+  const detailKeys = ["details", "detalhes", "rawResponseContent", "raw_response", "error", "erro"];
+
+  for (const key of detailKeys) {
+    if (key in record) {
+      const nested = resolveErrorMessageFromUnknown(record[key], depth + 1);
+
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+
+  if (depth === 0) {
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function parseNotaApiError(error: unknown): { message: string; statusCode?: number; details?: unknown } {
   if (typeof error === "object" && error !== null && "isAxiosError" in error) {
     const axiosError = error as AxiosError;
@@ -188,10 +301,12 @@ function parseNotaApiError(error: unknown): { message: string; statusCode?: numb
     const data = axiosError.response?.data;
     let message = axiosError.message;
 
-    if (typeof data === "string" && data.trim()) {
-      message = data;
-    } else if (data && typeof data === "object" && "message" in data && typeof (data as { message: unknown }).message === "string") {
-      message = (data as { message: string }).message;
+    if (data !== undefined) {
+      const resolved = resolveErrorMessageFromUnknown(data);
+
+      if (resolved) {
+        message = resolved;
+      }
     }
 
     return {
@@ -239,6 +354,40 @@ function mapAmbienteToApi(ambiente: Ambiente | null | undefined, override?: Null
   return ambiente === AmbienteEnum.PRODUCAO ? 1 : 2;
 }
 
+function sanitizeCodigoMunicipio(value?: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  return digits.padStart(7, "0");
+}
+
+function sanitizeOptionalString(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function sanitizeTelefone(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  return digits.length > 0 ? digits : null;
+}
+
 
 export const createDpsSchema = dpsCreateSchema;
 
@@ -270,14 +419,19 @@ export async function createDps(payload: CreateDpsInput) {
     throw new AppError("Prestador não encontrado ou inativo", 404);
   }
 
+  const codigoMunicipioPrestador = sanitizeCodigoMunicipio(prestadorDto.codigoMunicipio ?? prestadorDto.codigoMunicipioIbge ?? "");
+
   const prestador: PrestadorApi = {
     id: prestadorDto.id,
     cnpj: prestadorDto.cnpj ?? "",
     nomeFantasia: prestadorDto.nomeFantasia ?? "",
     razaoSocial: prestadorDto.razaoSocial ?? "",
-    codigoMunicipio: prestadorDto.codigoMunicipio ?? prestadorDto.codigoMunicipioIbge ?? "",
+    codigoMunicipio: codigoMunicipioPrestador,
     cidade: prestadorDto.cidade ?? "",
     estado: prestadorDto.estado ?? "",
+    inscricaoMunicipal: sanitizeOptionalString(prestadorDto.inscricaoMunicipal ?? null) ?? undefined,
+    telefone: sanitizeTelefone(prestadorDto.telefone ?? null) ?? undefined,
+    email: sanitizeOptionalString(prestadorDto.email ?? null) ?? undefined,
   };
 
   if (!tomador) {
@@ -321,8 +475,8 @@ export async function createDps(payload: CreateDpsInput) {
     competencia: competencia.toISOString(),
     dataEmissao: emissao.toISOString(),
     configuracao: {
-      xLocEmi: configuracao.xLocEmi,
-      xLocPrestacao: configuracao.xLocPrestacao,
+      xLocEmi: prestador.codigoMunicipio,
+      xLocPrestacao: prestador.codigoMunicipio,
       verAplic: configuracao.versaoAplicacao,
       tpAmb: configuracao.tpAmb,
       ambGer: configuracao.ambGer,
@@ -405,7 +559,11 @@ export async function createDps(payload: CreateDpsInput) {
         codigoNbs: created.servico.codigoNbs,
         aliquotaIss: created.servico.aliquotaIss?.toNumber() ?? null,
       }),
-      configuracao: mapConfiguracaoToXmlInput(configuracao),
+      configuracao: mapConfiguracaoToXmlInput({
+        ...configuracao,
+        xLocPrestacao: prestador.codigoMunicipio,
+        xLocEmi: prestador.codigoMunicipio,
+      }),
       observacoes: data.observacoes,
     });
 
@@ -490,6 +648,9 @@ function mapPrestadorToXmlInput(prestador: PrestadorApi): PartyBase {
   return {
     cnpj: prestador.cnpj,
     codigoMunicipio: prestador.codigoMunicipio,
+    inscricaoMunicipal: prestador.inscricaoMunicipal ?? null,
+    telefone: prestador.telefone ?? null,
+    email: prestador.email ?? null,
   };
 }
 
