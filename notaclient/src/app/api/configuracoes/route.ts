@@ -14,7 +14,6 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
     ambientePadrao: configuracao.ambientePadrao,
     seriePadrao: configuracao.seriePadrao,
     numeroInicialDps,
-    verAplic: configuracao.verAplic,
     emailRemetente: configuracao.emailRemetente,
     robotClientId: configuracao.robotClientId,
     robotClientSecret: configuracao.robotClientSecret,
@@ -24,7 +23,6 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
     ativo: configuracao.ativo,
     xLocEmi: configuracao.xLocEmi,
     xLocPrestacao: configuracao.xLocPrestacao,
-    nNFSe: configuracao.nNFSe,
     xTribNac: configuracao.xTribNac,
     xNBS: configuracao.xNBS,
     tpAmb: configuracao.tpAmb,
@@ -35,7 +33,6 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
     procEmi: configuracao.procEmi,
     cStat: configuracao.cStat,
     dhProc: configuracao.dhProc?.toISOString() ?? null,
-    nDFSe: configuracao.nDFSe ?? "",
     tribMun: {
       tribISSQN: configuracao.tribISSQN,
       tpImunidade: configuracao.tpImunidade,
@@ -46,6 +43,8 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
       pTotTribEst: configuracao.pTotTribEst,
       pTotTribMun: configuracao.pTotTribMun,
     },
+    aliquotaIss: configuracao.aliquotaIss?.toNumber() ?? null,
+    issRetido: configuracao.issRetido,
   };
 }
 
@@ -82,10 +81,8 @@ export async function GET() {
           prestadorId: currentUser.prestadorId,
           nomeSistema: "NotaClient",
           versaoAplicacao: "1.0.0",
-          verAplic: "1.0.0",
           xLocEmi: "1",
           xLocPrestacao: "1",
-          nNFSe: "1",
           xTribNac: "01.07.00",
           xNBS: "1.0101.10.00",
           tpAmb: 2,
@@ -144,7 +141,6 @@ export async function PUT(request: Request) {
       ambientePadrao: data.ambientePadrao as Ambiente,
       seriePadrao: data.seriePadrao,
       numeroInicialDps: data.numeroInicialDps,
-      verAplic: data.verAplic,
       emailRemetente: data.emailRemetente,
       robotClientId: data.robotClientId,
       robotClientSecret: data.robotClientSecret,
@@ -154,7 +150,6 @@ export async function PUT(request: Request) {
       ativo: data.ativo,
       xLocEmi: data.xLocEmi,
       xLocPrestacao: data.xLocPrestacao,
-      nNFSe: data.nNFSe,
       xTribNac: data.xTribNac,
       xNBS: data.xNBS,
       tpAmb: data.tpAmb,
@@ -165,13 +160,14 @@ export async function PUT(request: Request) {
       procEmi: data.procEmi,
       cStat: data.cStat,
       dhProc: data.dhProc ? new Date(data.dhProc) : null,
-      nDFSe: data.nDFSe,
       tribISSQN: data.tribMun.tribISSQN,
       tpImunidade: data.tribMun.tpImunidade,
       tpRetISSQN: data.tribMun.tpRetISSQN,
       pTotTribFed: data.totTrib.pTotTribFed ?? undefined,
       pTotTribEst: data.totTrib.pTotTribEst ?? undefined,
       pTotTribMun: data.totTrib.pTotTribMun ?? undefined,
+      aliquotaIss: data.aliquotaIss ?? undefined,
+      issRetido: data.issRetido,
     };
 
     // Buscar ou criar configuração do prestador

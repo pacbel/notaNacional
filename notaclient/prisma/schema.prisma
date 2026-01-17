@@ -1,16 +1,213 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
+}
+
+model ConfiguracaoDps {
+  id                              String    @id @default(uuid()) @db.Char(36)
+  nomeSistema                     String
+  versaoAplicacao                 String    @db.VarChar(50)
+  ambientePadrao                  Ambiente  @default(HOMOLOGACAO)
+  seriePadrao                     Int       @default(1)
+  emailRemetente                  String?
+  robotClientId                   String?
+  robotClientSecret               String?
+  robotTokenCacheMinutos          Int       @default(50)
+  mfaCodigoExpiracaoMinutos       Int       @default(10)
+  enviarNotificacaoEmailPrestador Boolean   @default(true)
+  ativo                           Boolean   @default(true)
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  ambGer                          Int       @default(2)
+  cStat                           Int       @default(100)
+  dhProc                          DateTime?
+  pTotTribEst                     Decimal   @default(0.00) @db.Decimal(10, 2)
+  pTotTribFed                     Decimal   @default(0.00) @db.Decimal(10, 2)
+  pTotTribMun                     Decimal   @default(0.00) @db.Decimal(10, 2)
+  procEmi                         Int       @default(1)
+  tpEmis                          Int       @default(1)
+  tpImunidade                     Int       @default(0)
+  tpRetISSQN                      Int       @default(1)
+  tribISSQN                       Int       @default(1)
+  xLocEmi                         String
+  xLocPrestacao                   String
+  xNBS                            String
+  xTribNac                        String
+  numeroInicialDps                Int       @default(1)
+  prestadorId                     String    @unique @db.Char(36)
+  opSimpNac                       Int       @default(1)
+  regEspTrib                      Int       @default(0)
+  tpAmb                           Int       @default(2)
+  aliquotaIss                     Decimal?  @db.Decimal(5, 2)
+  issRetido                       Boolean   @default(false)
+
+  @@index([prestadorId])
+}
+
+model Tomador {
+  id                 String        @id @default(uuid()) @db.Char(36)
+  tipoDocumento      TipoDocumento
+  documento          String        @db.VarChar(14)
+  nomeRazaoSocial    String
+  email              String
+  telefone           String?       @db.VarChar(20)
+  inscricaoMunicipal String?       @db.VarChar(30)
+  codigoMunicipio    String        @db.VarChar(7)
+  cidade             String
+  estado             String        @db.VarChar(2)
+  cep                String        @db.VarChar(8)
+  logradouro         String
+  numero             String        @db.VarChar(20)
+  complemento        String?       @db.VarChar(60)
+  bairro             String        @db.VarChar(120)
+  ativo              Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  prestadorId        String        @db.Char(36)
+  dps                Dps[]
+  notas              NotaFiscal[]
+
+  @@unique([prestadorId, documento])
+  @@index([prestadorId])
+  @@index([documento])
+  @@index([ativo])
+}
+
+model Servico {
+  id                        String   @id @default(uuid()) @db.Char(36)
+  descricao                 String
+  codigoTributacaoMunicipal String   @db.VarChar(20)
+  codigoTributacaoNacional  String   @db.VarChar(20)
+  codigoNbs                 String?  @db.VarChar(20)
+  valorUnitario             Decimal  @db.Decimal(12, 2)
+  aliquotaIss               Decimal? @db.Decimal(5, 2)
+  issRetido                 Boolean  @default(false)
+  ativo                     Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  prestadorId               String   @db.Char(36)
+  dps                       Dps[]
+
+  @@index([prestadorId])
+  @@index([ativo])
+}
+
+model Dps {
+  id                 String      @id @default(uuid()) @db.Char(36)
+  numero             Int
+  serie              Int
+  competencia        DateTime
+  dataEmissao        DateTime
+  ambiente           Ambiente    @default(HOMOLOGACAO)
+  status             DpsStatus   @default(RASCUNHO)
+  prestadorId        String      @db.Char(36)
+  tomadorId          String      @db.Char(36)
+  servicoId          String      @db.Char(36)
+  xmlGerado          String?     @db.LongText
+  observacoes        String?     @db.LongText
+  ativo              Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  codigoLocalEmissao String      @db.VarChar(7)
+  dataEnvio          DateTime?
+  dataRetorno        DateTime?
+  digestValue        String?     @db.VarChar(255)
+  identificador      String      @db.VarChar(60)
+  jsonEntrada        String?     @db.LongText
+  mensagemErro       String?     @db.LongText
+  protocolo          String?     @db.VarChar(120)
+  tipoEmissao        Int
+  versao             String      @db.VarChar(10)
+  versaoAplicacao    String      @db.VarChar(60)
+  xmlAssinado        String?     @db.LongText
+  servico            Servico     @relation(fields: [servicoId], references: [id])
+  tomador            Tomador     @relation(fields: [tomadorId], references: [id])
+  notaFiscal         NotaFiscal?
+
+  @@unique([prestadorId, identificador])
+  @@unique([prestadorId, numero, serie])
+  @@index([numero, serie])
+  @@index([prestadorId])
+  @@index([tomadorId])
+  @@index([ativo])
+  @@index([servicoId], map: "Dps_servicoId_fkey")
+}
+
+model NotaFiscal {
+  id                     String          @id @default(uuid()) @db.Char(36)
+  dpsId                  String          @unique @db.Char(36)
+  prestadorId            String          @db.Char(36)
+  tomadorId              String          @db.Char(36)
+  ambiente               Ambiente        @default(HOMOLOGACAO)
+  chaveAcesso            String          @db.VarChar(60)
+  numero                 String          @db.VarChar(30)
+  codigoVerificacao      String?         @db.VarChar(60)
+  urlNfse                String?         @db.VarChar(255)
+  statusCode             Int?
+  rawResponseContentType String?         @db.VarChar(120)
+  rawResponseContent     String?         @db.LongText
+  ativo                  Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  documentos             NotaDocumento[]
+  dps                    Dps             @relation(fields: [dpsId], references: [id])
+  tomador                Tomador         @relation(fields: [tomadorId], references: [id])
+
+  @@index([chaveAcesso])
+  @@index([ambiente])
+  @@index([ativo])
+  @@index([prestadorId], map: "NotaFiscal_prestadorId_fkey")
+  @@index([tomadorId], map: "NotaFiscal_tomadorId_fkey")
+}
+
+model NotaDocumento {
+  id           String            @id @default(uuid()) @db.Char(36)
+  notaFiscalId String            @db.Char(36)
+  tipo         NotaDocumentoTipo
+  conteudo     String            @db.LongText
+  contentType  String?           @db.VarChar(120)
+  nomeArquivo  String?
+  ativo        Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  notaFiscal   NotaFiscal        @relation(fields: [notaFiscalId], references: [id])
+
+  @@index([notaFiscalId])
+}
+
+model TokenIntegracao {
+  id        String              @id @default(uuid()) @db.Char(36)
+  tipo      TokenIntegracaoTipo
+  token     String              @db.Text
+  expiresAt DateTime
+  ativo     Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([tipo])
+  @@index([expiresAt])
+}
+
+model LogSistema {
+  id        String   @id @default(uuid()) @db.Char(36)
+  usuarioId String?  @db.Char(36)
+  nivel     LogNivel @default(INFO)
+  origem    String   @db.VarChar(120)
+  acao      String   @db.VarChar(120)
+  mensagem  String   @db.VarChar(255)
+  detalhes  Json?
+  ip        String?  @db.VarChar(45)
+  userAgent String?  @db.VarChar(255)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nivel])
+  @@index([createdAt])
 }
 
 enum Ambiente {
@@ -46,209 +243,4 @@ enum TokenIntegracaoTipo {
 enum TipoDocumento {
   CPF
   CNPJ
-}
-
-model ConfiguracaoDps {
-  id                              String   @id @default(uuid()) @db.Char(36)
-  prestadorId                     String   @unique @db.Char(36)
-  nomeSistema                     String   @db.VarChar(191)
-  versaoAplicacao                 String   @db.VarChar(50)
-  ambientePadrao                  Ambiente @default(HOMOLOGACAO)
-  seriePadrao                     Int      @default(1)
-  numeroInicialDps                Int      @default(1)
-  verAplic                        String   @db.VarChar(60)
-  emailRemetente                  String?  @db.VarChar(191)
-  robotClientId                   String?  @db.VarChar(191)
-  robotClientSecret               String?  @db.VarChar(191)
-  robotTokenCacheMinutos          Int      @default(50)
-  mfaCodigoExpiracaoMinutos       Int      @default(10)
-  enviarNotificacaoEmailPrestador Boolean  @default(true)
-  ativo                           Boolean  @default(true)
-  xLocEmi                         String   @db.VarChar(191)
-  xLocPrestacao                   String   @db.VarChar(191)
-  nNFSe                           String   @db.VarChar(30)
-  xTribNac                        String   @db.VarChar(191)
-  xNBS                            String   @db.VarChar(191)
-  ambGer                          Int      @default(2)
-  tpEmis                          Int      @default(1)
-  tpAmb                           Int      @default(2)
-  opSimpNac                       Int      @default(1)
-  regEspTrib                      Int      @default(0)
-  procEmi                         Int      @default(1)
-  cStat                           Int      @default(100)
-  dhProc                          DateTime?
-  nDFSe                           String?  @db.VarChar(30)
-  tribISSQN                       Int      @default(1)
-  tpImunidade                     Int      @default(0)
-  tpRetISSQN                      Int      @default(1)
-  pTotTribFed                     Decimal  @default(0) @db.Decimal(10, 2)
-  pTotTribEst                     Decimal  @default(0) @db.Decimal(10, 2)
-  pTotTribMun                     Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
-
-  @@index([prestadorId])
-}
-
-
-model Tomador {
-  id                 String        @id @default(uuid()) @db.Char(36)
-  prestadorId        String        @db.Char(36)
-  tipoDocumento      TipoDocumento
-  documento          String        @db.VarChar(14)
-  nomeRazaoSocial    String        @db.VarChar(191)
-  email              String        @db.VarChar(191)
-  telefone           String?       @db.VarChar(20)
-  inscricaoMunicipal String?       @db.VarChar(30)
-  codigoMunicipio    String        @db.VarChar(7)
-  cidade             String        @db.VarChar(191)
-  estado             String        @db.VarChar(2)
-  cep                String        @db.VarChar(8)
-  logradouro         String        @db.VarChar(191)
-  numero             String        @db.VarChar(20)
-  complemento        String?       @db.VarChar(60)
-  bairro             String        @db.VarChar(120)
-  ativo              Boolean       @default(true)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  dps                Dps[]
-  notas              NotaFiscal[]
-
-  @@unique([prestadorId, documento])
-  @@index([prestadorId])
-  @@index([documento])
-  @@index([ativo])
-}
-
-model Servico {
-  id                        String    @id @default(uuid()) @db.Char(36)
-  prestadorId               String    @db.Char(36)
-  descricao                 String    @db.VarChar(191)
-  codigoTributacaoMunicipal String    @db.VarChar(20)
-  codigoTributacaoNacional  String    @db.VarChar(20)
-  codigoNbs                 String?   @db.VarChar(20)
-  codigoMunicipioPrestacao  String    @db.VarChar(7)
-  municipioPrestacao        String    @db.VarChar(191)
-  informacoesComplementares String?   @db.LongText
-  valorUnitario             Decimal   @db.Decimal(12, 2)
-  aliquotaIss               Decimal?  @db.Decimal(5, 2)
-  issRetido                 Boolean   @default(false)
-  ativo                     Boolean   @default(true)
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  dps                       Dps[]
-
-  @@index([prestadorId])
-  @@index([ativo])
-}
-
-model Dps {
-  id            String      @id @default(uuid()) @db.Char(36)
-  identificador String      @db.VarChar(60)
-  numero        Int
-  serie         Int
-  versao        String      @db.VarChar(10)
-  versaoAplicacao String      @db.VarChar(60)
-  tipoEmissao   Int
-  codigoLocalEmissao String  @db.VarChar(7)
-  competencia   DateTime
-  dataEmissao   DateTime
-  ambiente      Ambiente    @default(HOMOLOGACAO)
-  status        DpsStatus   @default(RASCUNHO)
-  prestadorId   String      @db.Char(36)
-  tomadorId     String      @db.Char(36)
-  tomador       Tomador     @relation(fields: [tomadorId], references: [id])
-  servicoId     String      @db.Char(36)
-  servico       Servico     @relation(fields: [servicoId], references: [id])
-  xmlGerado     String?     @db.LongText
-  xmlAssinado   String?     @db.LongText
-  jsonEntrada   String?     @db.LongText
-  digestValue   String?     @db.VarChar(255)
-  protocolo     String?     @db.VarChar(120)
-  mensagemErro  String?     @db.LongText
-  dataEnvio     DateTime?
-  dataRetorno   DateTime?
-  observacoes   String?     @db.LongText
-  ativo         Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  notaFiscal    NotaFiscal?
-
-  @@unique([prestadorId, identificador])
-  @@unique([prestadorId, numero, serie])
-  @@index([numero, serie])
-  @@index([prestadorId])
-  @@index([tomadorId])
-  @@index([ativo])
-}
-
-model NotaFiscal {
-  id                     String          @id @default(uuid()) @db.Char(36)
-  dpsId                  String          @unique @db.Char(36)
-  dps                    Dps             @relation(fields: [dpsId], references: [id])
-  prestadorId            String          @db.Char(36)
-  tomadorId              String          @db.Char(36)
-  tomador                Tomador         @relation(fields: [tomadorId], references: [id])
-  ambiente               Ambiente        @default(HOMOLOGACAO)
-  chaveAcesso            String          @db.VarChar(60)
-  numero                 String          @db.VarChar(30)
-  codigoVerificacao      String?         @db.VarChar(60)
-  urlNfse                String?         @db.VarChar(255)
-  statusCode             Int?
-  rawResponseContentType String?         @db.VarChar(120)
-  rawResponseContent     String?         @db.LongText
-  ativo                  Boolean         @default(true)
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
-  documentos             NotaDocumento[]
-
-  @@index([chaveAcesso])
-  @@index([ambiente])
-  @@index([ativo])
-}
-
-model NotaDocumento {
-  id           String            @id @default(uuid()) @db.Char(36)
-  notaFiscalId String            @db.Char(36)
-  notaFiscal   NotaFiscal        @relation(fields: [notaFiscalId], references: [id])
-  tipo         NotaDocumentoTipo
-  conteudo     String            @db.LongText
-  contentType  String?           @db.VarChar(120)
-  nomeArquivo  String?           @db.VarChar(191)
-  ativo        Boolean           @default(true)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-
-  @@index([notaFiscalId])
-}
-
-model TokenIntegracao {
-  id        String              @id @default(uuid()) @db.Char(36)
-  tipo      TokenIntegracaoTipo
-  token     String              @db.Text
-  expiresAt DateTime
-  ativo     Boolean             @default(true)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-
-  @@index([tipo])
-  @@index([expiresAt])
-}
-
-model LogSistema {
-  id        String   @id @default(uuid()) @db.Char(36)
-  usuarioId String?  @db.Char(36)
-  nivel     LogNivel @default(INFO)
-  origem    String   @db.VarChar(120)
-  acao      String   @db.VarChar(120)
-  mensagem  String   @db.VarChar(255)
-  detalhes  Json?
-  ip        String?  @db.VarChar(45)
-  userAgent String?  @db.VarChar(255)
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([nivel])
-  @@index([createdAt])
 }

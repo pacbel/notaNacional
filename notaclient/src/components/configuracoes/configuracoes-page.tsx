@@ -103,7 +103,6 @@ export default function ConfiguracoesPage() {
     ambientePadrao: "HOMOLOGACAO",
     seriePadrao: 1,
     numeroInicialDps: 1,
-    verAplic: "",
     emailRemetente: null,
     robotClientId: null,
     robotClientSecret: null,
@@ -113,7 +112,6 @@ export default function ConfiguracoesPage() {
     ativo: true,
     xLocEmi: "",
     xLocPrestacao: "",
-    nNFSe: "",
     xTribNac: "",
     xNBS: "",
     tpAmb: 2,
@@ -124,7 +122,6 @@ export default function ConfiguracoesPage() {
     procEmi: 1,
     cStat: 100,
     dhProc: null,
-    nDFSe: "",
     tribMun: {
       tribISSQN: 2,
       tpImunidade: 3,
@@ -135,6 +132,8 @@ export default function ConfiguracoesPage() {
       pTotTribEst: 0,
       pTotTribMun: 0,
     },
+    aliquotaIss: null,
+    issRetido: false,
   };
 
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
@@ -249,20 +248,6 @@ export default function ConfiguracoesPage() {
 
               <FormField
                 control={form.control}
-                name="verAplic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>verAplic</FormLabel>
-                    <FormControl>
-                      <Input placeholder="SefinNac_Pre_1.4.0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="ambientePadrao"
                 render={({ field }) => (
                   <FormItem>
@@ -324,34 +309,6 @@ export default function ConfiguracoesPage() {
                         name={field.name}
                         ref={field.ref}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="nNFSe"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número NFSe</FormLabel>
-                    <FormControl>
-                      <Input placeholder="40" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="nDFSe"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número DFSe</FormLabel>
-                    <FormControl>
-                      <Input placeholder="778552" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

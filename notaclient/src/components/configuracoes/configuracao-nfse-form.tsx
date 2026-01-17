@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -145,7 +146,6 @@ export default function ConfiguracaoNfseForm() {
     ambientePadrao: "HOMOLOGACAO",
     seriePadrao: 1,
     numeroInicialDps: 1,
-    verAplic: "",
     emailRemetente: null,
     robotClientId: null,
     robotClientSecret: null,
@@ -155,7 +155,6 @@ export default function ConfiguracaoNfseForm() {
     ativo: true,
     xLocEmi: "",
     xLocPrestacao: "",
-    nNFSe: "",
     xTribNac: "",
     xNBS: "",
     tpAmb: 2,
@@ -166,7 +165,6 @@ export default function ConfiguracaoNfseForm() {
     procEmi: 1,
     cStat: 100,
     dhProc: null,
-    nDFSe: "",
     tribMun: {
       tribISSQN: 1,
       tpRetISSQN: 1,
@@ -177,6 +175,8 @@ export default function ConfiguracaoNfseForm() {
       pTotTribEst: 0,
       pTotTribMun: 0,
     },
+    aliquotaIss: null,
+    issRetido: false,
   };
 
   const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => ({
@@ -184,7 +184,6 @@ export default function ConfiguracaoNfseForm() {
     ...data,
     numeroInicialDps: data.numeroInicialDps ?? defaultFormValues.numeroInicialDps,
     seriePadrao: data.seriePadrao ?? defaultFormValues.seriePadrao,
-    verAplic: data.verAplic ?? defaultFormValues.verAplic,
     tpAmb: data.tpAmb ?? defaultFormValues.tpAmb,
     opSimpNac: data.opSimpNac ?? defaultFormValues.opSimpNac,
     regEspTrib: data.regEspTrib ?? defaultFormValues.regEspTrib,
@@ -192,8 +191,6 @@ export default function ConfiguracaoNfseForm() {
     tpEmis: data.tpEmis ?? defaultFormValues.tpEmis,
     procEmi: data.procEmi ?? defaultFormValues.procEmi,
     cStat: data.cStat ?? defaultFormValues.cStat,
-    nNFSe: data.nNFSe?.trim().length ? data.nNFSe : "1",
-    nDFSe: data.nDFSe?.trim().length ? data.nDFSe : "1",
     tribMun: {
       tribISSQN: data.tribMun?.tribISSQN ?? defaultFormValues.tribMun.tribISSQN,
       tpRetISSQN: data.tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
@@ -204,6 +201,8 @@ export default function ConfiguracaoNfseForm() {
       pTotTribEst: toNumberOrNull(data.totTrib?.pTotTribEst) ?? defaultFormValues.totTrib.pTotTribEst,
       pTotTribMun: toNumberOrNull(data.totTrib?.pTotTribMun) ?? defaultFormValues.totTrib.pTotTribMun,
     },
+    aliquotaIss: data.aliquotaIss ?? null,
+    issRetido: data.issRetido ?? false,
   });
 
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
@@ -266,7 +265,6 @@ export default function ConfiguracaoNfseForm() {
       ...values,
       numeroInicialDps: values.numeroInicialDps,
       seriePadrao: values.seriePadrao,
-      verAplic: values.verAplic && values.verAplic.trim().length > 0 ? values.verAplic : base.verAplic,
       xTribNac: values.xTribNac,
       xNBS: values.xNBS,
       tpAmb: values.tpAmb,
@@ -278,8 +276,6 @@ export default function ConfiguracaoNfseForm() {
         tpRetISSQN: values.tribMun.tpRetISSQN,
         tpImunidade: values.tribMun.tpImunidade,
       },
-      nDFSe: values.nDFSe && values.nDFSe.trim().length > 0 ? values.nDFSe : base.nDFSe ?? "1",
-      nNFSe: values.nNFSe && values.nNFSe.trim().length > 0 ? values.nNFSe : base.nNFSe ?? "1",
     };
 
     try {
@@ -307,15 +303,16 @@ export default function ConfiguracaoNfseForm() {
         <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
           <Card>
             <CardHeader>
-              <CardTitle>Ambiente e dados gerais</CardTitle>
+              <CardTitle>Configurações de Emissão NFSe</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              {/* Ambiente e Série */}
               <FormField
                 control={form.control}
                 name="tpAmb"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ambiente (tpAmb)</FormLabel>
+                    <FormLabel>Ambiente</FormLabel>
                     <Select
                       value={field.value?.toString()}
                       onValueChange={(value) => field.onChange(Number(value))}
@@ -333,84 +330,6 @@ export default function ConfiguracaoNfseForm() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="opSimpNac"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Simples Nacional</FormLabel>
-                    <Select
-                      value={field.value?.toString()}
-                      onValueChange={(value) => field.onChange(Number(value))}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a opção" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {simplesNacionalOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value.toString()}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="regEspTrib"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Regime Especial Tributário Municipal</FormLabel>
-                    <Select
-                      value={field.value?.toString()}
-                      onValueChange={(value) => field.onChange(Number(value))}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o regime" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {regimeEspecialOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value.toString()}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="numeroInicialDps"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Próximo Nº DPS</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={field.value ?? ""}
-                        onChange={handleIntegerChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="13"
-                      />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -440,113 +359,33 @@ export default function ConfiguracaoNfseForm() {
 
               <FormField
                 control={form.control}
-                name="nNFSe"
+                name="numeroInicialDps"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Próximo número NFSe</FormLabel>
+                    <FormLabel>Próximo Nº DPS</FormLabel>
                     <FormControl>
-                      <Input placeholder="1" {...field} />
+                      <Input
+                        type="number"
+                        value={field.value ?? ""}
+                        onChange={handleIntegerChange(field.onChange)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="13"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="nDFSe"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Próximo número DFSe</FormLabel>
-                    <FormControl>
-                      <Input placeholder="1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="verAplic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Versão da aplicação (verAplic)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="1.0.0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="xTribNac"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Código Tributação Nacional</FormLabel>
-                    <FormControl>
-                      <Input placeholder="01.07.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="xNBS"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Código NBS</FormLabel>
-                    <FormControl>
-                      <Input placeholder="1.0101.10.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ativo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Configuração ativa</FormLabel>
-                    <Select
-                      value={field.value ? "true" : "false"}
-                      onValueChange={(value) => field.onChange(value === "true")}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="true">Sim</SelectItem>
-                        <SelectItem value="false">Não</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Parâmetros Avançados (DPS / Tributação) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Parâmetros Avançados (DPS / Tributação)</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
+              {/* Tributação */}
               <FormField
                 control={form.control}
                 name="tribMun.tribISSQN"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tributação (ISSQN) *</FormLabel>
+                    <FormLabel>Tributação (ISSQN)</FormLabel>
                     <Select
                       value={field.value?.toString()}
                       onValueChange={(value) => field.onChange(Number(value))}
@@ -626,6 +465,93 @@ export default function ConfiguracaoNfseForm() {
                 )}
               />
 
+              {/* Simples Nacional e Regime Especial */}
+              <FormField
+                control={form.control}
+                name="opSimpNac"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Simples Nacional</FormLabel>
+                    <Select
+                      value={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(Number(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a opção" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {simplesNacionalOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value.toString()}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="regEspTrib"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Regime Especial Tributário Municipal</FormLabel>
+                    <Select
+                      value={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(Number(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o regime" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {regimeEspecialOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value.toString()}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Códigos de Tributação */}
+              <FormField
+                control={form.control}
+                name="xTribNac"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Código Tributação Nacional</FormLabel>
+                    <FormControl>
+                      <Input placeholder="01.07.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="xNBS"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código NBS</FormLabel>
+                    <FormControl>
+                      <Input placeholder="1.0101.10.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Valores Tributários */}
               <FormField
                 control={form.control}
                 name="totTrib.pTotTribFed"
@@ -736,6 +662,42 @@ export default function ConfiguracaoNfseForm() {
                       />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="aliquotaIss"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alíquota ISS (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={field.value !== null && field.value !== undefined ? field.value : ""}
+                        onChange={handleDecimalChange(field.onChange)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="0,00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="issRetido"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <FormLabel className="text-sm font-medium">ISS retido?</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
                   </FormItem>
                 )}
               />

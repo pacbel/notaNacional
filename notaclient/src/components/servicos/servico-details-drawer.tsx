@@ -50,9 +50,6 @@ const EMPTY_VALUES: ServicoFormValues = {
   codigoTributacaoMunicipal: "",
   codigoTributacaoNacional: "",
   codigoNbs: "",
-  codigoMunicipioPrestacao: "",
-  municipioPrestacao: "",
-  informacoesComplementares: "",
   valorUnitario: "",
   aliquotaIss: "",
   issRetido: false,
@@ -65,9 +62,6 @@ function mapServicoToForm(servico: ServicoDto): ServicoFormValues {
     codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
     codigoTributacaoNacional: servico.codigoTributacaoNacional,
     codigoNbs: servico.codigoNbs ?? "",
-    codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
-    municipioPrestacao: servico.municipioPrestacao,
-    informacoesComplementares: servico.informacoesComplementares ?? "",
     valorUnitario: String(servico.valorUnitario),
     aliquotaIss: servico.aliquotaIss !== null ? String(servico.aliquotaIss) : "",
     issRetido: servico.issRetido,
@@ -126,7 +120,7 @@ export function ServicoDetailsDrawer({
         }
       }}
     >
-      <SheetContent className="flex w-full max-w-xl flex-col gap-6 overflow-y-auto">
+      <SheetContent className="flex w-[800px] max-w-[90vw] flex-col gap-6 overflow-y-auto p-6">
         <SheetHeader>
           <SheetTitle className="text-left text-2xl font-semibold">{servico.descricao}</SheetTitle>
           <SheetDescription className="text-left text-sm text-muted-foreground">
@@ -143,27 +137,6 @@ export function ServicoDetailsDrawer({
 
         <Separator />
 
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span>
-              {servico.municipioPrestacao} ({servico.codigoMunicipioPrestacao})
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" />
-            <span>{servico.informacoesComplementares ?? "Sem informações adicionais"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Pencil className="h-4 w-4" />
-            <span>
-              Valor unitário {formatCurrency(servico.valorUnitario)} · ISS Retido {servico.issRetido ? "Sim" : "Não"}
-            </span>
-          </div>
-        </div>
-
-        <Separator />
-
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Editar dados</h2>
@@ -174,7 +147,7 @@ export function ServicoDetailsDrawer({
 
           {isEditing ? (
             <Form {...form}>
-              <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+              <form className="space-y-4 p-4 bg-muted/30 rounded-lg" onSubmit={form.handleSubmit(handleSubmit)}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -234,38 +207,6 @@ export function ServicoDetailsDrawer({
 
                   <FormField
                     control={form.control}
-                    name="codigoMunicipioPrestacao"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código do município</FormLabel>
-                        <FormControl>
-                          <Input
-                            value={field.value ?? ""}
-                            onChange={(event) => field.onChange(event.target.value.replace(/\D/g, ""))}
-                            disabled={isMutating}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="municipioPrestacao"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Município</FormLabel>
-                        <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="valorUnitario"
                     render={({ field }) => (
                       <FormItem>
@@ -301,25 +242,6 @@ export function ServicoDetailsDrawer({
                         <FormControl>
                           <Switch checked={field.value ?? false} onCheckedChange={field.onChange} disabled={isMutating} />
                         </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="informacoesComplementares"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>Informações complementares</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            value={field.value ?? ""}
-                            onChange={field.onChange}
-                            disabled={isMutating}
-                            placeholder="Observações exibidas na NFSe"
-                          />
-                        </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />

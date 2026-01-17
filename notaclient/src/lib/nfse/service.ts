@@ -74,8 +74,6 @@ interface ServicoApi {
   codigoTributacaoMunicipal: string;
   codigoTributacaoNacional: string;
   codigoNbs?: string | null;
-  codigoMunicipioPrestacao: string;
-  informacoesComplementares?: string | null;
   aliquotaIss?: number | null;
 }
 
@@ -319,15 +317,13 @@ export async function createDps(payload: CreateDpsInput) {
       codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
       codigoTributacaoNacional: servico.codigoTributacaoNacional,
       codigoNbs: servico.codigoNbs,
-      codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
-      informacoesComplementares: servico.informacoesComplementares,
     },
     competencia: competencia.toISOString(),
     dataEmissao: emissao.toISOString(),
     configuracao: {
       xLocEmi: configuracao.xLocEmi,
       xLocPrestacao: configuracao.xLocPrestacao,
-      verAplic: configuracao.verAplic,
+      verAplic: configuracao.versaoAplicacao,
       tpAmb: configuracao.tpAmb,
       ambGer: configuracao.ambGer,
       tpEmis: configuracao.tpEmis,
@@ -368,7 +364,7 @@ export async function createDps(payload: CreateDpsInput) {
         tipoEmissao: data.tipoEmissao ?? 1,
         codigoLocalEmissao: prestador.codigoMunicipio,
         versao: "1.00",
-        versaoAplicacao: configuracao.verAplic,
+        versaoAplicacao: configuracao.versaoAplicacao,
         ambiente: configuracao.ambientePadrao,
         jsonEntrada: jsonEntradaString,
         observacoes: data.observacoes ?? configuracao.xTribNac,
@@ -407,8 +403,6 @@ export async function createDps(payload: CreateDpsInput) {
         codigoTributacaoMunicipal: created.servico.codigoTributacaoMunicipal,
         codigoTributacaoNacional: created.servico.codigoTributacaoNacional,
         codigoNbs: created.servico.codigoNbs,
-        codigoMunicipioPrestacao: created.servico.codigoMunicipioPrestacao,
-        informacoesComplementares: created.servico.informacoesComplementares,
         aliquotaIss: created.servico.aliquotaIss?.toNumber() ?? null,
       }),
       configuracao: mapConfiguracaoToXmlInput(configuracao),
@@ -462,16 +456,13 @@ async function resolveConfiguracaoDps(prestadorId: string) {
 
   // Se não existir, criar configuração padrão para o prestador
   if (!config) {
-    const verAplic = process.env.PUBLIC_APPLICATION_VERSION ?? "1.0.0";
     config = await prisma.configuracaoDps.create({
       data: {
         prestadorId,
         nomeSistema: "NotaClient",
         versaoAplicacao: "1.0.0",
-        verAplic,
         xLocEmi: "1",
         xLocPrestacao: "1",
-        nNFSe: "1",
         xTribNac: "01.07.00",
         xNBS: "1.0101.10.00",
         tpAmb: 2,
@@ -525,8 +516,6 @@ function mapServicoToXmlInput(servico: ServicoApi): ServicoBase {
     codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
     codigoTributacaoNacional: servico.codigoTributacaoNacional,
     codigoNbs: servico.codigoNbs,
-    codigoMunicipioPrestacao: servico.codigoMunicipioPrestacao,
-    informacoesComplementares: servico.informacoesComplementares,
     aliquotaIss: servico.aliquotaIss,
   };
 }
@@ -535,7 +524,7 @@ function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
   return {
     ambGer: config.ambGer,
     tpAmb: config.tpAmb,
-    verAplic: config.verAplic,
+    verAplic: config.versaoAplicacao,
     tpEmis: config.tpEmis,
     opSimpNac: config.opSimpNac,
     regEspTrib: config.regEspTrib,
@@ -545,6 +534,7 @@ function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
     pTotTribFed: config.pTotTribFed,
     pTotTribEst: config.pTotTribEst,
     pTotTribMun: config.pTotTribMun,
+    xLocPrestacao: config.xLocPrestacao,
   };
 }
 

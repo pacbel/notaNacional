@@ -41,10 +41,6 @@ export async function GET(request: Request) {
         { descricao: { contains: normalized } },
         { codigoTributacaoMunicipal: { contains: normalized.toUpperCase() } },
         { codigoTributacaoNacional: { contains: normalized.toUpperCase() } },
-        { municipioPrestacao: { contains: normalized } },
-        normalizedDigits
-          ? { codigoMunicipioPrestacao: { contains: normalizedDigits } }
-          : undefined,
         { codigoNbs: { contains: normalized.toUpperCase() } },
       ].filter(Boolean) as Prisma.ServicoWhereInput["OR"];
     }
@@ -103,9 +99,6 @@ export async function POST(request: Request) {
         codigoTributacaoMunicipal: data.codigoTributacaoMunicipal,
         codigoTributacaoNacional: data.codigoTributacaoNacional,
         codigoNbs: data.codigoNbs,
-        codigoMunicipioPrestacao: data.codigoMunicipioPrestacao,
-        municipioPrestacao: data.municipioPrestacao,
-        informacoesComplementares: data.informacoesComplementares,
         valorUnitario: new Prisma.Decimal(data.valorUnitario),
         aliquotaIss: data.aliquotaIss !== null ? new Prisma.Decimal(data.aliquotaIss) : null,
         issRetido: data.issRetido,

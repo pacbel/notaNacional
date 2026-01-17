@@ -8,9 +8,6 @@ export interface ServicoDto {
   codigoTributacaoMunicipal: string;
   codigoTributacaoNacional: string;
   codigoNbs: string | null;
-  codigoMunicipioPrestacao: string;
-  municipioPrestacao: string;
-  informacoesComplementares: string | null;
   valorUnitario: number;
   aliquotaIss: number | null;
   issRetido: boolean;

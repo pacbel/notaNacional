@@ -83,15 +83,6 @@ export async function PATCH(request: Request, context: RouteParams) {
     if (data.codigoNbs !== undefined) {
       updateData.codigoNbs = data.codigoNbs;
     }
-    if (data.codigoMunicipioPrestacao !== undefined) {
-      updateData.codigoMunicipioPrestacao = data.codigoMunicipioPrestacao;
-    }
-    if (data.municipioPrestacao !== undefined) {
-      updateData.municipioPrestacao = data.municipioPrestacao;
-    }
-    if (data.informacoesComplementares !== undefined) {
-      updateData.informacoesComplementares = data.informacoesComplementares;
-    }
     if (data.valorUnitario !== undefined) {
       updateData.valorUnitario = new Prisma.Decimal(data.valorUnitario);
     }

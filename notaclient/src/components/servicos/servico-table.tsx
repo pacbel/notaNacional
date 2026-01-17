@@ -100,19 +100,6 @@ export function ServicoTable({
         </TableCell>
         <TableCell>
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-            <span>
-              <strong>Cód. município:</strong> {servico.codigoMunicipioPrestacao}
-            </span>
-            <span>
-              <strong>Município:</strong> {servico.municipioPrestacao}
-            </span>
-          </div>
-        </TableCell>
-        <TableCell>
-          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <ClipboardList className="h-3 w-3" /> {servico.informacoesComplementares ?? "Sem observações"}
-            </span>
             <span className="inline-flex items-center gap-1">
               <RefreshCw className="h-3 w-3" /> ISS Retido: {servico.issRetido ? "Sim" : "Não"}
             </span>

@@ -20,7 +20,6 @@ export const configuracaoUpdateSchema = z.object({
   ambientePadrao: z.enum(ambienteValues),
   seriePadrao: z.number().int().min(1),
   numeroInicialDps: z.number().int().min(1),
-  verAplic: z.string().min(1),
   emailRemetente: z.string().email().nullable(),
   robotClientId: z.string().min(1).nullable(),
   robotClientSecret: z.string().min(1).nullable(),
@@ -30,7 +29,6 @@ export const configuracaoUpdateSchema = z.object({
   ativo: z.boolean(),
   xLocEmi: z.string().min(1),
   xLocPrestacao: z.string().min(1),
-  nNFSe: z.string().min(1),
   xTribNac: z.string().min(1),
   xNBS: z.string().min(1),
   tpAmb: z.number().int().min(1).max(2),
@@ -41,9 +39,10 @@ export const configuracaoUpdateSchema = z.object({
   procEmi: z.number().int().min(0).max(9),
   cStat: z.number().int().min(0),
   dhProc: z.string().datetime().nullable(),
-  nDFSe: z.string().min(1),
   tribMun: tribMunSchema,
   totTrib: totTribSchema,
+  aliquotaIss: z.number().min(0).max(100).optional().nullable(),
+  issRetido: z.boolean(),
 });
 
 export type ConfiguracaoFormValues = z.infer<typeof configuracaoUpdateSchema>;

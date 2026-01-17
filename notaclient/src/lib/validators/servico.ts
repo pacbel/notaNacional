@@ -86,17 +86,6 @@ export const servicoBaseSchema = z.object({
     .min(1, "Informe o código de tributação nacional")
     .transform((value) => (sanitizeString(value) as string).toUpperCase()),
   codigoNbs: nullableStringSchema,
-  codigoMunicipioPrestacao: z
-    .string()
-    .transform((value) => (sanitizeString(value) as string).replace(/\D/g, ""))
-    .refine((value) => codigoMunicipioRegex.test(value), {
-      message: "Código do município deve conter 7 dígitos",
-    }),
-  municipioPrestacao: z
-    .string()
-    .min(1, "Informe o município de prestação")
-    .transform((value) => sanitizeString(value) as string),
-  informacoesComplementares: nullableStringSchema,
   valorUnitario: numberSchema,
   aliquotaIss: nullableNumberSchema,
   issRetido: z.boolean(),

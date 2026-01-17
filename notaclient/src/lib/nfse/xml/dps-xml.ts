@@ -37,8 +37,6 @@ export interface ServicoBase {
   codigoTributacaoMunicipal: string;
   codigoTributacaoNacional: string;
   codigoNbs?: string | null;
-  codigoMunicipioPrestacao: string;
-  informacoesComplementares?: string | null;
   aliquotaIss?: Prisma.Decimal | number | null;
 }
 
@@ -55,6 +53,7 @@ export interface ConfiguracaoBase {
   pTotTribFed: Prisma.Decimal | number;
   pTotTribEst: Prisma.Decimal | number;
   pTotTribMun: Prisma.Decimal | number;
+  xLocPrestacao: string;
 }
 
 export interface GenerateDpsXmlInput {
@@ -95,8 +94,7 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   const opSimpNac = String(input.configuracao.opSimpNac ?? 1);
   const regEspTrib = String(input.configuracao.regEspTrib ?? 0);
   const serviceDescription = sanitizeDescription(input.servico.descricao);
-  const informacoesComplementaresRaw =
-    input.observacoes ?? input.servico.informacoesComplementares ?? "";
+  const informacoesComplementaresRaw = input.observacoes ?? "";
   const informacoesComplementares = sanitizeDescription(informacoesComplementaresRaw);
 
   const lines: (string | null)[] = [
@@ -136,7 +134,7 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     "    </toma>",
     "    <serv>",
     "      <locPrest>",
-    `        <cLocPrestacao>${escapeXml(input.servico.codigoMunicipioPrestacao)}</cLocPrestacao>`,
+    `      <cLocPrestacao>${escapeXml(input.configuracao.xLocPrestacao)}</cLocPrestacao>`,
     "      </locPrest>",
     "      <cServ>",
     `        <cTribNac>${escapeXml(input.servico.codigoTributacaoNacional)}</cTribNac>`,

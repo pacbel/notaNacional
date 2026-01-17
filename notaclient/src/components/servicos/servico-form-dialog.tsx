@@ -33,9 +33,6 @@ const DEFAULT_VALUES: ServicoFormValues = {
   codigoTributacaoMunicipal: "",
   codigoTributacaoNacional: "",
   codigoNbs: "",
-  codigoMunicipioPrestacao: "",
-  municipioPrestacao: "",
-  informacoesComplementares: "",
   valorUnitario: "",
   aliquotaIss: "",
   issRetido: false,
@@ -63,14 +60,14 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl p-6">
         <DialogHeader>
           <DialogTitle>Novo serviço</DialogTitle>
           <DialogDescription>Cadastre um serviço para utilização na emissão das DPS e NFSe.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+          <form className="space-y-6 p-4 bg-muted/30 rounded-lg" onSubmit={form.handleSubmit(handleSubmit)}>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -130,39 +127,6 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
 
               <FormField
                 control={form.control}
-                name="codigoMunicipioPrestacao"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Código do município de prestação</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ex.: 3106200"
-                        disabled={isSubmitting}
-                        value={field.value ?? ""}
-                        onChange={(event) => field.onChange(event.target.value.replace(/\D/g, ""))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="municipioPrestacao"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Município de prestação</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex.: Belo Horizonte" disabled={isSubmitting} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="valorUnitario"
                 render={({ field }) => (
                   <FormItem>
@@ -214,24 +178,6 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="informacoesComplementares"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Informações complementares (opcional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Observações exibidas na nota"
-                        disabled={isSubmitting}
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             <DialogFooter>
