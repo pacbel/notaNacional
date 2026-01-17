@@ -29,6 +29,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpGet("{prestadorId:guid}/certificados")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Operacao + "," + RoleNames.Robot)]
         public async Task<IActionResult> ListarCertificados(Guid prestadorId, CancellationToken cancellationToken)
         {
             try
