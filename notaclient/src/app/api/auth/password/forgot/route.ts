@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para solicitar recuperação de senha
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Auth/forgot-password`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Auth/forgot-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

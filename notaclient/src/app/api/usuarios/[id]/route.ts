@@ -30,7 +30,7 @@ export async function GET(
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export async function PUT(
     const env = getEnv();
 
     // Primeiro buscar o usuário para validar ownership
-    const checkResponse = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+    const checkResponse = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -140,7 +140,7 @@ export async function PUT(
       prestadorId: currentUser.prestadorId,
     };
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -194,7 +194,7 @@ export async function DELETE(
     const env = getEnv();
 
     // Primeiro buscar o usuário para validar ownership
-    const checkResponse = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+    const checkResponse = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -234,7 +234,7 @@ export async function DELETE(
       }
     }
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

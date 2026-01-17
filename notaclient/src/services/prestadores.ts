@@ -163,9 +163,9 @@ export async function getPrestador(id: string): Promise<PrestadorDto> {
       import("@/lib/notanacional-api"),
     ]);
 
-    const { NOTA_API_BASE_URL } = getEnv();
+    const { APP_BASE_URL } = getEnv();
     const token = await getRobotToken();
-    const url = `${NOTA_API_BASE_URL}/api/Prestadores`;
+    const url = `${APP_BASE_URL}/api/Prestadores`;
 
     console.log("[PrestadoresService] Buscando prestadores externamente", {
       id,

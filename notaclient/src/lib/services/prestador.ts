@@ -28,7 +28,7 @@ export async function getPrestadorById(prestadorId: string): Promise<PrestadorDa
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Prestadores`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Prestadores`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -73,7 +73,7 @@ export async function getPrestadoresByIds(prestadorIds: string[]): Promise<Map<s
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Prestadores`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Prestadores`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

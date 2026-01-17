@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para resetar senha
-    const response = await fetch(`${env.NOTA_API_BASE_URL}/api/Auth/reset-password`, {
+    const response = await fetch(`${env.APP_BASE_URL}/api/Auth/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

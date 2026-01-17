@@ -1,12 +1,19 @@
 import { authorizeNotaApi, notaApi } from "@/lib/notanacional-api";
 
+export interface EmailAttachment {
+  fileName: string;
+  contentBase64: string;
+  contentType: string;
+}
+
 interface SendEmailParams {
   to: string[];
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, attachments = [] }: SendEmailParams) {
   if (to.length === 0) {
     throw new Error("Pelo menos um destinatário é obrigatório");
   }
@@ -15,6 +22,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
     quantidadeDestinatarios: to.length,
     primeirosDestinatarios: to.slice(0, 3),
     assunto: subject,
+    quantidadeAnexos: attachments.length,
   });
 
   try {
@@ -25,7 +33,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
       destinatarios: to,
       assunto: subject,
       corpoHtml: html,
-      anexos: [],
+      anexos: attachments,
     });
 
     console.info("[Email] Solicitação de envio enviada com sucesso");
@@ -33,6 +41,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
     console.error("[Email] Falha no envio", {
       quantidadeDestinatarios: to.length,
       assunto: subject,
+      quantidadeAnexos: attachments.length,
       erro: error instanceof Error ? error.message : String(error),
     });
     throw error;

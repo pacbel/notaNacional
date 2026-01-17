@@ -16,7 +16,7 @@ interface RobotTokenResponse {
 const env = getEnv();
 
 export const notaApi = axios.create({
-  baseURL: env.NOTA_API_BASE_URL,
+  baseURL: env.APP_BASE_URL,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
