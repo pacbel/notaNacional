@@ -19,7 +19,7 @@ export async function GET() {
     const env = getEnv();
 
     // Buscar lista de prestadores da API externa (retorna apenas os do usuário)
-    const url = `${env.APP_BASE_URL}/api/Prestadores`;
+    const url = `${env.API_BASE_URL}/api/Prestadores`;
     
     console.log("[Prestadores] Buscando prestadores");
     console.log("[Prestadores] URL:", url);

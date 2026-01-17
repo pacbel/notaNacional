@@ -22,7 +22,7 @@ export async function PUT(
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.APP_BASE_URL}/api/Usuarios/${id}/senha`, {
+    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}/senha`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

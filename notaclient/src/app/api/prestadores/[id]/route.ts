@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const token = await getRobotToken();
     const env = getEnv();
 
-    const url = `${env.APP_BASE_URL}/api/Prestadores/${id}`;
+    const url = `${env.API_BASE_URL}/api/Prestadores/${id}`;
     
     console.log("[Prestadores] Buscando prestador por ID:", id);
     console.log("[Prestadores] URL:", url);

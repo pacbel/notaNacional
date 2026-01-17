@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para confirmar MFA
-    const response = await fetch(`${env.APP_BASE_URL}/api/Auth/confirm-mfa`, {
+    const response = await fetch(`${env.API_BASE_URL}/api/Auth/confirm-mfa`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

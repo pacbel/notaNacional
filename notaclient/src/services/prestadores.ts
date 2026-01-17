@@ -71,8 +71,8 @@ function buildUrl(path: string) {
     return path;
   }
 
-  const { APP_BASE_URL } = getEnv();
-  return `${APP_BASE_URL}${path}`;
+  const { API_BASE_URL } = getEnv();
+  return `${API_BASE_URL}${path}`;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -163,9 +163,9 @@ export async function getPrestador(id: string): Promise<PrestadorDto> {
       import("@/lib/notanacional-api"),
     ]);
 
-    const { APP_BASE_URL } = getEnv();
+    const { API_BASE_URL } = getEnv();
     const token = await getRobotToken();
-    const url = `${APP_BASE_URL}/api/Prestadores`;
+    const url = `${API_BASE_URL}/api/Prestadores`;
 
     console.log("[PrestadoresService] Buscando prestadores externamente", {
       id,

@@ -32,7 +32,7 @@ export async function GET() {
     console.log("[Usuarios] Consultando usuários com prestadorId:", prestadorId);
 
     // Adicionar prestadorId como query parameter
-    const url = new URL(`${env.APP_BASE_URL}/api/Usuarios`);
+    const url = new URL(`${env.API_BASE_URL}/api/Usuarios`);
     url.searchParams.append("prestadorId", prestadorId);
 
     console.log("[Usuarios] URL completa:", url.toString());
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       prestadorId: currentUser.prestadorId,
     };
 
-    const response = await fetch(`${env.APP_BASE_URL}/api/Usuarios`, {
+    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
