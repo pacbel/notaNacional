@@ -79,7 +79,7 @@ model Tomador {
 
 model Servico {
   id                        String   @id @default(uuid()) @db.Char(36)
-  descricao                 String
+  descricao                 String   @db.VarChar(1000)
   codigoTributacaoMunicipal String   @db.VarChar(20)
   codigoTributacaoNacional  String   @db.VarChar(20)
   codigoNbs                 String?  @db.VarChar(20)

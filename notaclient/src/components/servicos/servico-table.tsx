@@ -75,9 +75,9 @@ export function ServicoTable({
         className="cursor-pointer transition hover:bg-muted/50"
         onClick={() => onSelectServico(servico)}
       >
-        <TableCell>
+        <TableCell className="max-w-md">
           <div className="flex flex-col gap-1">
-            <span className="font-medium">{servico.descricao}</span>
+            <span className="font-medium wrap-break-word line-clamp-2">{servico.descricao}</span>
             <span className="text-xs text-muted-foreground">
               Atualizado em {format(new Date(servico.updatedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
             </span>

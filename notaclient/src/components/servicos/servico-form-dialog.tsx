@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,16 +39,85 @@ const DEFAULT_VALUES: ServicoFormValues = {
   issRetido: false,
 };
 
+const BRL_FORMAT = {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+} as const;
+
+const formatCurrencyDisplay = (value: number) =>
+  value.toLocaleString("pt-BR", BRL_FORMAT);
+
+const formatFieldValue = (value: number) =>
+  value.toFixed(2).replace('.', ',');
+
+const parseCurrencyValue = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed === "") {
+    return null;
+  }
+
+  if (trimmed.includes(",")) {
+    const normalized = trimmed.replace(/\./g, "").replace(/,/g, ".");
+    const numeric = Number(normalized);
+    return Number.isNaN(numeric) ? null : numeric;
+  }
+
+  const numeric = Number(trimmed);
+  return Number.isNaN(numeric) ? null : numeric;
+};
+
 export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting = false }: ServicoFormDialogProps) {
+  const [valorDisplay, setValorDisplay] = React.useState("");
+
   const form = useForm<ServicoFormValues>({
     resolver: zodResolver(servicoCreateSchema),
     defaultValues: DEFAULT_VALUES,
   });
 
+  const valorUnitario = form.watch("valorUnitario");
+
+  React.useEffect(() => {
+    if (!open) {
+      setValorDisplay("");
+    }
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!valorUnitario) {
+      setValorDisplay("");
+      return;
+    }
+
+    const numeric = parseCurrencyValue(valorUnitario);
+
+    if (numeric !== null) {
+      const formattedDisplay = formatCurrencyDisplay(numeric);
+      if (formattedDisplay !== valorDisplay) {
+        setValorDisplay(formattedDisplay);
+      }
+
+      const formattedField = formatFieldValue(numeric);
+      if (formattedField !== valorUnitario) {
+        form.setValue("valorUnitario", formattedField, { shouldDirty: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valorUnitario]);
+
   const handleSubmit = async (values: ServicoFormValues) => {
     const parsed = servicoCreateSchema.parse(values);
     await onSubmit(parsed);
     form.reset(DEFAULT_VALUES);
+    setValorDisplay("");
   };
 
   return (
@@ -76,7 +146,13 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                   <FormItem className="sm:col-span-2">
                     <FormLabel>Descrição do serviço</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex.: Desenvolvimento de software" disabled={isSubmitting} {...field} />
+                      <Textarea 
+                        placeholder="Ex.: Desenvolvimento de software" 
+                        disabled={isSubmitting} 
+                        maxLength={1000}
+                        rows={3}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -133,11 +209,34 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                     <FormLabel>Valor unitário</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type="text"
                         disabled={isSubmitting}
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
+                        value={valorDisplay}
+                        onChange={(event) => {
+                          const input = event.target.value;
+                          const digitsOnly = input.replace(/\D/g, "");
+
+                          if (digitsOnly === "") {
+                            setValorDisplay("");
+                            field.onChange("");
+                            return;
+                          }
+
+                          const numeric = Number(digitsOnly) / 100;
+                          setValorDisplay(formatCurrencyDisplay(numeric));
+                          field.onChange(formatFieldValue(numeric));
+                        }}
+                        onBlur={() => {
+                          if (field.value) {
+                            const numeric = parseCurrencyValue(field.value.toString());
+                            if (numeric !== null) {
+                              setValorDisplay(formatCurrencyDisplay(numeric));
+                              field.onChange(formatFieldValue(numeric));
+                            }
+                          }
+                          field.onBlur();
+                        }}
+                        placeholder="0,00"
                       />
                     </FormControl>
                     <FormMessage />

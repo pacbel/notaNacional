@@ -76,6 +76,7 @@ export const servicoBaseSchema = z.object({
   descricao: z
     .string()
     .min(1, "Informe a descrição do serviço")
+    .max(1000, "A descrição deve ter no máximo 1000 caracteres")
     .transform((value) => sanitizeString(value) as string),
   codigoTributacaoMunicipal: z
     .string()

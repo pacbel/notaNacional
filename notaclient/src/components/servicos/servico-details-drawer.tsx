@@ -56,14 +56,44 @@ const EMPTY_VALUES: ServicoFormValues = {
   ativo: true,
 };
 
+const BRL_FORMAT = {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+} as const;
+
+const formatCurrencyDisplay = (value: number) =>
+  value.toLocaleString("pt-BR", BRL_FORMAT);
+
+const formatFieldValue = (value: number) => value.toFixed(2).replace('.', ',');
+
+const parseCurrencyValue = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed === "") {
+    return null;
+  }
+
+  const normalized = trimmed.replace(/\./g, "").replace(/,/g, ".");
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? null : numeric;
+};
+
 function mapServicoToForm(servico: ServicoDto): ServicoFormValues {
   return {
     descricao: servico.descricao,
     codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
     codigoTributacaoNacional: servico.codigoTributacaoNacional,
     codigoNbs: servico.codigoNbs ?? "",
-    valorUnitario: String(servico.valorUnitario),
-    aliquotaIss: servico.aliquotaIss !== null ? String(servico.aliquotaIss) : "",
+    valorUnitario: formatFieldValue(servico.valorUnitario ?? 0),
+    aliquotaIss: servico.aliquotaIss !== null ? formatFieldValue(servico.aliquotaIss) : "",
     issRetido: servico.issRetido,
     ativo: servico.ativo,
   };
@@ -78,18 +108,40 @@ export function ServicoDetailsDrawer({
   isMutating,
 }: ServicoDetailsDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [valorDisplay, setValorDisplay] = useState("");
 
   const form = useForm<ServicoFormValues>({
     resolver: zodResolver(servicoUpdateSchema) as Resolver<ServicoFormValues>,
     defaultValues: EMPTY_VALUES,
   });
 
+  const valorUnitario = form.watch("valorUnitario");
+
   useEffect(() => {
     if (servico) {
       form.reset(mapServicoToForm(servico));
       setIsEditing(false);
+
+      const numeric = parseCurrencyValue(servico.valorUnitario) ?? 0;
+      setValorDisplay(formatCurrencyDisplay(numeric));
+      form.setValue("valorUnitario", formatFieldValue(numeric));
     }
   }, [servico, form]);
+
+  useEffect(() => {
+    if (!valorUnitario) {
+      setValorDisplay("");
+      return;
+    }
+
+    const numeric = parseCurrencyValue(valorUnitario);
+
+    if (numeric !== null) {
+      setValorDisplay(formatCurrencyDisplay(numeric));
+      form.setValue("valorUnitario", formatFieldValue(numeric), { shouldDirty: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valorUnitario]);
 
   const createdAt = useMemo(() => {
     if (!servico) return "";
@@ -120,29 +172,15 @@ export function ServicoDetailsDrawer({
         }
       }}
     >
-      <SheetContent className="flex w-[800px] max-w-[90vw] flex-col gap-6 overflow-y-auto p-6">
-        <SheetHeader>
-          <SheetTitle className="text-left text-2xl font-semibold">{servico.descricao}</SheetTitle>
-          <SheetDescription className="text-left text-sm text-muted-foreground">
-            Código municipal {servico.codigoTributacaoMunicipal} · Código nacional {servico.codigoTributacaoNacional}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <Badge variant={servico.ativo ? "default" : "outline"}>{servico.ativo ? "Ativo" : "Inativo"}</Badge>
-          <span>Atualizado em {updatedAt}</span>
-          <span>·</span>
-          <span>Criado em {createdAt}</span>
-        </div>
-
-        <Separator />
-
+      <SheetContent widthClass="w-full max-w-4xl border-l" className="flex flex-col gap-6 overflow-y-auto p-6">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Editar dados</h2>
-            <Button variant="ghost" onClick={() => setIsEditing((prev) => !prev)} disabled={isMutating}>
-              {isEditing ? "Cancelar" : "Editar"}
-            </Button>
+            {!isEditing && (
+              <Button variant="ghost" onClick={() => setIsEditing(true)} disabled={isMutating}>
+                Editar
+              </Button>
+            )}
           </div>
 
           {isEditing ? (
@@ -156,7 +194,13 @@ export function ServicoDetailsDrawer({
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Descrição</FormLabel>
                         <FormControl>
-                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Textarea 
+                            value={field.value ?? ""} 
+                            onChange={field.onChange} 
+                            disabled={isMutating}
+                            maxLength={1000}
+                            rows={3}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -212,7 +256,36 @@ export function ServicoDetailsDrawer({
                       <FormItem>
                         <FormLabel>Valor unitário</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Input
+                            type="text"
+                            disabled={isMutating}
+                            value={valorDisplay}
+                            onChange={(event) => {
+                              const input = event.target.value;
+                              const digitsOnly = input.replace(/\D/g, "");
+
+                              if (digitsOnly === "") {
+                                setValorDisplay("");
+                                field.onChange("");
+                                return;
+                              }
+
+                              const numeric = Number(digitsOnly) / 100;
+                              setValorDisplay(formatCurrencyDisplay(numeric));
+                              field.onChange(formatFieldValue(numeric));
+                            }}
+                            onBlur={() => {
+                              if (field.value) {
+                                const numeric = parseCurrencyValue(field.value.toString());
+                                if (numeric !== null) {
+                                  field.onChange(formatFieldValue(numeric));
+                                  setValorDisplay(formatCurrencyDisplay(numeric));
+                                }
+                              }
+                              field.onBlur();
+                            }}
+                            placeholder="0,00"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -260,11 +333,17 @@ export function ServicoDetailsDrawer({
                   />
                 </div>
 
-                <SheetFooter className="gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isMutating}>
+                <SheetFooter className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditing(false)}
+                    disabled={isMutating}
+                    className="sm:min-w-[160px]"
+                  >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isMutating}>
+                  <Button type="submit" disabled={isMutating} className="sm:min-w-[160px]">
                     {isMutating ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando
