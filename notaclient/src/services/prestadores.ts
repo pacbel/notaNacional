@@ -1,3 +1,4 @@
+import { getEnv } from "@/lib/env";
 import type {
   PrestadorCreateInput,
   PrestadorUpdateInput,
@@ -63,6 +64,17 @@ interface ListPrestadoresParams {
   status?: PrestadorStatusFilter;
 }
 
+const API_BASE_PATH = "/api/prestadores" as const;
+
+function buildUrl(path: string) {
+  if (typeof window !== "undefined") {
+    return path;
+  }
+
+  const { APP_BASE_URL } = getEnv();
+  return `${APP_BASE_URL}${path}`;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -87,7 +99,7 @@ export async function listPrestadores({
     params.set("q", search);
   }
 
-  const response = await fetch(`/api/prestadores?${params.toString()}`, {
+  const response = await fetch(buildUrl(`${API_BASE_PATH}?${params.toString()}`), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -99,7 +111,7 @@ export async function listPrestadores({
 }
 
 export async function createPrestador(input: PrestadorCreateInput): Promise<PrestadorDto> {
-  const response = await fetch(`/api/prestadores`, {
+  const response = await fetch(buildUrl(API_BASE_PATH), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -114,7 +126,7 @@ export async function updatePrestador(
   id: string,
   input: PrestadorUpdateInput
 ): Promise<PrestadorDto> {
-  const response = await fetch(`/api/prestadores/${id}`, {
+  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -126,7 +138,7 @@ export async function updatePrestador(
 }
 
 export async function inactivatePrestador(id: string): Promise<PrestadorDto> {
-  const response = await fetch(`/api/prestadores/${id}`, {
+  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "DELETE",
   });
 
@@ -134,7 +146,7 @@ export async function inactivatePrestador(id: string): Promise<PrestadorDto> {
 }
 
 export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
-  const response = await fetch(`/api/prestadores/${id}`, {
+  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -146,7 +158,7 @@ export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
 }
 
 export async function getPrestador(id: string): Promise<PrestadorDto> {
-  const response = await fetch(`/api/prestadores/${id}`, {
+  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

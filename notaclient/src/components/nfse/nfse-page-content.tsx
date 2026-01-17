@@ -1911,7 +1911,7 @@ export default function NfsePageContent() {
                 disabled={prestadoresQuery.isLoading || createDpsMutation.isPending}
               >
                 <SelectTrigger id="prestadorId">
-                  <SelectValue placeholder="Selecione" />
+                  <SelectValue placeholder="Selecione" className="max-w-full text-left wrap-break-word line-clamp-2" />
                 </SelectTrigger>
                 <SelectContent>
                   {prestadoresQuery.isLoading ? (
@@ -1920,7 +1920,7 @@ export default function NfsePageContent() {
                     </SelectItem>
                   ) : (prestadoresQuery.data ?? []).length > 0 ? (
                     prestadoresQuery.data?.map((prestador) => (
-                      <SelectItem key={prestador.id} value={prestador.id}>
+                      <SelectItem key={prestador.id} value={prestador.id} className="wrap-break-word">
                         {prestador.nomeFantasia} · {prestador.cnpj}
                       </SelectItem>
                     ))
@@ -1941,7 +1941,7 @@ export default function NfsePageContent() {
                 disabled={tomadoresQuery.isLoading || createDpsMutation.isPending}
               >
                 <SelectTrigger id="tomadorId">
-                  <SelectValue placeholder="Selecione" />
+                  <SelectValue placeholder="Selecione" className="max-w-full text-left wrap-break-word line-clamp-2" />
                 </SelectTrigger>
                 <SelectContent>
                   {tomadoresQuery.isLoading ? (
@@ -1950,7 +1950,7 @@ export default function NfsePageContent() {
                     </SelectItem>
                   ) : (tomadoresQuery.data ?? []).length > 0 ? (
                     tomadoresQuery.data?.map((tomador) => (
-                      <SelectItem key={tomador.id} value={tomador.id}>
+                      <SelectItem key={tomador.id} value={tomador.id} className="wrap-break-word">
                         {tomador.nomeRazaoSocial} · {tomador.documento}
                       </SelectItem>
                     ))
@@ -1971,7 +1971,7 @@ export default function NfsePageContent() {
                 disabled={servicosQuery.isLoading || createDpsMutation.isPending}
               >
                 <SelectTrigger id="servicoId">
-                  <SelectValue placeholder="Selecione" />
+                  <SelectValue placeholder="Selecione" className="max-w-full text-left wrap-break-word line-clamp-2" />
                 </SelectTrigger>
                 <SelectContent>
                   {servicosQuery.isLoading ? (
@@ -1980,7 +1980,7 @@ export default function NfsePageContent() {
                     </SelectItem>
                   ) : (servicosQuery.data ?? []).length > 0 ? (
                     servicosQuery.data?.map((servico) => (
-                      <SelectItem key={servico.id} value={servico.id}>
+                      <SelectItem key={servico.id} value={servico.id} className="wrap-break-word">
                         {servico.descricao}
                       </SelectItem>
                     ))
