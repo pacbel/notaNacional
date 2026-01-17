@@ -91,7 +91,6 @@ export async function GET(request: Request) {
     const skip = (page - 1) * perPage;
 
     const where: Prisma.NotaFiscalWhereInput = {
-      ativo: true,
       prestadorId: currentUser.prestadorId, // Forçar filtro por prestador
     };
 
