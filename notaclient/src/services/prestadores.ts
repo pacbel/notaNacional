@@ -158,6 +158,69 @@ export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
 }
 
 export async function getPrestador(id: string): Promise<PrestadorDto> {
+  if (typeof window === "undefined") {
+    const [{ getRobotToken }] = await Promise.all([
+      import("@/lib/notanacional-api"),
+    ]);
+
+    const { NOTA_API_BASE_URL } = getEnv();
+    const token = await getRobotToken();
+    const url = `${NOTA_API_BASE_URL}/api/Prestadores`;
+
+    console.log("[PrestadoresService] Buscando prestadores externamente", {
+      id,
+      url,
+      tokenPresente: Boolean(token),
+      tokenSnippet: token?.substring(0, 20),
+    });
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      console.error("[PrestadoresService] Falha ao buscar prestadores", {
+        id,
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+      });
+      throw new Error(errorText || "Erro ao buscar prestador");
+    }
+
+    const data = await response.json();
+    const prestadores = Array.isArray(data) ? data : [data];
+    const prestador = prestadores.find((item: PrestadorDto) => item.id === id);
+
+    if (!prestador) {
+      console.error("[PrestadoresService] Prestador não encontrado na lista retornada", {
+        id,
+        quantidadeRetornada: prestadores.length,
+      });
+      throw new Error("Prestador não encontrado");
+    }
+
+    // Algumas respostas trazem o código do município dentro de endereco.codigoMunicipioIbge
+    if (!prestador.codigoMunicipio && prestador.endereco?.codigoMunicipioIbge) {
+      prestador.codigoMunicipio = prestador.endereco.codigoMunicipioIbge;
+    }
+
+    console.log("[PrestadoresService] Prestador obtido com sucesso", {
+      id,
+      status: response.status,
+      possuiConfiguracao: Boolean((prestador as any)?.configuracao),
+    });
+
+    return prestador;
+  }
+
   const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "GET",
     headers: {

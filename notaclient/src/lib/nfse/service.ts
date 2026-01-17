@@ -266,7 +266,7 @@ export async function createDps(payload: CreateDpsInput) {
     resolveConfiguracaoDps(data.prestadorId),
   ]);
 
-  if (!prestadorDto || !prestadorDto.ativo) {
+  if (!prestadorDto || prestadorDto.ativo === false) {
     throw new AppError("Prestador não encontrado ou inativo", 404);
   }
 

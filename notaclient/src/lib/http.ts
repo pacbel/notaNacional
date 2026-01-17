@@ -22,6 +22,15 @@ export function handleRouteError(error: unknown, fallbackMessage: string) {
 
   console.error(fallbackMessage, error);
 
+  if (error instanceof Error && error.message) {
+    return NextResponse.json<ErrorResponseBody>(
+      {
+        message: error.message,
+      },
+      { status: 500 }
+    );
+  }
+
   return NextResponse.json<ErrorResponseBody>(
     {
       message: fallbackMessage,
