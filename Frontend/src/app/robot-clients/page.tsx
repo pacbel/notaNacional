@@ -110,6 +110,23 @@ const scopeOptions = [
   },
 ];
 
+const ALL_PRESTADORES_OPTION = "__all__";
+
+const resolvePrestadorIdValue = (prestadorId: string | null) =>
+  prestadorId && prestadorId !== ALL_PRESTADORES_OPTION ? prestadorId : "";
+
+const buildRobotClientsQueryKey = (
+  prestadorId: string | null,
+  includeInactive: boolean,
+  allPrestadoresKey: string
+) => {
+  if (prestadorId === ALL_PRESTADORES_OPTION) {
+    return ["robot-clients", ALL_PRESTADORES_OPTION, includeInactive, allPrestadoresKey] as const;
+  }
+
+  return ["robot-clients", prestadorId ?? "", includeInactive] as const;
+};
+
 const areScopesEqual = (previous: string[], current: string[]) => {
   if (previous.length !== current.length) {
     return false;
@@ -156,11 +173,30 @@ export default function RobotClientsPage() {
   }, [prestadorIdFilter, user?.prestadorId, prestadores]);
 
   const robotQuery = useApiQuery({
-    queryKey: ["robot-clients", prestadorIdFilter, includeInactive] as const,
+    queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
     enabled: Boolean(prestadorIdFilter),
     queryFn: async () => {
-      if (!prestadorIdFilter) return [] as RobotClientDto[];
-      return listarRobotClients(prestadorIdFilter, includeInactive);
+      const resolvedPrestadorId = resolvePrestadorIdValue(prestadorIdFilter);
+      if (!resolvedPrestadorId && prestadorIdFilter !== ALL_PRESTADORES_OPTION) {
+        return [] as RobotClientDto[];
+      }
+
+      if (prestadorIdFilter === ALL_PRESTADORES_OPTION) {
+        const robots = await Promise.all(
+          prestadores.map((prestador) => listarRobotClients(prestador.id, includeInactive))
+        );
+
+        return robots.flat().map((robot) => {
+          const prestador = prestadores.find((item) => item.id === robot.prestadorId);
+          return {
+            ...robot,
+            prestadorNome: prestador?.nomeFantasia ?? robot.prestadorNome,
+            prestadorCnpj: prestador?.cnpj ?? robot.prestadorCnpj,
+          };
+        });
+      }
+
+      return listarRobotClients(resolvedPrestadorId, includeInactive);
     },
   });
 
@@ -185,7 +221,7 @@ export default function RobotClientsPage() {
         setIsFormOpen(false);
         setEditingRobot(null);
         robotForm.reset({
-          prestadorId: prestadorIdFilter ?? "",
+          prestadorId: prestadorIdFilter === ALL_PRESTADORES_OPTION ? "" : prestadorIdFilter ?? "",
           nome: "",
           clientId: undefined,
           clientSecret: undefined,
@@ -195,7 +231,9 @@ export default function RobotClientsPage() {
         if (data?.secretGerado) {
           setCreatedSecret({ clientId: data.clientId, secret: data.secretGerado });
         }
-        queryClient.invalidateQueries({ queryKey: ["robot-clients", prestadorIdFilter, includeInactive] });
+        queryClient.invalidateQueries({
+          queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
+        });
       },
     }
   );
@@ -209,14 +247,16 @@ export default function RobotClientsPage() {
         setIsFormOpen(false);
         setEditingRobot(null);
         robotForm.reset({
-          prestadorId: prestadorIdFilter ?? "",
+          prestadorId: prestadorIdFilter === ALL_PRESTADORES_OPTION ? "" : prestadorIdFilter ?? "",
           nome: "",
           clientId: undefined,
           clientSecret: undefined,
           scopes: [],
           ativo: true,
         });
-        queryClient.invalidateQueries({ queryKey: ["robot-clients", prestadorIdFilter, includeInactive] });
+        queryClient.invalidateQueries({
+          queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
+        });
       },
     }
   );
@@ -231,7 +271,9 @@ export default function RobotClientsPage() {
     {
       successMessage: "Status atualizado.",
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["robot-clients", prestadorIdFilter, includeInactive] });
+        queryClient.invalidateQueries({
+          queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
+        });
       },
     }
   );
@@ -253,7 +295,9 @@ export default function RobotClientsPage() {
           clientId: data?.clientId ?? variables.clientId,
           secret: variables.novoSecret,
         });
-        queryClient.invalidateQueries({ queryKey: ["robot-clients", prestadorIdFilter, includeInactive] });
+        queryClient.invalidateQueries({
+          queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
+        });
       },
     }
   );
@@ -276,7 +320,7 @@ export default function RobotClientsPage() {
 
   const openCreateModal = () => {
     robotForm.reset({
-      prestadorId: prestadorIdFilter ?? "",
+      prestadorId: prestadorIdFilter === ALL_PRESTADORES_OPTION ? "" : prestadorIdFilter ?? "",
       nome: "",
       clientId: undefined,
       clientSecret: undefined,
@@ -399,11 +443,23 @@ export default function RobotClientsPage() {
   };
 
   const prestadorOptions = useMemo(() => {
-    return prestadores.map((prestador) => ({
+    const options = prestadores.map((prestador) => ({
       value: prestador.id,
       label: `${prestador.nomeFantasia} (${prestador.cnpj})`,
     }));
-  }, [prestadores]);
+
+    if (isAdmin) {
+      return [
+        {
+          value: ALL_PRESTADORES_OPTION,
+          label: "Todos os Prestadores",
+        },
+        ...options,
+      ];
+    }
+
+    return options;
+  }, [prestadores, isAdmin]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -491,12 +547,15 @@ export default function RobotClientsPage() {
               id="prestador"
               value={prestadorIdFilter ?? ""}
               onChange={(event) => {
-                setPrestadorIdFilter(event.target.value || null);
+                const { value } = event.target;
+                setPrestadorIdFilter(value || null);
                 setPage(1);
               }}
               disabled={!isAdmin && Boolean(user?.prestadorId)}
             >
-              <option value="">Selecione</option>
+              {isAdmin && (
+                <option value="">Selecione</option>
+              )}
               {prestadorOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -528,8 +587,11 @@ export default function RobotClientsPage() {
               id="inativos"
               value={includeInactive ? "true" : "false"}
               onChange={(event) => {
-                setIncludeInactive(event.target.value === "true");
-                queryClient.invalidateQueries({ queryKey: ["robot-clients", prestadorIdFilter, event.target.value === "true"] });
+                const showInactive = event.target.value === "true";
+                setIncludeInactive(showInactive);
+                queryClient.invalidateQueries({
+                  queryKey: buildRobotClientsQueryKey(prestadorIdFilter, showInactive, user?.prestadorId ?? ""),
+                });
               }}
             >
               <option value="false">Somente ativos</option>
