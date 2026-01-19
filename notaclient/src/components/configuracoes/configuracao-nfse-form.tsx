@@ -44,9 +44,10 @@ const ambienteConfiguracaoOptions = [
 ];
 
 const simplesNacionalOptions = [
-  { value: 1, label: "1 - Não Optante" },
-  { value: 2, label: "2 - Optante - Microempreendedor Individual (MEI)" },
-  { value: 3, label: "3 - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)" },
+  { value: 1, label: "1 - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)" },
+  { value: 2, label: "2 - Não Optante" },
+  { value: 3, label: "3 - Optante - Microempreendedor Individual (MEI)" },
+
 ];
 
 const regimeEspecialOptions = [

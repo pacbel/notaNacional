@@ -108,6 +108,7 @@ export function ServicoDetailsDrawer({
 }: ServicoDetailsDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [valorDisplay, setValorDisplay] = useState("");
+  const [aliquotaDisplay, setAliquotaDisplay] = useState("");
 
   const form = useForm<ServicoFormValues>({
     resolver: zodResolver(servicoUpdateSchema) as Resolver<ServicoFormValues>,
@@ -115,15 +116,25 @@ export function ServicoDetailsDrawer({
   });
 
   const valorUnitario = form.watch("valorUnitario");
+  const aliquotaIss = form.watch("aliquotaIss");
 
   useEffect(() => {
     if (servico) {
       form.reset(mapServicoToForm(servico));
       setIsEditing(false);
 
-      const numeric = parseCurrencyValue(servico.valorUnitario) ?? 0;
-      setValorDisplay(formatCurrencyDisplay(numeric));
-      form.setValue("valorUnitario", formatFieldValue(numeric));
+      const numericValor = parseCurrencyValue(servico.valorUnitario) ?? 0;
+      setValorDisplay(formatCurrencyDisplay(numericValor));
+      form.setValue("valorUnitario", formatFieldValue(numericValor));
+
+      const numericAliquota = servico.aliquotaIss !== null ? parseCurrencyValue(servico.aliquotaIss) : null;
+      if (numericAliquota !== null) {
+        setAliquotaDisplay(formatCurrencyDisplay(numericAliquota));
+        form.setValue("aliquotaIss", formatFieldValue(numericAliquota));
+      } else {
+        setAliquotaDisplay("");
+        form.setValue("aliquotaIss", "");
+      }
     }
   }, [servico, form]);
 
@@ -141,6 +152,28 @@ export function ServicoDetailsDrawer({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valorUnitario]);
+
+  useEffect(() => {
+    if (!aliquotaIss) {
+      setAliquotaDisplay("");
+      return;
+    }
+
+    const numeric = parseCurrencyValue(aliquotaIss);
+
+    if (numeric !== null) {
+      const formattedDisplay = formatCurrencyDisplay(numeric);
+      if (formattedDisplay !== aliquotaDisplay) {
+        setAliquotaDisplay(formattedDisplay);
+      }
+
+      const formattedField = formatFieldValue(numeric);
+      if (formattedField !== aliquotaIss) {
+        form.setValue("aliquotaIss", formattedField, { shouldDirty: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aliquotaIss]);
 
   const createdAt = useMemo(() => {
     if (!servico) return "";
@@ -300,7 +333,35 @@ export function ServicoDetailsDrawer({
                       <FormItem>
                         <FormLabel>Alíquota ISS (%)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          <Input
+                            type="text"
+                            value={aliquotaDisplay}
+                            disabled={isMutating}
+                            onChange={(event) => {
+                              const digitsOnly = event.target.value.replace(/\D/g, "");
+
+                              if (digitsOnly === "") {
+                                setAliquotaDisplay("");
+                                field.onChange("");
+                                return;
+                              }
+
+                              const numeric = Number(digitsOnly) / 100;
+                              setAliquotaDisplay(formatCurrencyDisplay(numeric));
+                              field.onChange(formatFieldValue(numeric));
+                            }}
+                            onBlur={() => {
+                              if (field.value) {
+                                const numeric = parseCurrencyValue(field.value.toString());
+                                if (numeric !== null) {
+                                  setAliquotaDisplay(formatCurrencyDisplay(numeric));
+                                  field.onChange(formatFieldValue(numeric));
+                                }
+                              }
+                              field.onBlur();
+                            }}
+                            placeholder="0,00"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

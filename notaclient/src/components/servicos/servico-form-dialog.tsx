@@ -77,6 +77,7 @@ const parseCurrencyValue = (value: string | number | null | undefined) => {
 
 export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting = false }: ServicoFormDialogProps) {
   const [valorDisplay, setValorDisplay] = React.useState("");
+  const [aliquotaDisplay, setAliquotaDisplay] = React.useState("");
 
   const form = useForm<ServicoFormValues>({
     resolver: zodResolver(servicoCreateSchema),
@@ -84,10 +85,12 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
   });
 
   const valorUnitario = form.watch("valorUnitario");
+  const aliquotaIss = form.watch("aliquotaIss");
 
   React.useEffect(() => {
     if (!open) {
       setValorDisplay("");
+      setAliquotaDisplay("");
     }
   }, [open]);
 
@@ -113,11 +116,34 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valorUnitario]);
 
+  React.useEffect(() => {
+    if (!aliquotaIss) {
+      setAliquotaDisplay("");
+      return;
+    }
+
+    const numeric = parseCurrencyValue(aliquotaIss);
+
+    if (numeric !== null) {
+      const formattedDisplay = formatCurrencyDisplay(numeric);
+      if (formattedDisplay !== aliquotaDisplay) {
+        setAliquotaDisplay(formattedDisplay);
+      }
+
+      const formattedField = formatFieldValue(numeric);
+      if (formattedField !== aliquotaIss) {
+        form.setValue("aliquotaIss", formattedField, { shouldDirty: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aliquotaIss]);
+
   const handleSubmit = async (values: ServicoFormValues) => {
     const parsed = servicoCreateSchema.parse(values);
     await onSubmit(parsed);
     form.reset(DEFAULT_VALUES);
     setValorDisplay("");
+    setAliquotaDisplay("");
   };
 
   return (
@@ -252,11 +278,33 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                     <FormLabel>Alíquota ISS (%)</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type="text"
                         disabled={isSubmitting}
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
+                        value={aliquotaDisplay}
+                        onChange={(event) => {
+                          const digitsOnly = event.target.value.replace(/\D/g, "");
+
+                          if (digitsOnly === "") {
+                            setAliquotaDisplay("");
+                            field.onChange("");
+                            return;
+                          }
+
+                          const numeric = Number(digitsOnly) / 100;
+                          setAliquotaDisplay(formatCurrencyDisplay(numeric));
+                          field.onChange(formatFieldValue(numeric));
+                        }}
+                        onBlur={() => {
+                          if (field.value) {
+                            const numeric = parseCurrencyValue(field.value.toString());
+                            if (numeric !== null) {
+                              setAliquotaDisplay(formatCurrencyDisplay(numeric));
+                              field.onChange(formatFieldValue(numeric));
+                            }
+                          }
+                          field.onBlur();
+                        }}
+                        placeholder="0,00"
                       />
                     </FormControl>
                     <FormMessage />
