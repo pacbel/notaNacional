@@ -143,7 +143,7 @@ async function requestRobotToken(): Promise<string> {
   const body = {
     clientId: env.ROBOT_CLIENT_ID,
     clientSecret: env.ROBOT_CLIENT_SECRET,
-    scope: env.ROBOT_SCOPE,
+    scope: "nfse.cancelar nfse.certificados nfse.danfse nfse.emitir nfse.email",
   };
 
   const { data } = await notaApi.post<RobotTokenResponse>("/api/Auth/robot-token", body);

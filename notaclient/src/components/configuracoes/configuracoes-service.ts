@@ -1,4 +1,5 @@
 import type { ConfiguracaoDto, ConfiguracaoFormValues } from "@/lib/validators/configuracao";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 interface ApiErrorResponse {
   message?: string;
@@ -22,7 +23,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getConfiguracao(): Promise<ConfiguracaoDto> {
-  const response = await fetch("/api/configuracoes", {
+  const response = await fetchWithAuth("/api/configuracoes", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -34,7 +35,7 @@ export async function getConfiguracao(): Promise<ConfiguracaoDto> {
 }
 
 export async function updateConfiguracao(payload: ConfiguracaoFormValues): Promise<ConfiguracaoDto> {
-  const response = await fetch("/api/configuracoes", {
+  const response = await fetchWithAuth("/api/configuracoes", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

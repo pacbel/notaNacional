@@ -6,7 +6,6 @@ const envSchema = z.object({
   API_BASE_URL: z.string().url(),
   ROBOT_CLIENT_ID: z.string().min(1),
   ROBOT_CLIENT_SECRET: z.string().min(1),
-  ROBOT_SCOPE: z.string().min(1),
   JWT_SECRET: z
     .string()
     .min(32, "JWT_SECRET precisa ter pelo menos 32 caracteres"),

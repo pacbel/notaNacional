@@ -35,15 +35,8 @@ import {
   type ConfiguracaoDto,
   type ConfiguracaoFormValues,
 } from "@/lib/validators/configuracao";
-import { listMunicipios, type MunicipioDto } from "@/services/municipios";
 
 import { getConfiguracao, updateConfiguracao } from "./configuracoes-service";
-
-const ufOptions = [
-  "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
-  "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN",
-  "RO", "RR", "RS", "SC", "SE", "SP", "TO",
-];
 
 const ambienteConfiguracaoOptions = [
   { value: 1, label: "1 - Produção" },
@@ -97,8 +90,7 @@ const tipoImunidadeOptions = [
 ];
 
 export default function ConfiguracaoNfseForm() {
-  const [selectedUf, setSelectedUf] = useState<string>("MG");
-
+  
   const handleIntegerChange = (onChange: (value: number | undefined) => void) =>
     (event: ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
@@ -179,41 +171,39 @@ export default function ConfiguracaoNfseForm() {
     issRetido: false,
   };
 
-  const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => ({
-    ...defaultFormValues,
-    ...data,
-    numeroInicialDps: data.numeroInicialDps ?? defaultFormValues.numeroInicialDps,
-    seriePadrao: data.seriePadrao ?? defaultFormValues.seriePadrao,
-    tpAmb: data.tpAmb ?? defaultFormValues.tpAmb,
-    opSimpNac: data.opSimpNac ?? defaultFormValues.opSimpNac,
-    regEspTrib: data.regEspTrib ?? defaultFormValues.regEspTrib,
-    ambGer: data.ambGer ?? defaultFormValues.ambGer,
-    tpEmis: data.tpEmis ?? defaultFormValues.tpEmis,
-    procEmi: data.procEmi ?? defaultFormValues.procEmi,
-    cStat: data.cStat ?? defaultFormValues.cStat,
-    tribMun: {
-      tribISSQN: data.tribMun?.tribISSQN ?? defaultFormValues.tribMun.tribISSQN,
-      tpRetISSQN: data.tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
-      tpImunidade: data.tribMun?.tpImunidade ?? defaultFormValues.tribMun.tpImunidade,
-    },
-    totTrib: {
-      pTotTribFed: toNumberOrNull(data.totTrib?.pTotTribFed) ?? defaultFormValues.totTrib.pTotTribFed,
-      pTotTribEst: toNumberOrNull(data.totTrib?.pTotTribEst) ?? defaultFormValues.totTrib.pTotTribEst,
-      pTotTribMun: toNumberOrNull(data.totTrib?.pTotTribMun) ?? defaultFormValues.totTrib.pTotTribMun,
-    },
-    aliquotaIss: data.aliquotaIss ?? null,
-    issRetido: data.issRetido ?? false,
-  });
+  const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => {
+    const { tribMun, totTrib, updatedAt, ...restData } = data;
+    
+    return {
+      ...defaultFormValues,
+      ...restData,
+      numeroInicialDps: data.numeroInicialDps ?? defaultFormValues.numeroInicialDps,
+      seriePadrao: data.seriePadrao ?? defaultFormValues.seriePadrao,
+      tpAmb: data.tpAmb ?? defaultFormValues.tpAmb,
+      opSimpNac: data.opSimpNac ?? defaultFormValues.opSimpNac,
+      regEspTrib: data.regEspTrib ?? defaultFormValues.regEspTrib,
+      ambGer: data.ambGer ?? defaultFormValues.ambGer,
+      tpEmis: data.tpEmis ?? defaultFormValues.tpEmis,
+      procEmi: data.procEmi ?? defaultFormValues.procEmi,
+      cStat: data.cStat ?? defaultFormValues.cStat,
+      tribMun: {
+        tribISSQN: tribMun?.tribISSQN ?? defaultFormValues.tribMun.tribISSQN,
+        tpRetISSQN: tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
+        tpImunidade: tribMun?.tpImunidade ?? defaultFormValues.tribMun.tpImunidade,
+      },
+      totTrib: {
+        pTotTribFed: toNumberOrNull(totTrib?.pTotTribFed) ?? defaultFormValues.totTrib.pTotTribFed,
+        pTotTribEst: toNumberOrNull(totTrib?.pTotTribEst) ?? defaultFormValues.totTrib.pTotTribEst,
+        pTotTribMun: toNumberOrNull(totTrib?.pTotTribMun) ?? defaultFormValues.totTrib.pTotTribMun,
+      },
+      aliquotaIss: data.aliquotaIss ?? null,
+      issRetido: data.issRetido ?? false,
+    };
+  };
 
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
     queryKey: ["configuracoes"],
     queryFn: getConfiguracao,
-  });
-
-  const municipiosQuery = useQuery<MunicipioDto[]>({
-    queryKey: ["municipios", selectedUf],
-    queryFn: () => listMunicipios(selectedUf),
-    enabled: Boolean(selectedUf),
   });
 
   const form = useForm<FormValues>({
@@ -223,7 +213,11 @@ export default function ConfiguracaoNfseForm() {
 
   useEffect(() => {
     if (configuracaoQuery.data) {
-      form.reset(mapDtoToFormValues(configuracaoQuery.data));
+      const mappedValues = mapDtoToFormValues(configuracaoQuery.data);
+      console.log("[ConfiguracaoNfseForm] Dados recebidos da API:", configuracaoQuery.data);
+      console.log("[ConfiguracaoNfseForm] Valores mapeados:", mappedValues);
+      console.log("[ConfiguracaoNfseForm] tribMun.tribISSQN:", mappedValues.tribMun.tribISSQN);
+      form.reset(mappedValues);
     }
   }, [configuracaoQuery.data, form]);
 
@@ -237,14 +231,6 @@ export default function ConfiguracaoNfseForm() {
       toast.error(error.message);
     },
   });
-
-  const municipioOptions = useMemo(() => {
-    const municipios = municipiosQuery.data ?? [];
-    return municipios.map((municipio) => ({
-      value: municipio.codigo,
-      label: `${municipio.nome} (${municipio.uf})`,
-    }));
-  }, [municipiosQuery.data]);
 
   const handleSubmit = async (values: FormValues) => {
     if (!configuracaoQuery.data) {
@@ -387,8 +373,9 @@ export default function ConfiguracaoNfseForm() {
                   <FormItem>
                     <FormLabel>Tributação (ISSQN)</FormLabel>
                     <Select
-                      value={field.value?.toString()}
+                      key={`tribISSQN-${field.value}`}
                       onValueChange={(value) => field.onChange(Number(value))}
+                      defaultValue={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
