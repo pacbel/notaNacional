@@ -49,27 +49,32 @@ model ConfiguracaoDps {
 }
 
 model Tomador {
-  id                 String        @id @default(uuid()) @db.Char(36)
-  tipoDocumento      TipoDocumento
-  documento          String        @db.VarChar(14)
-  nomeRazaoSocial    String
-  email              String
-  telefone           String?       @db.VarChar(20)
-  inscricaoMunicipal String?       @db.VarChar(30)
-  codigoMunicipio    String        @db.VarChar(7)
-  cidade             String
-  estado             String        @db.VarChar(2)
-  cep                String        @db.VarChar(8)
-  logradouro         String
-  numero             String        @db.VarChar(20)
-  complemento        String?       @db.VarChar(60)
-  bairro             String        @db.VarChar(120)
-  ativo              Boolean       @default(true)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  prestadorId        String        @db.Char(36)
-  dps                Dps[]
-  notas              NotaFiscal[]
+  id                    String        @id @default(uuid()) @db.Char(36)
+  tipoTomador           TomadorTipo   @default(NACIONAL)
+  tipoDocumento         TipoDocumento?
+  documento             String?       @db.VarChar(40)
+  nomeRazaoSocial       String
+  email                 String
+  telefone              String?       @db.VarChar(20)
+  inscricaoMunicipal    String?       @db.VarChar(30)
+  codigoMunicipio       String?       @db.VarChar(7)
+  cidade                String?
+  estado                String?       @db.VarChar(2)
+  cep                   String?       @db.VarChar(8)
+  logradouro            String?
+  numero                String?
+  complemento           String?       @db.VarChar(60)
+  bairro                String?       @db.VarChar(120)
+  codigoPais            String?       @db.VarChar(3)
+  codigoPostalExterior  String?       @db.VarChar(20)
+  cidadeExterior        String?       @db.VarChar(60)
+  estadoExterior        String?       @db.VarChar(60)
+  ativo                 Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  prestadorId           String        @db.Char(36)
+  dps                   Dps[]
+  notas                 NotaFiscal[]
 
   @@unique([prestadorId, documento])
   @@index([prestadorId])
@@ -238,6 +243,12 @@ enum LogNivel {
 
 enum TokenIntegracaoTipo {
   ROBOT
+}
+
+enum TomadorTipo {
+  NACIONAL
+  ESTRANGEIRO
+  ANONIMO
 }
 
 enum TipoDocumento {

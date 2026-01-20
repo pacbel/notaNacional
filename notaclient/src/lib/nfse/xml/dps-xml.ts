@@ -3,6 +3,7 @@ import { Prisma, type TipoDocumento } from "@prisma/client";
 const INF_DPS_ID_LENGTH = 45;
 const CODIGO_MUNICIPIO_LENGTH = 7;
 const CNPJ_LENGTH = 14;
+const CPF_LENGTH = 11;
 const SERIE_LENGTH = 5;
 const NDPS_LENGTH = 15;
 const XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
@@ -80,17 +81,22 @@ export interface PartyBase {
 }
 
 export interface TomadorBase {
-  tipoDocumento: TipoDocumento | "CPF" | "CNPJ";
-  documento: string;
+  tipoTomador?: TomadorTipo;
+  tipoDocumento?: TipoDocumento | "CPF" | "CNPJ" | null;
+  documento?: string | null;
   nomeRazaoSocial: string;
-  codigoMunicipio: string;
-  logradouro: string;
-  numero: string;
-  bairro: string;
+  codigoMunicipio?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+  bairro?: string | null;
   complemento?: string | null;
   cep?: string | null;
   telefone?: string | null;
   email?: string | null;
+  codigoPais?: string | null;
+  codigoPostalExterior?: string | null;
+  cidadeExterior?: string | null;
+  estadoExterior?: string | null;
 }
 
 export interface ServicoBase {
@@ -100,6 +106,15 @@ export interface ServicoBase {
   codigoTributacaoNacional: string;
   codigoNbs?: string | null;
   aliquotaIss?: Prisma.Decimal | number | null;
+  tipoServico?: "NORMAL" | "EXPORTACAO" | "CONSTRUCAO";
+  exportacao?: {
+    paisDestino?: string | null;
+    justificativa?: string | null;
+  } | null;
+  construcao?: {
+    codigoObra?: string | null;
+    codigoArt?: string | null;
+  } | null;
 }
 
 export interface ConfiguracaoBase {
@@ -129,6 +144,50 @@ export interface GenerateDpsXmlInput {
   servico: ServicoBase;
   configuracao: ConfiguracaoBase;
   observacoes?: string | null;
+}
+
+type TomadorTipo = "NACIONAL" | "ESTRANGEIRO" | "ANONIMO";
+type ServicoTipo = "NORMAL" | "EXPORTACAO" | "CONSTRUCAO";
+type TributacaoTipo = "NORMAL" | "SIMPLES" | "RETIDA" | "IMUNE";
+
+interface DpsContext {
+  readonly input: GenerateDpsXmlInput;
+  readonly tpAmb: string;
+  readonly serieParaTag: string;
+  readonly numeroParaTag: string;
+  readonly infDpsId: string;
+  readonly competenciaData: string;
+  readonly dataEmissao: string;
+  readonly prestadorCnpj: string;
+  readonly inscricaoMunicipalPrestador: string | null;
+  readonly telefonePrestador: string | null;
+  readonly opSimpNac: string;
+  readonly regEspTrib: string;
+  readonly tomadorTipo: TomadorTipo;
+  readonly tomadorDocumentoTag: "CPF" | "CNPJ" | "idEstrangeiro" | null;
+  readonly tomadorDocumento: string | null;
+  readonly tomadorTelefone: string | null;
+  readonly tomadorCep: string | null;
+  readonly tomadorCodigoMunicipio: string | null;
+  readonly valorServico: string;
+  readonly valorIssqn: string | null;
+  readonly totalTribFederal: string;
+  readonly totalTribEstadual: string;
+  readonly totalTribMunicipal: string;
+  readonly aliquotaIss: string | null;
+  readonly shouldInformAliquota: boolean;
+  readonly shouldInformImunidade: boolean;
+  readonly tpImunidade: string | null;
+  readonly tribIssqn: string;
+  readonly tpRetIssqn: string;
+  readonly serviceDescription: string;
+  readonly informacoesComplementares: string | null;
+  readonly codigoNbs: string;
+  readonly codigoTributacaoNacional: string;
+  readonly servicoTipo: ServicoTipo;
+  readonly tributacaoTipo: TributacaoTipo;
+  readonly codigoMunicipioEmissao: string;
+  readonly codigoMunicipioPrestacao: string;
 }
 
 // --- Funções Auxiliares ---
@@ -191,165 +250,503 @@ function normalizeDigits(value?: string | null): string | null {
  * Entrada: "010301" ou "01.03.01" → Saída: "01.03.01"
  */
 function formatCodigoTributacaoNacional(value: string): string {
-  // Remove pontos existentes
   const digitsOnly = value.replace(/\D/g, "");
-  
-  // Se tiver 6 dígitos, formata como XX.XX.XX
-  if (digitsOnly.length === 6) {
-    return `${digitsOnly.substring(0, 2)}.${digitsOnly.substring(2, 4)}.${digitsOnly.substring(4, 6)}`;
+
+  if (digitsOnly.length > 0) {
+    return digitsOnly;
   }
-  
-  // Se tiver 4 dígitos, formata como XX.XX
-  if (digitsOnly.length === 4) {
-    return `${digitsOnly.substring(0, 2)}.${digitsOnly.substring(2, 4)}`;
-  }
-  
-  // Retorna como está se não corresponder aos padrões
-  return value;
+
+  return value.replace(/\D/g, "");
 }
 export function generateDpsXml(input: GenerateDpsXmlInput): string {
-  const tpAmbValue = input.configuracao.tpAmb ?? input.configuracao.ambGer;
-  const tpAmb = resolveTpAmb(tpAmbValue);
-  const serieParaId = resolveSerieParaId(input.serie);
-  const serieParaTag = resolveSerieParaTag(input.serie);
-  const numeroParaId = resolveNumero15DigitosParaId(input.numero); // 15 dígitos para ID
-  const numeroParaTag = resolveNumeroSemZeros(input.numero); // Sem zeros para tag
-  const infDpsId = resolveInfDpsId(input, tpAmb, serieParaId, numeroParaId);
-  const competenciaData = formatDate(input.competencia);
-  const dataEmissao = formatDateTimeOffset(input.emissao);
-  const documentoTomadorTag = input.tomador.tipoDocumento === "CNPJ" ? "CNPJ" : "CPF";
-  const telefoneTomador = normalizeDigits(input.tomador.telefone);
-  const cepTomador = normalizeDigits(input.tomador.cep);
-
-  const valorServico = formatMoney(input.servico.valorUnitario);
-  const totalTribFederalBase = input.configuracao.pTotTribFed ?? 0;
-  const totalTribEstadualBase = input.configuracao.pTotTribEst ?? 0;
-  const totalTribMunicipalBase = input.configuracao.pTotTribMun ?? 0;
-  const totalTribFederal = formatPercentage(totalTribFederalBase);
-  const totalTribEstadual = formatPercentage(totalTribEstadualBase);
-  const totalTribMunicipal = formatPercentage(totalTribMunicipalBase);
-  const aliquotaIss = formatPercentage(input.servico.aliquotaIss);
-
-  const shouldIncludeImunidade = input.configuracao.tribISSQN === 2;
-  const tpImunidade = shouldIncludeImunidade ? input.configuracao.tpImunidade ?? 0 : null;
-  const opSimpNac = String(input.configuracao.opSimpNac ?? 1);
-  const regEspTrib = String(input.configuracao.regEspTrib ?? 0);
-  const serviceDescription = sanitizeDescription(input.servico.descricao);
-  const informacoesComplementares = sanitizeDescription(input.observacoes ?? "");
-  const codigoNbs = normalizeDigits(input.servico.codigoNbs) ?? DEFAULT_NBS_CODE;
-
+  const context = createDpsContext(input);
   const w = new XmlWriter();
 
-  // Declaração XML
   w.decl("1.0", "UTF-8");
-
-  // DPS versão 1.01 com xmlns
   w.open("DPS", { xmlns: "http://www.sped.fazenda.gov.br/nfse", versao: "1.01" });
-  w.open("infDPS", { Id: infDpsId });
+  w.open("infDPS", { Id: context.infDpsId });
 
-  // Informações básicas
-  w.leaf("tpAmb", tpAmb);
-  w.leaf("dhEmi", dataEmissao);
-  w.leaf("verAplic", input.configuracao.verAplic);
-  w.leaf("serie", serieParaTag);
-  w.leaf("nDPS", numeroParaTag); // ✅ CORRIGIDO: Número SEM zeros à esquerda
-  w.leaf("dCompet", competenciaData);
-  w.leaf("tpEmit", String(input.configuracao.tpEmis));
-  w.leaf("cLocEmi", input.prestador.codigoMunicipio);
+  buildIdentificacao(w, context);
+  buildPrestador(w, context);
+  buildTomador(w, context);
+  buildServico(w, context);
+  buildTributacao(w, context);
+  buildTotais(w, context);
 
-  // ✅ CORREÇÃO: Prestador sem fone/email e com regTrib logo após CNPJ
-  w.open("prest");
-  w.leaf("CNPJ", input.prestador.cnpj);
-  const telefonePrestador = normalizeDigits(input.prestador.telefone ?? null);
-  if (telefonePrestador) {
-    w.leaf("fone", telefonePrestador);
-  }
-  if (input.prestador.email) {
-    w.leaf("email", input.prestador.email);
-  }
-  w.open("regTrib");
-  w.leaf("opSimpNac", opSimpNac);
-  w.leaf("regEspTrib", regEspTrib);
-  w.close("regTrib");
-  w.close("prest");
-
-  // Tomador
-  w.open("toma");
-  w.leaf(documentoTomadorTag, input.tomador.documento);
-  w.leaf("xNome", input.tomador.nomeRazaoSocial);
-  w.open("end");
-  w.open("endNac");
-  w.leaf("cMun", input.tomador.codigoMunicipio);
-  if (cepTomador) {
-    w.leaf("CEP", cepTomador);
-  }
-  w.close("endNac");
-  w.leaf("xLgr", input.tomador.logradouro);
-  w.leaf("nro", input.tomador.numero);
-  if (input.tomador.complemento) {
-    w.leaf("xCpl", input.tomador.complemento);
-  }
-  w.leaf("xBairro", input.tomador.bairro);
-  w.close("end");
-  if (telefoneTomador) {
-    w.leaf("fone", telefoneTomador);
-  }
-  if (input.tomador.email) {
-    w.leaf("email", input.tomador.email);
-  }
-  w.close("toma");
-
-  // Serviço
-  w.open("serv");
-  w.open("locPrest");
-  w.leaf("cLocPrestacao", input.configuracao.xLocPrestacao);
-  w.close("locPrest");
-  w.open("cServ");
-  w.leaf("cTribNac", normalizeDigits(input.servico.codigoTributacaoNacional) ?? "");
-  w.leaf("cTribMun", input.servico.codigoTributacaoMunicipal);
-  w.leaf("xDescServ", serviceDescription);
-  w.leaf("cNBS", codigoNbs);
-  w.close("cServ");
-  if (informacoesComplementares) {
-    w.open("infoCompl");
-    w.leaf("xInfComp", informacoesComplementares);
-    w.close("infoCompl");
-  }
-  w.close("serv");
-
-  // Valores
-  w.open("valores");
-  w.open("vServPrest");
-  w.leaf("vServ", valorServico);
-  w.close("vServPrest");
-
-  // Tributação
-  w.open("trib");
-  w.open("tribMun");
-  w.leaf("tribISSQN", String(input.configuracao.tribISSQN));
-  if (tpImunidade !== null) {
-    w.leaf("tpImunidade", String(tpImunidade));
-  }
-  w.leaf("tpRetISSQN", String(input.configuracao.tpRetISSQN));
-  // ✅ CORRIGIDO: Apenas enviar pAliq se NÃO for Simples Nacional (opSimpNac != 1)
-  // Para Simples Nacional, a SEFIN calcula automaticamente
-  if (input.configuracao.opSimpNac !== 1 && aliquotaIss) {
-    w.leaf("pAliq", aliquotaIss);
-  }
-  w.close("tribMun");
-
-  w.open("totTrib");
-  w.open("pTotTrib");
-  w.leaf("pTotTribFed", totalTribFederal);
-  w.leaf("pTotTribEst", totalTribEstadual);
-  w.leaf("pTotTribMun", totalTribMunicipal);
-  w.close("pTotTrib");
-  w.close("totTrib");
-  w.close("trib");
-
-  w.close("valores");
   w.close("infDPS");
   w.close("DPS");
 
   return w.build();
+}
+
+function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
+  const tpAmbValue = input.configuracao.tpAmb ?? input.configuracao.ambGer;
+  const tpAmb = resolveTpAmb(tpAmbValue);
+  const serieParaId = resolveSerieParaId(input.serie);
+  const numeroParaId = resolveNumero15DigitosParaId(input.numero);
+  const serieParaTag = resolveSerieParaTag(input.serie);
+  const numeroParaTag = resolveNumeroSemZeros(input.numero);
+  const infDpsId = resolveInfDpsId(input, tpAmb, serieParaId, numeroParaId).slice(0, INF_DPS_ID_LENGTH);
+
+  const competenciaData = formatDate(input.competencia);
+  const dataEmissao = formatDateTimeOffset(input.emissao);
+
+  const prestadorCnpj = resolveCnpj(input.prestador.cnpj);
+  const inscricaoMunicipalPrestador = normalizeDigits(input.prestador.inscricaoMunicipal ?? null);
+  const telefonePrestador = normalizeDigits(input.prestador.telefone ?? null);
+
+  const tomadorDocumentoInfo = resolveTomadorDocumento(input.tomador);
+  const tomadorTelefone = normalizeDigits(input.tomador.telefone ?? null);
+  const tomadorCep = normalizeDigits(input.tomador.cep ?? null);
+  const tomadorCodigoMunicipio = input.tomador.codigoMunicipio ? resolveCodigoMunicipio(input.tomador.codigoMunicipio) : null;
+
+  const valorServicoNumber = input.servico.valorUnitario instanceof Prisma.Decimal
+    ? input.servico.valorUnitario.toNumber()
+    : Number(input.servico.valorUnitario);
+  const valorServico = formatMoney(input.servico.valorUnitario);
+
+  const totalTribFederal = formatPercentage(input.configuracao.pTotTribFed ?? 0);
+  const totalTribEstadual = formatPercentage(input.configuracao.pTotTribEst ?? 0);
+  const totalTribMunicipal = formatPercentage(input.configuracao.pTotTribMun ?? 0);
+
+  const aliquotaNumberRaw = input.servico.aliquotaIss instanceof Prisma.Decimal
+    ? input.servico.aliquotaIss.toNumber()
+    : input.servico.aliquotaIss ?? null;
+  const hasAliquota = typeof aliquotaNumberRaw === "number";
+  const aliquotaIss = hasAliquota ? formatPercentage(aliquotaNumberRaw) : null;
+  const shouldInformAliquota = (input.configuracao.opSimpNac ?? 1) !== 1 && hasAliquota;
+  const valorIssqn = shouldInformAliquota && hasAliquota
+    ? formatMoney(valorServicoNumber * (aliquotaNumberRaw as number) / 100)
+    : null;
+
+  const shouldInformImunidade = input.configuracao.tribISSQN === 2;
+  const tpImunidade = shouldInformImunidade && input.configuracao.tpImunidade !== null
+    ? String(input.configuracao.tpImunidade)
+    : null;
+
+  const serviceDescription = sanitizeDescription(input.servico.descricao);
+  const observacoesSanitized = sanitizeDescription(input.observacoes ?? "");
+  const informacoesComplementares = observacoesSanitized ? observacoesSanitized : null;
+  const codigoNbs = normalizeDigits(input.servico.codigoNbs) ?? DEFAULT_NBS_CODE;
+  const codigoTributacaoNacional = formatCodigoTributacaoNacional(input.servico.codigoTributacaoNacional);
+
+  const servicoTipo = resolveServicoTipo(input.servico);
+  const tributacaoTipo = resolveTributacaoTipo(input);
+
+  return {
+    input,
+    tpAmb,
+    serieParaTag,
+    numeroParaTag,
+    infDpsId,
+    competenciaData,
+    dataEmissao,
+    prestadorCnpj,
+    inscricaoMunicipalPrestador,
+    telefonePrestador,
+    opSimpNac: String(input.configuracao.opSimpNac ?? 1),
+    regEspTrib: String(input.configuracao.regEspTrib ?? 0),
+    tomadorTipo: tomadorDocumentoInfo.tipo,
+    tomadorDocumentoTag: tomadorDocumentoInfo.tag,
+    tomadorDocumento: tomadorDocumentoInfo.valor,
+    tomadorTelefone,
+    tomadorCep,
+    tomadorCodigoMunicipio,
+    valorServico,
+    valorIssqn,
+    totalTribFederal,
+    totalTribEstadual,
+    totalTribMunicipal,
+    aliquotaIss,
+    shouldInformAliquota,
+    shouldInformImunidade,
+    tpImunidade,
+    tribIssqn: String(input.configuracao.tribISSQN),
+    tpRetIssqn: String(input.configuracao.tpRetISSQN),
+    serviceDescription,
+    informacoesComplementares,
+    codigoNbs,
+    codigoTributacaoNacional,
+    servicoTipo,
+    tributacaoTipo,
+    codigoMunicipioEmissao: input.prestador.codigoMunicipio,
+    codigoMunicipioPrestacao: input.configuracao.xLocPrestacao,
+  };
+}
+
+function resolveTomadorDocumento(tomador: TomadorBase): {
+  tipo: TomadorTipo;
+  tag: "CPF" | "CNPJ" | "idEstrangeiro" | null;
+  valor: string | null;
+} {
+  const documento = tomador.documento?.trim();
+  if (!documento) {
+    return { tipo: "ANONIMO", tag: null, valor: null };
+  }
+
+  const normalized = normalizeDigits(documento);
+  const tipoDocumento = typeof tomador.tipoDocumento === "string" ? tomador.tipoDocumento.toUpperCase() : "";
+
+  if (tipoDocumento === "CNPJ" || normalized?.length === CNPJ_LENGTH) {
+    return { tipo: "NACIONAL", tag: "CNPJ", valor: normalized ?? documento };
+  }
+
+  if (tipoDocumento === "CPF" || normalized?.length === CPF_LENGTH) {
+    return { tipo: "NACIONAL", tag: "CPF", valor: normalized ?? documento };
+  }
+
+  return { tipo: "ESTRANGEIRO", tag: "idEstrangeiro", valor: documento };
+}
+
+function resolveServicoTipo(servico: ServicoBase): ServicoTipo {
+  if (servico.tipoServico === "EXPORTACAO") {
+    return "EXPORTACAO";
+  }
+  if (servico.tipoServico === "CONSTRUCAO") {
+    return "CONSTRUCAO";
+  }
+  return "NORMAL";
+}
+
+function resolveTributacaoTipo(context: GenerateDpsXmlInput): TributacaoTipo {
+  if (context.configuracao.tribISSQN === 2) {
+    return "IMUNE";
+  }
+  if (context.configuracao.tpRetISSQN === 1) {
+    return "RETIDA";
+  }
+  if ((context.configuracao.opSimpNac ?? 1) === 1) {
+    return "SIMPLES";
+  }
+  return "NORMAL";
+}
+
+function buildIdentificacao(w: XmlWriter, context: DpsContext): void {
+  w.leaf("tpAmb", context.tpAmb);
+  w.leaf("dhEmi", context.dataEmissao);
+  w.leaf("verAplic", context.input.configuracao.verAplic);
+  w.leaf("serie", context.serieParaTag);
+  w.leaf("nDPS", context.numeroParaTag);
+  w.leaf("dCompet", context.competenciaData);
+  w.leaf("tpEmit", String(context.input.configuracao.tpEmis));
+  w.leaf("cLocEmi", context.codigoMunicipioEmissao);
+}
+
+function buildPrestador(w: XmlWriter, context: DpsContext): void {
+  w.open("prest");
+  w.leaf("CNPJ", context.prestadorCnpj);
+  if (context.inscricaoMunicipalPrestador) {
+    w.leaf("IM", context.inscricaoMunicipalPrestador);
+  }
+  if (context.telefonePrestador) {
+    w.leaf("fone", context.telefonePrestador);
+  }
+  if (context.input.prestador.email) {
+    w.leaf("email", context.input.prestador.email);
+  }
+  w.open("regTrib");
+  w.leaf("opSimpNac", context.opSimpNac);
+  w.leaf("regEspTrib", context.regEspTrib);
+  w.close("regTrib");
+  w.close("prest");
+}
+
+function buildTomador(w: XmlWriter, context: DpsContext): void {
+  w.open("toma");
+  switch (context.tomadorTipo) {
+    case "ESTRANGEIRO":
+      buildTomadorEstrangeiro(w, context);
+      break;
+    case "ANONIMO":
+      buildTomadorAnonimo(w, context);
+      break;
+    default:
+      buildTomadorNacional(w, context);
+      break;
+  }
+  w.close("toma");
+}
+
+function buildTomadorNacional(w: XmlWriter, context: DpsContext): void {
+  if (context.tomadorDocumentoTag && context.tomadorDocumento) {
+    w.leaf(context.tomadorDocumentoTag, context.tomadorDocumento);
+  }
+  buildTomadorDadosComplementares(w, context);
+}
+
+function buildTomadorEstrangeiro(w: XmlWriter, context: DpsContext): void {
+  const documento = context.tomadorDocumento ?? context.input.tomador.documento;
+  if (documento) {
+    w.leaf("idEstrangeiro", documento);
+  }
+  buildTomadorDadosComplementares(w, context);
+}
+
+function buildTomadorAnonimo(w: XmlWriter, context: DpsContext): void {
+  buildTomadorDadosComplementares(w, context);
+}
+
+function buildTomadorDadosComplementares(w: XmlWriter, context: DpsContext): void {
+  w.leaf("xNome", context.input.tomador.nomeRazaoSocial);
+  buildTomadorEndereco(w, context);
+  if (context.tomadorTelefone) {
+    w.leaf("fone", context.tomadorTelefone);
+  }
+  if (context.input.tomador.email) {
+    w.leaf("email", context.input.tomador.email);
+  }
+}
+
+function buildTomadorEndereco(w: XmlWriter, context: DpsContext): void {
+  const dados = context.input.tomador;
+
+  const hasEnderecoNacional = Boolean(
+    dados.logradouro ||
+    dados.numero ||
+    dados.complemento ||
+    dados.bairro ||
+    context.tomadorCodigoMunicipio ||
+    context.tomadorCep
+  );
+
+  const hasEnderecoExterior = context.tomadorTipo === "ESTRANGEIRO" && Boolean(
+    dados.codigoPais ||
+    dados.codigoPostalExterior ||
+    dados.cidadeExterior ||
+    dados.estadoExterior ||
+    dados.logradouro ||
+    dados.numero ||
+    dados.complemento ||
+    dados.bairro
+  );
+
+  if (!hasEnderecoNacional && !hasEnderecoExterior) {
+    return;
+  }
+
+  w.open("end");
+
+  if (hasEnderecoNacional) {
+    w.open("endNac");
+    if (context.tomadorCodigoMunicipio) {
+      w.leaf("cMun", context.tomadorCodigoMunicipio);
+    }
+    if (context.tomadorCep) {
+      w.leaf("CEP", context.tomadorCep);
+    }    
+    w.close("endNac");
+        
+    if (dados.logradouro) {
+      w.leaf("xLgr", dados.logradouro);
+    }
+    if (dados.numero) {
+      w.leaf("nro", dados.numero);
+    }
+    if (dados.complemento) {
+      w.leaf("xCpl", dados.complemento);
+    }
+    if (dados.bairro) {
+      w.leaf("xBairro", dados.bairro);
+    }
+  }
+
+  if (hasEnderecoExterior) {
+    w.open("endExt");
+    if (dados.codigoPais) {
+      w.leaf("cPais", dados.codigoPais);
+    }
+    if (dados.codigoPostalExterior) {
+      w.leaf("cEndPost", dados.codigoPostalExterior);
+    }
+    if (dados.cidadeExterior) {
+      w.leaf("xCidade", dados.cidadeExterior);
+    }
+    if (dados.estadoExterior) {
+      w.leaf("xEstProvReg", dados.estadoExterior);
+    }
+    if (dados.logradouro) {
+      w.leaf("xLgr", dados.logradouro);
+    }
+    if (dados.numero) {
+      w.leaf("nro", dados.numero);
+    }
+    if (dados.complemento) {
+      w.leaf("xCpl", dados.complemento);
+    }
+    if (dados.bairro) {
+      w.leaf("xBairro", dados.bairro);
+    }
+    w.close("endExt");
+  }
+
+  w.close("end");
+}
+
+function buildServico(w: XmlWriter, context: DpsContext): void {
+  switch (context.servicoTipo) {
+    case "EXPORTACAO":
+      buildServicoExportacao(w, context);
+      break;
+    case "CONSTRUCAO":
+      buildServicoConstrucao(w, context);
+      break;
+    default:
+      buildServicoNormal(w, context);
+      break;
+  }
+}
+
+function buildServicoNormal(w: XmlWriter, context: DpsContext): void {
+  buildServicoSkeleton(w, context, () => {
+    // Serviço normal não adiciona grupos complementares
+  });
+}
+
+function buildServicoExportacao(w: XmlWriter, context: DpsContext): void {
+  buildServicoSkeleton(w, context, () => {
+    const exportacao = context.input.servico.exportacao;
+    if (!exportacao) {
+      return;
+    }
+
+    w.open("exportacao");
+    if (exportacao.paisDestino) {
+      w.leaf("paisDest", exportacao.paisDestino);
+    }
+    if (exportacao.justificativa) {
+      w.leaf("xJust", exportacao.justificativa);
+    }
+    w.close("exportacao");
+  });
+}
+
+function buildServicoConstrucao(w: XmlWriter, context: DpsContext): void {
+  buildServicoSkeleton(w, context, () => {
+    const construcao = context.input.servico.construcao;
+    if (!construcao) {
+      return;
+    }
+
+    w.open("obra");
+    if (construcao.codigoObra) {
+      w.leaf("cObra", construcao.codigoObra);
+    }
+    if (construcao.codigoArt) {
+      w.leaf("cArt", construcao.codigoArt);
+    }
+    w.close("obra");
+  });
+}
+
+function buildServicoSkeleton(w: XmlWriter, context: DpsContext, extra: () => void): void {
+  w.open("serv");
+  buildServicoBase(w, context);
+  extra();
+  w.close("serv");
+}
+
+function buildServicoBase(w: XmlWriter, context: DpsContext): void {
+  w.open("locPrest");
+  w.leaf("cLocPrestacao", context.codigoMunicipioPrestacao);
+  w.close("locPrest");
+
+  w.open("cServ");
+  w.leaf("cTribNac", context.codigoTributacaoNacional);
+  w.leaf("cTribMun", context.input.servico.codigoTributacaoMunicipal);
+  w.leaf("xDescServ", context.serviceDescription);
+  w.leaf("cNBS", context.codigoNbs);
+  w.close("cServ");
+
+  if (context.informacoesComplementares) {
+    w.open("infoCompl");
+    w.leaf("xInfComp", context.informacoesComplementares);
+    w.close("infoCompl");
+  }
+}
+
+function buildTributacao(w: XmlWriter, context: DpsContext): void {
+  w.open("trib");
+  switch (context.tributacaoTipo) {
+    case "IMUNE":
+      buildTributacaoImune(w, context);
+      break;
+    case "RETIDA":
+      buildTributacaoRetida(w, context);
+      break;
+    case "SIMPLES":
+      buildTributacaoSimples(w, context);
+      break;
+    default:
+      buildTributacaoNormal(w, context);
+      break;
+  }
+  buildTotTrib(w, context);
+  w.close("trib");
+}
+
+function buildTributacaoNormal(w: XmlWriter, context: DpsContext): void {
+  writeTributacaoMunicipal(w, context, {
+    includeAliquota: context.shouldInformAliquota,
+    includeImunidade: false,
+  });
+}
+
+function buildTributacaoSimples(w: XmlWriter, context: DpsContext): void {
+  writeTributacaoMunicipal(w, context, {
+    includeAliquota: false,
+    includeImunidade: false,
+  });
+}
+
+function buildTributacaoRetida(w: XmlWriter, context: DpsContext): void {
+  writeTributacaoMunicipal(w, context, {
+    includeAliquota: context.shouldInformAliquota,
+    includeImunidade: false,
+  });
+}
+
+function buildTributacaoImune(w: XmlWriter, context: DpsContext): void {
+  writeTributacaoMunicipal(w, context, {
+    includeAliquota: false,
+    includeImunidade: true,
+  });
+}
+
+interface TributacaoMunicipalOptions {
+  includeAliquota: boolean;
+  includeImunidade: boolean;
+}
+
+function writeTributacaoMunicipal(w: XmlWriter, context: DpsContext, options: TributacaoMunicipalOptions): void {
+  w.open("tribMun");
+  w.leaf("tribISSQN", context.tribIssqn);
+  if (options.includeImunidade && context.tpImunidade) {
+    w.leaf("tpImunidade", context.tpImunidade);
+  }
+  w.leaf("tpRetISSQN", context.tpRetIssqn);
+  if (options.includeAliquota && context.aliquotaIss) {
+    w.leaf("pAliq", context.aliquotaIss);
+    if (context.valorIssqn) {
+      w.leaf("vISSQN", context.valorIssqn);
+    }
+  }
+  w.close("tribMun");
+}
+
+function buildTotTrib(w: XmlWriter, context: DpsContext): void {
+  w.open("totTrib");
+  w.open("pTotTrib");
+  w.leaf("pTotTribFed", context.totalTribFederal);
+  w.leaf("pTotTribEst", context.totalTribEstadual);
+  w.leaf("pTotTribMun", context.totalTribMunicipal);
+  w.close("pTotTrib");
+  w.close("totTrib");
+}
+
+function buildTotais(w: XmlWriter, context: DpsContext): void {
+  w.open("valores");
+  w.open("vServPrest");
+  w.leaf("vServ", context.valorServico);
+  w.close("vServPrest");
+  w.close("valores");
 }

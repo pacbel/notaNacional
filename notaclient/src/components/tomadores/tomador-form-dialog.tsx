@@ -17,7 +17,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { tomadorCreateSchema, type TomadorCreateInput, type TomadorFormValues } from "@/lib/validators/tomador";
-import { formatDocumentoInput, formatPhoneInput, normalizeDocumento, normalizePhone } from "@/lib/utils/input-masks";
+import {
+  formatDocumentoInput,
+  formatPhoneInput,
+  normalizeDocumento,
+  normalizePhone,
+} from "@/lib/utils/input-masks";
 
 import { AddressFormSection } from "@/components/address/address-form-section";
 
@@ -39,6 +44,7 @@ interface TomadorFormDialogProps {
 }
 
 const DEFAULT_VALUES: TomadorFormValues = {
+  tipoTomador: "NACIONAL",
   tipoDocumento: "CPF",
   documento: "",
   nomeRazaoSocial: "",
@@ -53,6 +59,10 @@ const DEFAULT_VALUES: TomadorFormValues = {
   numero: "",
   complemento: "",
   bairro: "",
+  codigoPais: "",
+  codigoPostalExterior: "",
+  cidadeExterior: "",
+  estadoExterior: "",
 };
 
 export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting = false }: TomadorFormDialogProps) {
@@ -63,6 +73,7 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
     defaultValues: DEFAULT_VALUES,
   });
 
+  const tipoTomadorValue = form.watch("tipoTomador") ?? "NACIONAL";
   const tipoDocumentoValue = form.watch("tipoDocumento") ?? "CPF";
   const numeroInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -93,25 +104,37 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="tipoDocumento"
+                name="tipoTomador"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de documento</FormLabel>
+                    <FormLabel>Tipo de tomador</FormLabel>
                     <FormControl>
                       <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={isSubmitting}
                         value={field.value}
                         onChange={(event) => {
-                          const nextTipo = event.target.value as "CPF" | "CNPJ";
+                          const nextTipo = event.target.value as "NACIONAL" | "ESTRANGEIRO" | "ANONIMO";
                           field.onChange(nextTipo);
-                          const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
-                          form.setValue("documento", normalized, { shouldDirty: true });
+
+                          if (nextTipo !== "NACIONAL") {
+                            form.setValue("tipoDocumento", "CPF", { shouldDirty: true });
+                            form.setValue("documento", "", { shouldDirty: true });
+                            form.setValue("inscricaoMunicipal", "", { shouldDirty: true });
+                          }
+
+                          if (nextTipo === "NACIONAL") {
+                            form.setValue("codigoPais", "", { shouldDirty: true });
+                            form.setValue("codigoPostalExterior", "", { shouldDirty: true });
+                            form.setValue("cidadeExterior", "", { shouldDirty: true });
+                            form.setValue("estadoExterior", "", { shouldDirty: true });
+                          }
                         }}
                         autoFocus
                       >
-                        <option value="CPF">CPF</option>
-                        <option value="CNPJ">CNPJ</option>
+                        <option value="NACIONAL">Nacional</option>
+                        <option value="ESTRANGEIRO">Estrangeiro</option>
+                        <option value="ANONIMO">Anônimo</option>
                       </select>
                     </FormControl>
                     <FormMessage />
@@ -119,21 +142,68 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
                 )}
               />
 
+              {tipoTomadorValue === "NACIONAL" && (
+                <FormField
+                  control={form.control}
+                  name="tipoDocumento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de documento</FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isSubmitting}
+                          value={field.value ?? "CPF"}
+                          onChange={(event) => {
+                            const nextTipo = event.target.value as "CPF" | "CNPJ";
+                            field.onChange(nextTipo);
+                            const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
+                            form.setValue("documento", normalized, { shouldDirty: true });
+                          }}
+                        >
+                          <option value="CPF">CPF</option>
+                          <option value="CNPJ">CNPJ</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
                 name="documento"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Documento</FormLabel>
+                    <FormLabel>
+                      {tipoTomadorValue === "ESTRANGEIRO"
+                        ? "Documento identificador"
+                        : tipoDocumentoValue === "CPF"
+                        ? "CPF"
+                        : "CNPJ"}
+                    </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder={tipoDocumentoValue === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
-                        disabled={isSubmitting}
-                        value={formatDocumentoInput(field.value ?? "", tipoDocumentoValue)}
-                        onChange={(event) => field.onChange(normalizeDocumento(event.target.value, tipoDocumentoValue))}
-                        inputMode="numeric"
-                        autoComplete="off"
-                      />
+                      {tipoTomadorValue === "ESTRANGEIRO" ? (
+                        <Input
+                          placeholder="Informe o documento"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          maxLength={40}
+                        />
+                      ) : tipoTomadorValue === "ANONIMO" ? (
+                        <Input value="Tomador sem identificação" disabled readOnly />
+                      ) : (
+                        <Input
+                          placeholder={tipoDocumentoValue === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
+                          disabled={isSubmitting}
+                          value={formatDocumentoInput(field.value ?? "", tipoDocumentoValue)}
+                          onChange={(event) => field.onChange(normalizeDocumento(event.target.value, tipoDocumentoValue))}
+                          inputMode="numeric"
+                          autoComplete="off"
+                        />
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -202,12 +272,171 @@ export function TomadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
 
             </div>
 
-            <AddressFormSection
-              form={form}
-              isSubmitting={isSubmitting}
-              numeroInputRef={numeroInputRef}
-              debugLabel="Tomadores/FormDialog"
-            />
+            {tipoTomadorValue === "NACIONAL" && (
+              <AddressFormSection
+                form={form}
+                isSubmitting={isSubmitting}
+                numeroInputRef={numeroInputRef}
+                debugLabel="Tomadores/FormDialog"
+              />
+            )}
+
+            {tipoTomadorValue === "ESTRANGEIRO" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="codigoPais"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código do país (ISO)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: US"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                          maxLength={3}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="codigoPostalExterior"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código postal</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="ZIP / Código postal"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="cidadeExterior"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Cidade no exterior</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Cidade"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="estadoExterior"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Estado / Província</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Estado, província ou região"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="logradouro"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Logradouro</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Endereço"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="numero"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Número"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="complemento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Complemento</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Complemento"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bairro"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Bairro / Distrito</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Bairro"
+                          disabled={isSubmitting}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

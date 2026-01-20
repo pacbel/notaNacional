@@ -1,15 +1,35 @@
-import type { Tomador } from "@prisma/client";
-
 import type {
   TomadorCreateInput,
   TomadorUpdateInput,
 } from "@/lib/validators/tomador";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
-export type TomadorDto = Omit<Tomador, "createdAt" | "updatedAt"> & {
+export interface TomadorDto {
+  id: string;
+  tipoTomador: "NACIONAL" | "ESTRANGEIRO" | "ANONIMO";
+  tipoDocumento: "CPF" | "CNPJ" | null;
+  documento: string | null;
+  nomeRazaoSocial: string;
+  email: string;
+  telefone: string | null;
+  inscricaoMunicipal: string | null;
+  codigoMunicipio: string | null;
+  cidade: string | null;
+  estado: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  codigoPais: string | null;
+  codigoPostalExterior: string | null;
+  cidadeExterior: string | null;
+  estadoExterior: string | null;
+  ativo: boolean;
+  prestadorId: string;
   createdAt: string;
   updatedAt: string;
-};
+}
 
 export interface TomadoresListResponse {
   data: TomadorDto[];

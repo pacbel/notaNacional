@@ -44,6 +44,7 @@ interface TomadorDetailsDrawerProps {
 type TomadorFormValues = z.input<typeof tomadorUpdateSchema>;
 
 const EMPTY_VALUES: TomadorFormValues = {
+  tipoTomador: "NACIONAL",
   tipoDocumento: "CPF",
   documento: "",
   nomeRazaoSocial: "",
@@ -58,25 +59,34 @@ const EMPTY_VALUES: TomadorFormValues = {
   numero: "",
   complemento: "",
   bairro: "",
+  codigoPais: "",
+  codigoPostalExterior: "",
+  cidadeExterior: "",
+  estadoExterior: "",
   ativo: true,
 };
 
 function mapTomadorToForm(tomador: TomadorDto): TomadorFormValues {
   return {
-    tipoDocumento: tomador.tipoDocumento,
-    documento: tomador.documento,
+    tipoTomador: tomador.tipoTomador,
+    tipoDocumento: tomador.tipoDocumento ?? undefined,
+    documento: tomador.documento ?? "",
     nomeRazaoSocial: tomador.nomeRazaoSocial,
     email: tomador.email,
     telefone: tomador.telefone ?? "",
     inscricaoMunicipal: tomador.inscricaoMunicipal ?? "",
-    codigoMunicipio: tomador.codigoMunicipio,
-    cidade: tomador.cidade,
-    estado: tomador.estado,
-    cep: tomador.cep,
-    logradouro: tomador.logradouro,
-    numero: tomador.numero,
+    codigoMunicipio: tomador.codigoMunicipio ?? "",
+    cidade: tomador.cidade ?? "",
+    estado: tomador.estado ?? "",
+    cep: tomador.cep ?? "",
+    logradouro: tomador.logradouro ?? "",
+    numero: tomador.numero ?? "",
     complemento: tomador.complemento ?? "",
-    bairro: tomador.bairro,
+    bairro: tomador.bairro ?? "",
+    codigoPais: tomador.codigoPais ?? "",
+    codigoPostalExterior: tomador.codigoPostalExterior ?? "",
+    cidadeExterior: tomador.cidadeExterior ?? "",
+    estadoExterior: tomador.estadoExterior ?? "",
     ativo: tomador.ativo,
   };
 }
@@ -98,6 +108,7 @@ export function TomadorDetailsDrawer({
 
   const numeroInputRef = useRef<HTMLInputElement | null>(null);
   const tipoDocumentoValue = form.watch("tipoDocumento") ?? "CPF";
+  const tipoTomadorValue = form.watch("tipoTomador") ?? "NACIONAL";
 
   useEffect(() => {
     if (tomador) {
@@ -173,25 +184,37 @@ export function TomadorDetailsDrawer({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="tipoDocumento"
+                    name="tipoTomador"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tipo de documento</FormLabel>
+                        <FormLabel>Tipo de tomador</FormLabel>
                         <FormControl>
                           <select
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            value={field.value ?? "CPF"}
+                            value={field.value}
                             onChange={(event) => {
-                              const nextTipo = event.target.value as "CPF" | "CNPJ";
+                              const nextTipo = event.target.value as "NACIONAL" | "ESTRANGEIRO" | "ANONIMO";
                               field.onChange(nextTipo);
-                              const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
-                              form.setValue("documento", normalized, { shouldDirty: true, shouldValidate: true });
+
+                              if (nextTipo !== "NACIONAL") {
+                                form.setValue("tipoDocumento", "CPF", { shouldDirty: true, shouldValidate: true });
+                                form.setValue("documento", "", { shouldDirty: true, shouldValidate: true });
+                                form.setValue("inscricaoMunicipal", "", { shouldDirty: true, shouldValidate: true });
+                              }
+
+                              if (nextTipo === "NACIONAL") {
+                                form.setValue("codigoPais", "", { shouldDirty: true, shouldValidate: true });
+                                form.setValue("codigoPostalExterior", "", { shouldDirty: true, shouldValidate: true });
+                                form.setValue("cidadeExterior", "", { shouldDirty: true, shouldValidate: true });
+                                form.setValue("estadoExterior", "", { shouldDirty: true, shouldValidate: true });
+                              }
                             }}
                             disabled={isMutating}
                             autoFocus
                           >
-                            <option value="CPF">CPF</option>
-                            <option value="CNPJ">CNPJ</option>
+                            <option value="NACIONAL">Nacional</option>
+                            <option value="ESTRANGEIRO">Estrangeiro</option>
+                            <option value="ANONIMO">Anônimo</option>
                           </select>
                         </FormControl>
                         <FormMessage />
@@ -199,21 +222,67 @@ export function TomadorDetailsDrawer({
                     )}
                   />
 
+                  {tipoTomadorValue === "NACIONAL" && (
+                    <FormField
+                      control={form.control}
+                      name="tipoDocumento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de documento</FormLabel>
+                          <FormControl>
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              value={field.value ?? "CPF"}
+                              onChange={(event) => {
+                                const nextTipo = event.target.value as "CPF" | "CNPJ";
+                                field.onChange(nextTipo);
+                                const normalized = normalizeDocumento(form.getValues("documento") ?? "", nextTipo);
+                                form.setValue("documento", normalized, { shouldDirty: true, shouldValidate: true });
+                              }}
+                              disabled={isMutating}
+                            >
+                              <option value="CPF">CPF</option>
+                              <option value="CNPJ">CNPJ</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
                   <FormField
                     control={form.control}
                     name="documento"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Documento</FormLabel>
+                        <FormLabel>
+                          {tipoTomadorValue === "ESTRANGEIRO"
+                            ? "Documento identificador"
+                            : tipoDocumentoValue === "CPF"
+                            ? "CPF"
+                            : "CNPJ"}
+                        </FormLabel>
                         <FormControl>
-                          <Input
-                            value={formatDocumentoInput(field.value ?? "", tipoDocumentoValue)}
-                            onChange={(event) =>
-                              field.onChange(normalizeDocumento(event.target.value, tipoDocumentoValue))
-                            }
-                            disabled={isMutating}
-                            inputMode="numeric"
-                          />
+                          {tipoTomadorValue === "ESTRANGEIRO" ? (
+                            <Input
+                              value={field.value ?? ""}
+                              onChange={(event) => field.onChange(event.target.value)}
+                              disabled={isMutating}
+                              maxLength={40}
+                            />
+                          ) : tipoTomadorValue === "ANONIMO" ? (
+                            <Input value="Tomador sem identificação" disabled readOnly />
+                          ) : (
+                            <Input
+                              value={formatDocumentoInput(field.value ?? "", tipoDocumentoValue)}
+                              onChange={(event) =>
+                                field.onChange(normalizeDocumento(event.target.value, tipoDocumentoValue))
+                              }
+                              disabled={isMutating}
+                              inputMode="numeric"
+                            />
+                          )}
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -274,12 +343,139 @@ export function TomadorDetailsDrawer({
                   />
                 </div>
 
-                <AddressFormSection
-                  form={form}
-                  isSubmitting={isMutating}
-                  numeroInputRef={numeroInputRef}
-                  debugLabel="Tomadores/DetailsDrawer"
-                />
+                {tipoTomadorValue === "NACIONAL" && (
+                  <AddressFormSection
+                    form={form}
+                    isSubmitting={isMutating}
+                    numeroInputRef={numeroInputRef}
+                    debugLabel="Tomadores/DetailsDrawer"
+                  />
+                )}
+
+                {tipoTomadorValue === "ESTRANGEIRO" && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="codigoPais"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Código do país (ISO)</FormLabel>
+                          <FormControl>
+                            <Input
+                              value={field.value ?? ""}
+                              onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                              disabled={isMutating}
+                              maxLength={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="codigoPostalExterior"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Código postal</FormLabel>
+                          <FormControl>
+                            <Input
+                              value={field.value ?? ""}
+                              onChange={field.onChange}
+                              disabled={isMutating}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cidadeExterior"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Cidade no exterior</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="estadoExterior"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Estado / Província</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="logradouro"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Logradouro</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="numero"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="complemento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Complemento</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bairro"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Bairro / Distrito</FormLabel>
+                          <FormControl>
+                            <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
                 <SheetFooter className="flex-row-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button type="submit" disabled={isMutating}>

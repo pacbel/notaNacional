@@ -1,4 +1,8 @@
-export function formatCpfCnpj(value: string): string {
+export function formatCpfCnpj(value?: string | null): string {
+  if (!value) {
+    return "-";
+  }
+
   const digits = value.replace(/\D/g, "");
 
   if (digits.length === 11) {

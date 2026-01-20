@@ -59,17 +59,22 @@ interface PrestadorApi {
 
 interface TomadorApi {
   id: string;
-  tipoDocumento: "CPF" | "CNPJ";
-  documento: string;
+  tipoTomador: "NACIONAL" | "ESTRANGEIRO" | "ANONIMO";
+  tipoDocumento: "CPF" | "CNPJ" | null;
+  documento: string | null;
   nomeRazaoSocial: string;
-  codigoMunicipio: string;
-  logradouro: string;
-  numero: string;
-  bairro: string;
+  codigoMunicipio: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
   complemento?: string | null;
   cep?: string | null;
   telefone?: string | null;
   email?: string | null;
+  codigoPais?: string | null;
+  codigoPostalExterior?: string | null;
+  cidadeExterior?: string | null;
+  estadoExterior?: string | null;
 }
 
 interface ServicoApi {
@@ -603,17 +608,22 @@ export async function createDps(payload: CreateDpsInput) {
       prestador: mapPrestadorToXmlInput(prestador),
       tomador: mapTomadorToXmlInput({
         id: created.tomador.id,
-        tipoDocumento: created.tomador.tipoDocumento,
-        documento: created.tomador.documento,
+        tipoTomador: created.tomador.tipoTomador,
+        tipoDocumento: created.tomador.tipoDocumento ?? null,
+        documento: created.tomador.documento ?? null,
         nomeRazaoSocial: created.tomador.nomeRazaoSocial,
-        codigoMunicipio: created.tomador.codigoMunicipio,
-        logradouro: created.tomador.logradouro,
-        numero: created.tomador.numero,
-        bairro: created.tomador.bairro,
-        complemento: created.tomador.complemento,
-        cep: created.tomador.cep,
-        telefone: created.tomador.telefone,
+        codigoMunicipio: created.tomador.codigoMunicipio ?? null,
+        logradouro: created.tomador.logradouro ?? null,
+        numero: created.tomador.numero ?? null,
+        bairro: created.tomador.bairro ?? null,
+        complemento: created.tomador.complemento ?? null,
+        cep: created.tomador.cep ?? null,
+        telefone: created.tomador.telefone ?? null,
         email: created.tomador.email,
+        codigoPais: created.tomador.codigoPais ?? null,
+        codigoPostalExterior: created.tomador.codigoPostalExterior ?? null,
+        cidadeExterior: created.tomador.cidadeExterior ?? null,
+        estadoExterior: created.tomador.estadoExterior ?? null,
       }),
       servico: mapServicoToXmlInput({
         id: created.servico.id,
@@ -740,6 +750,10 @@ function mapTomadorToXmlInput(tomador: TomadorApi): TomadorBase {
     cep: tomador.cep,
     telefone: tomador.telefone,
     email: tomador.email,
+    codigoPais: (tomador as any).codigoPais ?? null,
+    codigoPostalExterior: (tomador as any).codigoPostalExterior ?? null,
+    cidadeExterior: (tomador as any).cidadeExterior ?? null,
+    estadoExterior: (tomador as any).estadoExterior ?? null,
   };
 }
 
