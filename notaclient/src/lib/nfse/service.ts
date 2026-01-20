@@ -37,6 +37,7 @@ import {
 } from "./xml/dps-xml";
 import { resolveCertificateId } from "./certificado-service";
 import { generateCancelamentoXml } from "./xml/cancelamento-xml";
+import { saveXmlToFile, analyzeXml } from "./xml/xml-validator";
 import { gzipSync } from "zlib";
 import { getPrestador, type PrestadorDto } from "@/services/prestadores";
 
@@ -144,28 +145,82 @@ function extractElementId(xml: string, tagName: string): string | null {
 }
 
 function repositionSignatureNode(xml: string, elementTag: string, rootTag: string, elementId: string): string {
-  const signaturePattern = /<Signature[\s\S]*?<\/Signature>/;
+  // Busca pela tag Signature com ou sem namespace (Signature ou ds:Signature)
+  const signaturePattern = /<(?:\w+:)?Signature[^>]*>[\s\S]*?<\/(?:\w+:)?Signature>/;
   const match = signaturePattern.exec(xml);
 
   if (!match) {
+    logInfo("Nenhuma tag Signature encontrada no XML");
     return xml;
   }
 
+  // Log da posição original da assinatura
+  const beforeSignature = xml.slice(Math.max(0, match.index - 50), match.index);
+  const afterSignature = xml.slice(match.index + match[0].length, Math.min(xml.length, match.index + match[0].length + 50));
+  
+  logInfo("Assinatura encontrada", {
+    posicaoOriginal: match.index,
+    contextoAntes: beforeSignature.slice(-30),
+    contextoDepois: afterSignature.slice(0, 30),
+  });
+
   const signatureBlock = ensureSignatureReference(match[0], elementId);
   const normalizedSignature = signatureBlock.trim();
+  
+  // Remove a assinatura do XML original
   const withoutSignature = xml.slice(0, match.index) + xml.slice(match.index + match[0].length);
 
+  // Tenta inserir após o fechamento do elemento (infDPS)
   const closingElementTag = `</${elementTag}>`;
   const closingElementIndex = withoutSignature.lastIndexOf(closingElementTag);
 
   if (closingElementIndex !== -1) {
     const insertPosition = closingElementIndex + closingElementTag.length;
+    
+    logInfo("Reposicionando assinatura", {
+      tagElemento: elementTag,
+      posicaoFechamento: closingElementIndex,
+      posicaoInsercao: insertPosition,
+      contextoInsercao: withoutSignature.slice(Math.max(0, insertPosition - 30), Math.min(withoutSignature.length, insertPosition + 30)),
+    });
+    
     const before = withoutSignature.slice(0, insertPosition);
     const after = withoutSignature.slice(insertPosition);
 
-    return minifyXml(`${before}${normalizedSignature}${after}`);
+    const result = minifyXml(`${before}${normalizedSignature}${after}`);
+    
+    // Validação: verifica se o resultado está bem formado
+    const allOpenTags = (result.match(/<[^/!?][^>]*>/g) || []);
+    const selfClosingTags = (result.match(/<[^/!?][^>]*\/>/g) || []);
+    const openTags = allOpenTags.filter(tag => !tag.endsWith('/>')).length;
+    const closeTags = (result.match(/<\/[^>]+>/g) || []).length;
+    
+    if (openTags !== closeTags) {
+      logError("Reposicionamento de assinatura gerou XML malformado", {
+        openTags,
+        closeTags,
+        selfClosingTags: selfClosingTags.length,
+      });
+      // Retorna XML original sem reposicionar
+      return xml;
+    }
+    
+    // Log da estrutura final
+    const signaturePos = result.indexOf('<Signature');
+    const infDpsClosePos = result.lastIndexOf('</infDPS>');
+    const dpsClosePos = result.lastIndexOf('</DPS>');
+    
+    logInfo("Estrutura final do XML", {
+      assinaturaAposInfDPS: signaturePos > infDpsClosePos,
+      assinaturaAntesDPS: signaturePos < dpsClosePos,
+      estruturaCorreta: signaturePos > infDpsClosePos && signaturePos < dpsClosePos,
+      preview: result.slice(Math.max(0, infDpsClosePos - 20), Math.min(result.length, signaturePos + 50)),
+    });
+    
+    return result;
   }
 
+  // Fallback: insere antes do fechamento da tag raiz (DPS)
   const closingRootTag = `</${rootTag}>`;
   const closingRootIndex = withoutSignature.lastIndexOf(closingRootTag);
 
@@ -176,6 +231,7 @@ function repositionSignatureNode(xml: string, elementTag: string, rootTag: strin
     return minifyXml(`${before}${normalizedSignature}${after}`);
   }
 
+  // Se não conseguiu reposicionar, retorna o XML original
   return ensureSignatureReference(xml, elementId);
 }
 
@@ -576,6 +632,14 @@ export async function createDps(payload: CreateDpsInput) {
       observacoes: data.observacoes,
     });
 
+    // Análise e salvamento do XML para debug
+    try {
+      analyzeXml(xml, `DPS_${created.identificador}`);
+      await saveXmlToFile(xml, `dps_${created.identificador}`, "gerado");
+    } catch (error) {
+      logError("Erro ao analisar/salvar XML", { error });
+    }
+
     await tx.dps.update({
       where: { id: created.id },
       data: {
@@ -749,6 +813,30 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
     });
 
     xmlAssinado = normalizeSignedDpsXml(xmlAssinado);
+    
+    // Validar estrutura do XML após normalização
+    const { validateXmlWellFormed } = await import("./xml/xml-validator");
+    const validationResult = validateXmlWellFormed(xmlAssinado);
+    
+    if (!validationResult.valid) {
+      logError("XML malformado após normalização da assinatura", {
+        dpsId,
+        error: validationResult.error,
+      });
+      
+      // Salvar XML problemático para análise
+      try {
+        await saveXmlToFile(xmlAssinado, `dps_malformed_${dps.identificador}`, "erros");
+      } catch (saveError) {
+        logError("Erro ao salvar XML malformado", { saveError });
+      }
+      
+      throw new AppError(
+        `XML malformado após assinatura: ${validationResult.error}`,
+        500,
+        { validationError: validationResult.error }
+      );
+    }
   } catch (error) {
     const notaError = parseNotaApiError(error);
     logError("Falha ao assinar DPS", {
@@ -763,6 +851,14 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
   }
 
   logInfo("DPS assinada com sucesso", { dpsId, prestadorId: dps.prestadorId });
+
+  // Análise e salvamento do XML assinado para debug
+  try {
+    analyzeXml(xmlAssinado, `DPS_ASSINADO_${dps.identificador}`);
+    await saveXmlToFile(xmlAssinado, `dps_assinado_${dps.identificador}`, "assinado");
+  } catch (error) {
+    logError("Erro ao analisar/salvar XML assinado", { error });
+  }
 
   await prisma.dps.update({
     where: { id: dpsId },
@@ -812,6 +908,14 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     certificateId: resolvedCertificate,
   });
 
+  // Salvar XML que será enviado para análise
+  try {
+    await saveXmlToFile(xmlAssinado, `dps_enviado_${dps.identificador}`, "enviado");
+    console.log(`[NFSe Debug] XML a ser enviado (primeiros 500 chars):\n${xmlAssinado.substring(0, 500)}...`);
+  } catch (error) {
+    logError("Erro ao salvar XML antes do envio", { error });
+  }
+
   let response: EmitirNfseResponse;
 
   try {
@@ -839,6 +943,25 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     statusCode: response.statusCode,
     rawResponseContentType: response.rawResponseContentType,
   });
+
+  // Log detalhado da resposta para análise
+  console.log(`\n========== Resposta SEFIN - DPS ${dps.identificador} ==========`);
+  console.log(`Status Code: ${response.statusCode}`);
+  console.log(`Content Type: ${response.rawResponseContentType}`);
+  console.log(`Chave Acesso: ${response.chaveAcesso || "N/A"}`);
+  console.log(`Raw Response Content:\n${response.rawResponseContent}`);
+  console.log("=".repeat(60) + "\n");
+
+  // Salvar resposta da SEFIN
+  try {
+    await saveXmlToFile(
+      response.rawResponseContent || "Sem conteúdo",
+      `sefin_response_${dps.identificador}`,
+      "respostas"
+    );
+  } catch (error) {
+    logError("Erro ao salvar resposta da SEFIN", { error });
+  }
 
   const chaveAcesso = response.chaveAcesso;
 
