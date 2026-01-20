@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 interface IbgeMunicipioResponse {
   id: number;
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
 
     const endpoint = buildEndpoint(uf ?? undefined);
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithAuth(endpoint, {
       headers: {
         Accept: "application/json",
       },

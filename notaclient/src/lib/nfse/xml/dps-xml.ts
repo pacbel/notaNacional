@@ -85,7 +85,7 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   const documentoTomadorTag = input.tomador.tipoDocumento === "CNPJ" ? "CNPJ" : "CPF";
   const telefoneTomador = normalizeDigits(input.tomador.telefone);
   const cepTomador = normalizeDigits(input.tomador.cep);
-  
+
   const valorServico = formatMoney(input.servico.valorUnitario);
   const totalTribFederal = formatMoney(input.configuracao.pTotTribFed ?? 0);
   const totalTribEstadual = formatMoney(input.configuracao.pTotTribEst ?? 0);
@@ -154,13 +154,14 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
     `        <vServ>${valorServico}</vServ>`,
     "      </vServPrest>",
     "      <trib>",
+
     "        <tribMun>",
     `          <tribISSQN>${input.configuracao.tribISSQN}</tribISSQN>`,
-               tpImunidade !== null ? `          <tpImunidade>${tpImunidade}</tpImunidade>` : null,
+    tpImunidade !== null ? `          <tpImunidade>${tpImunidade}</tpImunidade>` : null,
     `          <tpRetISSQN>${input.configuracao.tpRetISSQN}</tpRetISSQN>`,
-               // APENAS pAliq é permitido aqui. vISSQN e vBC causariam erro de Schema.
-               aliquotaIss ? `          <pAliq>${aliquotaIss}</pAliq>` : null,
+    (input.configuracao.opSimpNac === 2 || input.configuracao.opSimpNac === 3) && aliquotaIss ? `<pAliq>${aliquotaIss}</pAliq>` : null,
     "        </tribMun>",
+
     "        <totTrib>",
     "          <pTotTrib>",
     `            <pTotTribFed>${totalTribFederal}</pTotTribFed>`,

@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import type { CreateUsuarioDto, UpdateUsuarioDto, ChangePasswordDto, UsuarioDto } from "@/lib/validators/usuario";
 
 interface ApiErrorResponse {
@@ -28,7 +29,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function listUsuarios(): Promise<UsuarioDto[]> {
-  const response = await fetch("/api/usuarios", {
+  const response = await fetchWithAuth("/api/usuarios", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -40,7 +41,7 @@ export async function listUsuarios(): Promise<UsuarioDto[]> {
 }
 
 export async function getUsuario(id: string): Promise<UsuarioDto> {
-  const response = await fetch(`/api/usuarios/${id}`, {
+  const response = await fetchWithAuth(`/api/usuarios/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -52,7 +53,7 @@ export async function getUsuario(id: string): Promise<UsuarioDto> {
 }
 
 export async function createUsuario(payload: CreateUsuarioDto): Promise<UsuarioDto> {
-  const response = await fetch("/api/usuarios", {
+  const response = await fetchWithAuth("/api/usuarios", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -64,7 +65,7 @@ export async function createUsuario(payload: CreateUsuarioDto): Promise<UsuarioD
 }
 
 export async function updateUsuario(id: string, payload: UpdateUsuarioDto): Promise<UsuarioDto> {
-  const response = await fetch(`/api/usuarios/${id}`, {
+  const response = await fetchWithAuth(`/api/usuarios/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -76,7 +77,7 @@ export async function updateUsuario(id: string, payload: UpdateUsuarioDto): Prom
 }
 
 export async function deleteUsuario(id: string): Promise<void> {
-  const response = await fetch(`/api/usuarios/${id}`, {
+  const response = await fetchWithAuth(`/api/usuarios/${id}`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -87,7 +88,7 @@ export async function deleteUsuario(id: string): Promise<void> {
 }
 
 export async function changePassword(id: string, payload: ChangePasswordDto): Promise<void> {
-  const response = await fetch(`/api/usuarios/${id}/senha`, {
+  const response = await fetchWithAuth(`/api/usuarios/${id}/senha`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

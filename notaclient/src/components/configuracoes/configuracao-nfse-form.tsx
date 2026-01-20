@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -44,10 +45,9 @@ const ambienteConfiguracaoOptions = [
 ];
 
 const simplesNacionalOptions = [
-  { value: 1, label: "1 - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)" },
-  { value: 2, label: "2 - Não Optante" },
-  { value: 3, label: "3 - Optante - Microempreendedor Individual (MEI)" },
-
+  { value: 1, label: "1 - Não Optante" },
+  { value: 2, label: "2 - Optante - Microempreendedor Individual (MEI)" },
+  { value: 3, label: "3 - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)" },  
 ];
 
 const regimeEspecialOptions = [
@@ -686,6 +686,103 @@ export default function ConfiguracaoNfseForm() {
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="mfaCodigoExpiracaoMinutos"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de Expiração MFA (minutos)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={field.value ?? ""}
+                        onChange={handleIntegerChange(field.onChange)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso Robótico</CardTitle>
+              <CardDescription>
+                Informe as credenciais para uso automático do sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="robotClientId"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Robot Client ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value || null)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="CLIENT_ID"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="robotClientSecret"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Robot Client Secret</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value || null)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="CLIENT_SECRET"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="robotTokenCacheMinutos"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cache do token (minutos)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={field.value ?? ""}
+                        onChange={handleIntegerChange(field.onChange)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

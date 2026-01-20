@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { RobotCredentialsMissingError } from "@/lib/errors";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 /**
  * GET /api/prestadores
@@ -15,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
 
-    const token = await getRobotToken();
+    const token = await getRobotToken(currentUser.prestadorId);
     const env = getEnv();
 
     // Buscar lista de prestadores da API externa (retorna apenas os do usuário)
@@ -27,7 +29,7 @@ export async function GET() {
     console.log("[Prestadores] Token (primeiros 50 chars):", token?.substring(0, 50));
     console.log("[Prestadores] PrestadorId do usuário:", currentUser.prestadorId);
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -70,6 +72,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[Prestadores] Erro:", error);
+
+    if (error instanceof RobotCredentialsMissingError) {
+      return NextResponse.json(
+        { message: error.message, redirectTo: "/configuracoes" },
+        { status: error.statusCode }
+      );
+    }
+
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Erro ao buscar prestador" },
       { status: 500 }

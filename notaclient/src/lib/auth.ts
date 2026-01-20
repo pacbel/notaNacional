@@ -1,12 +1,14 @@
-import "server-only";
-
-import { cookies, headers } from "next/headers";
 import { SESSION_COOKIE_NAME, SESSION_TTL_HOURS } from "@/lib/constants";
-import { decodeTokenPayload } from "@/lib/notanacional-api";
+import { decodeTokenPayload } from "@/lib/token-utils";
 
 const SESSION_MAX_AGE_SECONDS = SESSION_TTL_HOURS * 60 * 60;
 
 export async function getCurrentUser() {
+  if (typeof window !== "undefined") {
+    throw new Error("getCurrentUser só pode ser chamado no servidor");
+  }
+
+  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
@@ -78,6 +80,7 @@ export function buildSessionCookie(token: string) {
 }
 
 export async function collectRequestMeta() {
+  const { headers } = await import("next/headers");
   const requestHeaders = await headers();
   const ip = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const userAgent = requestHeaders.get("user-agent");

@@ -20,7 +20,7 @@ Substitua `fetch` por `fetchWithAuth`:
 
 ```typescript
 // ANTES
-const response = await fetch("/api/configuracoes", {
+const response = await fetchWithAuth("/api/configuracoes", {
   method: "GET",
   headers: {
     "Content-Type": "application/json",

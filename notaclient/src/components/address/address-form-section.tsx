@@ -5,6 +5,7 @@ import { type FieldPath, type FieldValues, type Path, type PathValue, type UseFo
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -208,7 +209,7 @@ export function AddressFormSection<TFormValues extends FieldValues>({
         setIsFetchingCep(true);
         logDebug("Buscando CEP", { digitsOnlyCep });
 
-        const response = await fetch(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
+        const response = await fetchWithAuth(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
           signal: controller.signal,
         });
 

@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { prestadorCreateSchema, type PrestadorCreateInput, type PrestadorFormValues } from "@/lib/validators/prestador";
 import { listMunicipios, type MunicipioDto } from "@/services/municipios";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 const UF_OPTIONS = [
   "AC",
@@ -224,7 +225,7 @@ export function PrestadorFormDialog({ open, onOpenChange, onSubmit, isSubmitting
     const fetchAddress = async () => {
       try {
         setIsFetchingCep(true);
-        const response = await fetch(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
+        const response = await fetchWithAuth(`https://viacep.com.br/ws/${digitsOnlyCep}/json/`, {
           signal: controller.signal,
         });
 

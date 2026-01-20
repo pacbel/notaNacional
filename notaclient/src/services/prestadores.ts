@@ -1,4 +1,5 @@
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import type {
   PrestadorCreateInput,
   PrestadorUpdateInput,
@@ -57,6 +58,18 @@ export interface PrestadoresListResponse {
 
 export type PrestadorStatusFilter = "ativos" | "inativos" | "todos";
 
+export class RobotCredentialsMissingClientError extends Error {
+  public readonly redirectTo: string;
+  public readonly status: number;
+
+  constructor(message: string, redirectTo: string = "/configuracoes", status = 428) {
+    super(message);
+    this.name = "RobotCredentialsMissingClientError";
+    this.redirectTo = redirectTo;
+    this.status = status;
+  }
+}
+
 interface ListPrestadoresParams {
   page?: number;
   perPage?: number;
@@ -79,6 +92,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     const message = data?.message ?? "Erro inesperado";
+
+    if (response.status === 428) {
+      const redirectTo = typeof data?.redirectTo === "string" ? data.redirectTo : "/configuracoes";
+      throw new RobotCredentialsMissingClientError(message, redirectTo, response.status);
+    }
+
     throw new Error(message);
   }
 
@@ -99,7 +118,7 @@ export async function listPrestadores({
     params.set("q", search);
   }
 
-  const response = await fetch(buildUrl(`${API_BASE_PATH}?${params.toString()}`), {
+  const response = await fetchWithAuth(buildUrl(`${API_BASE_PATH}?${params.toString()}`), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -111,7 +130,7 @@ export async function listPrestadores({
 }
 
 export async function createPrestador(input: PrestadorCreateInput): Promise<PrestadorDto> {
-  const response = await fetch(buildUrl(API_BASE_PATH), {
+  const response = await fetchWithAuth(buildUrl(API_BASE_PATH), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -126,7 +145,7 @@ export async function updatePrestador(
   id: string,
   input: PrestadorUpdateInput
 ): Promise<PrestadorDto> {
-  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
+  const response = await fetchWithAuth(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -138,7 +157,7 @@ export async function updatePrestador(
 }
 
 export async function inactivatePrestador(id: string): Promise<PrestadorDto> {
-  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
+  const response = await fetchWithAuth(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "DELETE",
   });
 
@@ -146,7 +165,7 @@ export async function inactivatePrestador(id: string): Promise<PrestadorDto> {
 }
 
 export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
-  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
+  const response = await fetchWithAuth(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -159,40 +178,23 @@ export async function reactivatePrestador(id: string): Promise<PrestadorDto> {
 
 export async function getPrestador(id: string): Promise<PrestadorDto> {
   if (typeof window === "undefined") {
-    const [{ getRobotToken }] = await Promise.all([
-      import("@/lib/notanacional-api"),
-    ]);
+    const { getRobotToken } = await import("@/lib/notanacional-api");
 
     const { API_BASE_URL } = getEnv();
-    const token = await getRobotToken();
-    const url = `${API_BASE_URL}/api/Prestadores`;
+    const token = await getRobotToken(id);
 
-    console.log("[PrestadoresService] Buscando prestadores externamente", {
-      id,
-      url,
-      tokenPresente: Boolean(token),
-      tokenSnippet: token?.substring(0, 20),
-    });
-
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/Prestadores`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        accept: "*/*",
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => null);
-      console.error("[PrestadoresService] Falha ao buscar prestadores", {
-        id,
-        status: response.status,
-        statusText: response.statusText,
-        errorText,
-      });
-      throw new Error(errorText || "Erro ao buscar prestador");
+      const errorBody = await response.text();
+      throw new Error(`Erro ao buscar prestador: ${response.status} - ${errorBody}`);
     }
 
     const data = await response.json();
@@ -221,7 +223,7 @@ export async function getPrestador(id: string): Promise<PrestadorDto> {
     return prestador;
   }
 
-  const response = await fetch(buildUrl(`${API_BASE_PATH}/${id}`), {
+  const response = await fetchWithAuth(buildUrl(`${API_BASE_PATH}/${id}`), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

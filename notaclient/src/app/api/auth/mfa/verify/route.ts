@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getEnv } from "@/lib/env";
 import { buildSessionCookie } from "@/lib/auth";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 function decodeJWT(token: string): { prestadorId?: string } | null {
   try {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para confirmar MFA
-    const response = await fetch(`${env.API_BASE_URL}/api/Auth/confirm-mfa`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Auth/confirm-mfa`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

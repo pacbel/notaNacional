@@ -99,7 +99,11 @@ import {
   type PaginatedResponse,
   type PaginationMeta,
 } from "@/services/nfse";
-import { listPrestadores, type PrestadorDto } from "@/services/prestadores";
+import {
+  listPrestadores,
+  type PrestadorDto,
+  RobotCredentialsMissingClientError,
+} from "@/services/prestadores";
 import { listTomadores, type TomadorDto } from "@/services/tomadores";
 import { listServicos, type ServicoDto } from "@/services/servicos";
 import { getConfiguracao } from "@/components/configuracoes/configuracoes-service";
@@ -621,15 +625,44 @@ export default function NfsePageContent() {
       setDeleteState({ dps: null as unknown as DpsDto, confirmation: "" });
     },
     onError: (error) => {
+      if (handleRobotCredentialsError(error)) {
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "Erro ao excluir DPS");
     },
   });
 
+  const handleRobotCredentialsError = useCallback(
+    (error: unknown, fallbackMessage: string = "Credenciais do robô ausentes. Configure o acesso robótico.") => {
+      if (error instanceof RobotCredentialsMissingClientError) {
+        toast.error(error.message);
+        router.push(error.redirectTo);
+        return true;
+      }
+
+      if (error instanceof Error && error.message.includes("Credenciais do robô")) {
+        toast.error(error.message || fallbackMessage);
+        router.push("/configuracoes");
+        return true;
+      }
+
+      return false;
+    },
+    [router]
+  );
+
   const prestadoresQuery = useQuery<PrestadorDto[]>({
     queryKey: ["nfse", "prestadores"],
     queryFn: async () => {
-      const { data } = await listPrestadores({ perPage: 100, status: "ativos" });
-      return data;
+      try {
+        const { data } = await listPrestadores({ perPage: 100, status: "ativos" });
+        return data;
+      } catch (error) {
+        if (!handleRobotCredentialsError(error)) {
+          toast.error(extractErrorMessage(error, "Erro ao carregar prestadores"));
+        }
+        throw error;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -637,8 +670,15 @@ export default function NfsePageContent() {
   const tomadoresQuery = useQuery<TomadorDto[]>({
     queryKey: ["nfse", "tomadores"],
     queryFn: async () => {
-      const { data } = await listTomadores({ perPage: 100, status: "ativos" });
-      return data;
+      try {
+        const { data } = await listTomadores({ perPage: 100, status: "ativos" });
+        return data;
+      } catch (error) {
+        if (!handleRobotCredentialsError(error)) {
+          toast.error(extractErrorMessage(error, "Erro ao carregar tomadores"));
+        }
+        throw error;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -646,51 +686,73 @@ export default function NfsePageContent() {
   const servicosQuery = useQuery<ServicoDto[]>({
     queryKey: ["nfse", "servicos"],
     queryFn: async () => {
-      const { data } = await listServicos({ perPage: 100, status: "ativos" });
-      return data;
+      try {
+        const { data } = await listServicos({ perPage: 100, status: "ativos" });
+        return data;
+      } catch (error) {
+        if (!handleRobotCredentialsError(error)) {
+          toast.error(extractErrorMessage(error, "Erro ao carregar serviços"));
+        }
+        throw error;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
 
   const dpsQuery = useQuery<PaginatedResponse<DpsDto>>({
     queryKey: ["nfse", "dps", filtersKey],
-    queryFn: () =>
-      listDps({
-        statuses: filters.statuses.filter((status) => status !== "ENVIADO" && status !== "CANCELADO"),
-        ambiente: filters.ambiente,
-        search: filters.search,
-        prestadorIds: filters.prestadorIds,
-        tomadorIds: filters.tomadorIds,
-        servicoIds: filters.servicoIds,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        minValue: filters.minValue,
-        maxValue: filters.maxValue,
-        page: filters.page,
-        perPage: filters.perPage,
-      }),
+    queryFn: async () => {
+      try {
+        return await listDps({
+          statuses: filters.statuses.filter((status) => status !== "ENVIADO" && status !== "CANCELADO"),
+          ambiente: filters.ambiente,
+          search: filters.search,
+          prestadorIds: filters.prestadorIds,
+          tomadorIds: filters.tomadorIds,
+          servicoIds: filters.servicoIds,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          minValue: filters.minValue,
+          maxValue: filters.maxValue,
+          page: filters.page,
+          perPage: filters.perPage,
+        });
+      } catch (error) {
+        if (!handleRobotCredentialsError(error)) {
+          toast.error(extractErrorMessage(error, "Erro ao carregar DPS"));
+        }
+        throw error;
+      }
+    },
     gcTime: 0,
     refetchOnWindowFocus: false,
   });
 
   const notasQuery = useQuery<PaginatedResponse<NotaDto>>({
     queryKey: ["nfse", "notas", notasFiltersKey],
-    queryFn: () => {
-      // Para notas, NÃO enviar filtro de status
-      // A API filtra pelo status da DPS associada, o que impede que todas as notas sejam exibidas
-      // Uma nota fiscal sempre representa um documento emitido, independente do status da DPS
-      return listNotas({
-        ambiente: filters.ambiente,
-        search: filters.search,
-        prestadorIds: filters.prestadorIds,
-        tomadorIds: filters.tomadorIds,
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        minValue: filters.minValue,
-        maxValue: filters.maxValue,
-        page: filters.page,
-        perPage: filters.perPage,
-      });
+    queryFn: async () => {
+      try {
+        // Para notas, NÃO enviar filtro de status
+        // A API filtra pelo status da DPS associada, o que impede que todas as notas sejam exibidas
+        // Uma nota fiscal sempre representa um documento emitido, independente do status da DPS
+        return await listNotas({
+          ambiente: filters.ambiente,
+          search: filters.search,
+          prestadorIds: filters.prestadorIds,
+          tomadorIds: filters.tomadorIds,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          minValue: filters.minValue,
+          maxValue: filters.maxValue,
+          page: filters.page,
+          perPage: filters.perPage,
+        });
+      } catch (error) {
+        if (!handleRobotCredentialsError(error)) {
+          toast.error(extractErrorMessage(error, "Erro ao carregar NFSe"));
+        }
+        throw error;
+      }
     },
     gcTime: 0,
     refetchOnWindowFocus: false,
@@ -705,6 +767,9 @@ export default function NfsePageContent() {
       setSelectedCertificateId(variables.certificateId ?? "");
     },
     onError: (error) => {
+      if (handleRobotCredentialsError(error)) {
+        return;
+      }
       toast.error(extractErrorMessage(error, "Erro ao assinar DPS"));
     },
   });
@@ -718,6 +783,9 @@ export default function NfsePageContent() {
       setActionState(null);
     },
     onError: (error) => {
+      if (handleRobotCredentialsError(error)) {
+        return;
+      }
       toast.error(extractErrorMessage(error, "Erro ao emitir NFSe"));
     },
   });
@@ -730,6 +798,9 @@ export default function NfsePageContent() {
       setCancelState(null);
     },
     onError: (error) => {
+      if (handleRobotCredentialsError(error)) {
+        return;
+      }
       toast.error(extractErrorMessage(error, "Erro ao cancelar NFSe"));
     },
   });
@@ -746,6 +817,9 @@ export default function NfsePageContent() {
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
     },
     onError: (error) => {
+      if (handleRobotCredentialsError(error)) {
+        return;
+      }
       toast.error(extractErrorMessage(error, "Erro ao criar DPS"));
     },
   });

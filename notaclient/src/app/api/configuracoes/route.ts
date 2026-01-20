@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Ambiente, Prisma } from "@prisma/client";
 import { configuracaoUpdateSchema, type ConfiguracaoDto } from "@/lib/validators/configuracao";
 import { canAccessConfiguracoes } from "@/lib/permissions";
+import { clearRobotCredentialsCache } from "@/lib/notanacional-api";
 
 function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>) {
   const numeroInicialDps = (configuracao as typeof configuracao & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
@@ -186,6 +187,8 @@ export async function PUT(request: Request) {
             ...updateData,
           } as Prisma.ConfiguracaoDpsCreateInput,
         });
+
+    clearRobotCredentialsCache(currentUser.prestadorId);
 
     const responseDto = {
       ...mapConfiguracaoToDto(response),

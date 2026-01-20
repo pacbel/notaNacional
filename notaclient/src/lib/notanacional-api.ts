@@ -1,7 +1,9 @@
 import axios from "axios";
 
 import { getEnv } from "@/lib/env";
+import { RobotCredentialsMissingError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { decodeTokenPayload, getPrestadorIdFromToken } from "@/lib/token-utils";
 import { TokenIntegracaoTipo } from "@prisma/client";
 
 interface RobotTokenResponse {
@@ -25,27 +27,44 @@ export const notaApi = axios.create({
 
 const SAFETY_WINDOW_SECONDS = 60;
 
-async function persistToken(token: string, expiresAt: Date) {
+interface RobotCredentialsCacheEntry {
+  clientId: string;
+  clientSecret: string;
+  tokenCacheMinutes: number | null;
+  updatedAt: number;
+}
+
+const credentialsCache = new Map<string, RobotCredentialsCacheEntry>();
+const CREDENTIALS_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+function buildTokenId(prestadorId: string) {
+  // A coluna id (CHAR(36)) aceita diretamente o próprio prestadorId
+  return prestadorId;
+}
+
+async function persistToken(prestadorId: string, token: string, expiresAt: Date) {
+  const tokenId = buildTokenId(prestadorId);
   try {
     await prisma.tokenIntegracao.upsert({
-      where: { id: "robot-token" },
+      where: { id: tokenId },
       update: {
         token,
         expiresAt,
         ativo: true,
       },
       create: {
-        id: "robot-token",
+        id: tokenId,
         tipo: TokenIntegracaoTipo.ROBOT,
         token,
         expiresAt,
+        ativo: true,
       },
     });
   } catch (error: unknown) {
     // Se falhar por constraint de PRIMARY (race condition), tenta apenas update
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       await prisma.tokenIntegracao.update({
-        where: { id: "robot-token" },
+        where: { id: tokenId },
         data: {
           token,
           expiresAt,
@@ -58,12 +77,13 @@ async function persistToken(token: string, expiresAt: Date) {
   }
 }
 
-async function fetchStoredToken(): Promise<string | null> {
+async function fetchStoredToken(prestadorId: string): Promise<string | null> {
   const now = new Date();
   const stored = await prisma.tokenIntegracao.findFirst({
     where: {
       tipo: TokenIntegracaoTipo.ROBOT,
       ativo: true,
+      id: buildTokenId(prestadorId),
       expiresAt: {
         gt: new Date(now.getTime() + SAFETY_WINDOW_SECONDS * 1000),
       },
@@ -92,57 +112,87 @@ function decodeTokenExp(accessToken: string): number | null {
   }
 }
 
-export function decodeTokenPayload(accessToken: string): Record<string, unknown> | null {
-  if (!accessToken) {
-    return null;
-  }
+function resolveExpiration(accessToken: string, expiresIn?: number, cacheMinutes?: number | null): Date {
+  let candidateExpiration: Date;
 
-  const [, payload] = accessToken.split(".");
-
-  if (!payload) return null;
-
-  try {
-    const json = Buffer.from(payload, "base64").toString("utf-8");
-    const data = JSON.parse(json) as Record<string, unknown>;
-
-    return data;
-  } catch (error) {
-    console.error("[NotaAPI] Erro ao decodificar token", error);
-    return null;
-  }
-}
-
-export function getPrestadorIdFromToken(accessToken: string): string | null {
-  const payload = decodeTokenPayload(accessToken);
-  
-  if (!payload) {
-    return null;
-  }
-
-  // Possíveis nomes de campos para o prestadorId no token
-  const prestadorId = payload.prestadorId || payload.PrestadorId || payload.prestador_id || payload.idPrestador || payload.IdPrestador;
-  
-  return prestadorId ? String(prestadorId) : null;
-}
-
-function resolveExpiration(accessToken: string, expiresIn?: number): Date {
   if (expiresIn && expiresIn > 0) {
-    return new Date(Date.now() + (expiresIn - SAFETY_WINDOW_SECONDS) * 1000);
+    candidateExpiration = new Date(Date.now() + (expiresIn - SAFETY_WINDOW_SECONDS) * 1000);
+  } else {
+    const exp = decodeTokenExp(accessToken);
+    candidateExpiration = exp ? new Date(exp * 1000) : new Date(Date.now() + 45 * 60 * 1000);
   }
 
-  const exp = decodeTokenExp(accessToken);
-
-  if (exp) {
-    return new Date(exp * 1000);
+  if (!cacheMinutes || cacheMinutes <= 0) {
+    return candidateExpiration;
   }
 
-  return new Date(Date.now() + 45 * 60 * 1000);
+  const cacheWindowSeconds = Math.max(cacheMinutes * 60 - SAFETY_WINDOW_SECONDS, SAFETY_WINDOW_SECONDS);
+  const cacheExpiration = new Date(Date.now() + cacheWindowSeconds * 1000);
+
+  return cacheExpiration < candidateExpiration ? cacheExpiration : candidateExpiration;
 }
 
-async function requestRobotToken(): Promise<string> {
+async function resolvePrestadorId(provided?: string): Promise<string> {
+  if (provided) {
+    return provided;
+  }
+
+  const { getCurrentUser } = await import("@/lib/auth");
+  const currentUser = await getCurrentUser();
+
+  if (currentUser?.prestadorId) {
+    return currentUser.prestadorId;
+  }
+
+  throw new Error("Prestador não identificado para solicitar token do robô");
+}
+
+async function requestRobotToken(prestadorId?: string): Promise<string> {
+  const resolvedPrestadorId = await resolvePrestadorId(prestadorId);
+
+  const now = Date.now();
+  const cached = credentialsCache.get(resolvedPrestadorId);
+
+  if (cached && now - cached.updatedAt < CREDENTIALS_TTL_MS) {
+    return requestTokenWithCredentials(resolvedPrestadorId, cached);
+  }
+
+  const configuracao = await prisma.configuracaoDps.findUnique({
+    where: { prestadorId: resolvedPrestadorId },
+    select: {
+      robotClientId: true,
+      robotClientSecret: true,
+      robotTokenCacheMinutos: true,
+    },
+  });
+
+  if (!configuracao?.robotClientId || !configuracao.robotClientSecret) {
+    throw new RobotCredentialsMissingError();
+  }
+
+  const entry: RobotCredentialsCacheEntry = {
+    clientId: configuracao.robotClientId,
+    clientSecret: configuracao.robotClientSecret,
+    tokenCacheMinutes: configuracao.robotTokenCacheMinutos ?? null,
+    updatedAt: now,
+  };
+
+  credentialsCache.set(resolvedPrestadorId, entry);
+
+  return requestTokenWithCredentials(resolvedPrestadorId, entry);
+}
+
+export function clearRobotCredentialsCache(prestadorId: string) {
+  credentialsCache.delete(prestadorId);
+}
+
+async function requestTokenWithCredentials(
+  prestadorId: string,
+  credentials: RobotCredentialsCacheEntry
+): Promise<string> {
   const body = {
-    clientId: env.ROBOT_CLIENT_ID,
-    clientSecret: env.ROBOT_CLIENT_SECRET,
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
     scope: "nfse.cancelar nfse.certificados nfse.danfse nfse.emitir nfse.email",
   };
 
@@ -164,27 +214,28 @@ async function requestRobotToken(): Promise<string> {
   console.log("[NotaAPI] Payload do token:", JSON.stringify(payload, null, 2));
   
   // Extrair e logar o prestadorId
-  const prestadorId = getPrestadorIdFromToken(accessToken);
-  console.log("[NotaAPI] PrestadorId extraído do token:", prestadorId);
+  const tokenPrestadorId = getPrestadorIdFromToken(accessToken);
+  console.log("[NotaAPI] PrestadorId extraído do token:", tokenPrestadorId);
 
-  const expiresAt = resolveExpiration(accessToken, expiresIn);
-  await persistToken(accessToken, expiresAt);
+  const expiresAt = resolveExpiration(accessToken, expiresIn, credentials.tokenCacheMinutes);
+  await persistToken(prestadorId, accessToken, expiresAt);
 
   return accessToken;
 }
 
-export async function getRobotToken(): Promise<string> {
-  const cached = await fetchStoredToken();
+export async function getRobotToken(prestadorId?: string): Promise<string> {
+  const resolvedPrestadorId = await resolvePrestadorId(prestadorId);
+  const cached = await fetchStoredToken(resolvedPrestadorId);
 
   if (cached) {
     return cached;
   }
 
-  return requestRobotToken();
+  return requestRobotToken(resolvedPrestadorId);
 }
 
-export async function authorizeNotaApi() {
-  const token = await getRobotToken();
+export async function authorizeNotaApi(prestadorId?: string) {
+  const token = await getRobotToken(prestadorId);
 
   notaApi.defaults.headers.common.Authorization = `Bearer ${token}`;
 }

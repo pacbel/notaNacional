@@ -10,6 +10,13 @@ export class AppError extends Error {
   }
 }
 
+export class RobotCredentialsMissingError extends AppError {
+  constructor() {
+    super("Credenciais do robô não configuradas para o prestador atual.", 428);
+    this.name = "RobotCredentialsMissingError";
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }

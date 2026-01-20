@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para login
-    const response = await fetch(`${env.API_BASE_URL}/api/Auth/login`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

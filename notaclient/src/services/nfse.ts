@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import type { CancelamentoMotivoCodigo } from "@/lib/nfse/cancelamento-motivos";
 import type { CancelarNfseResponse, EmitirNfseResponse } from "@/lib/nfse/types";
 
@@ -12,7 +13,7 @@ export interface PaginationMeta {
 }
 
 export async function getNfseMetrics(): Promise<NfseMetrics> {
-  const response = await fetch("/api/nfse/metrics", {
+  const response = await fetchWithAuth("/api/nfse/metrics", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -368,7 +369,7 @@ export async function listDps(params: ListDpsParams = {}): Promise<PaginatedResp
 
   const query = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 
-  const response = await fetch(`/api/nfse/dps${query}`, {
+  const response = await fetchWithAuth(`/api/nfse/dps${query}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -380,7 +381,7 @@ export async function listDps(params: ListDpsParams = {}): Promise<PaginatedResp
 }
 
 export async function createDps(payload: CreateDpsPayload): Promise<DpsDto> {
-  const response = await fetch("/api/nfse/dps", {
+  const response = await fetchWithAuth("/api/nfse/dps", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -392,7 +393,7 @@ export async function createDps(payload: CreateDpsPayload): Promise<DpsDto> {
 }
 
 export async function deleteDps(id: string): Promise<void> {
-  const response = await fetch(`/api/nfse/dps/${id}`, {
+  const response = await fetchWithAuth(`/api/nfse/dps/${id}`, {
     method: "DELETE",
   });
 
@@ -400,7 +401,7 @@ export async function deleteDps(id: string): Promise<void> {
 }
 
 export async function listCertificados() {
-  const response = await fetch("/api/nfse", {
+  const response = await fetchWithAuth("/api/nfse", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -420,7 +421,7 @@ export async function listCertificados() {
 }
 
 export async function assinarDps(payload: AssinarDpsPayload) {
-  const response = await fetch("/api/nfse", {
+  const response = await fetchWithAuth("/api/nfse", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -435,7 +436,7 @@ export async function assinarDps(payload: AssinarDpsPayload) {
 }
 
 export async function emitirNfse(payload: EmitirNfsePayload) {
-  const response = await fetch("/api/nfse", {
+  const response = await fetchWithAuth("/api/nfse", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -468,7 +469,7 @@ export async function listNotas(params: ListNotasParams = {}): Promise<Paginated
 
   const query = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 
-  const response = await fetch(`/api/nfse/notas${query}`, {
+  const response = await fetchWithAuth(`/api/nfse/notas${query}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -480,7 +481,7 @@ export async function listNotas(params: ListNotasParams = {}): Promise<Paginated
 }
 
 export async function cancelarNfse(payload: CancelarNfsePayload) {
-  const response = await fetch(`/api/nfse/notas/${encodeURIComponent(payload.chaveAcesso)}/cancelar`, {
+  const response = await fetchWithAuth(`/api/nfse/notas/${encodeURIComponent(payload.chaveAcesso)}/cancelar`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

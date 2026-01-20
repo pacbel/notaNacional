@@ -13,6 +13,10 @@ let refreshPromise: Promise<boolean> | null = null;
  * Tenta renovar a sessão do usuário
  */
 async function refreshSession(): Promise<boolean> {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
   }
@@ -29,7 +33,6 @@ async function refreshSession(): Promise<boolean> {
         return true;
       }
 
-      // Se falhar ao renovar, redireciona para login
       window.location.href = "/";
       return false;
     } catch (error) {
@@ -54,25 +57,24 @@ export async function fetchWithAuth(
 ): Promise<Response> {
   const { skipAuthRetry, ...fetchOptions } = options;
 
-  // Primeira tentativa
-  let response = await fetch(url, {
+  const requestInit: RequestInit = {
     ...fetchOptions,
-    credentials: "include",
-  });
+  };
 
-  // Se recebeu 401 e não deve pular o retry
-  if (response.status === 401 && !skipAuthRetry) {
-    console.log("[fetchWithAuth] Recebeu 401, tentando renovar sessão...");
+  if (typeof window !== "undefined") {
+    requestInit.credentials = "include";
+  }
+
+  const response = await fetch(url, requestInit);
+
+  if (response.status === 401 && !skipAuthRetry && typeof window !== "undefined") {
+    console.warn("[fetchWithAuth] Recebeu 401, tentando renovar sessão...");
 
     const refreshed = await refreshSession();
 
     if (refreshed) {
-      console.log("[fetchWithAuth] Sessão renovada, repetindo requisição...");
-      // Tenta novamente após renovar
-      response = await fetch(url, {
-        ...fetchOptions,
-        credentials: "include",
-      });
+      const retryResponse = await fetch(url, requestInit);
+      return retryResponse;
     }
   }
 

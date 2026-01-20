@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { startOfMonth, subMonths } from "date-fns";
@@ -8,6 +10,7 @@ import { DpsStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrestadorById } from "@/lib/services/prestador";
+import { RobotCredentialsMissingError } from "@/lib/errors";
 import {
   Card,
   CardContent,
@@ -47,6 +50,18 @@ async function getDashboardData() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const configuracao = await prisma.configuracaoDps.findUnique({
+    where: { prestadorId },
+    select: {
+      robotClientId: true,
+      robotClientSecret: true,
+    },
+  });
+
+  if (!configuracao?.robotClientId || !configuracao.robotClientSecret) {
+    redirect("/configuracoes?missingRobotCredentials=1");
+  }
 
   // Calcular últimos 6 meses para o gráfico
   const last6Months = Array.from({ length: 6 }, (_, i) => {
@@ -201,135 +216,143 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  try {
+    const data = await getDashboardData();
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Acompanhe as emissões de NFSe e o status operacional da plataforma.
-        </p>
-      </div>
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Acompanhe as emissões de NFSe e o status operacional da plataforma.
+          </p>
+        </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>NFSe emitidas (total)</CardDescription>
-            <CardTitle className="text-2xl">{formatNumber(data.totalNotas)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {formatNumber(data.notasMes)} emissões neste mês
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>NFSe emitidas (total)</CardDescription>
+              <CardTitle className="text-2xl">{formatNumber(data.totalNotas)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {formatNumber(data.notasMes)} emissões neste mês
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Emissões de hoje</CardDescription>
-            <CardTitle className="text-2xl">{formatNumber(data.notasHoje)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Dados atualizados diariamente</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Emissões de hoje</CardDescription>
+              <CardTitle className="text-2xl">{formatNumber(data.notasHoje)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Dados atualizados diariamente</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>DPS aguardando ação</CardDescription>
-            <CardTitle className="text-2xl">{formatNumber(data.dpsPendentes)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Inclui rascunhos e pendentes de envio</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>DPS aguardando ação</CardDescription>
+              <CardTitle className="text-2xl">{formatNumber(data.dpsPendentes)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Inclui rascunhos e pendentes de envio</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Valor emitido no mês</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(data.valorTotalMes)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Total consolidado das NFSe do mês</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Valor emitido no mês</CardDescription>
+              <CardTitle className="text-2xl">{formatCurrency(data.valorTotalMes)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Total consolidado das NFSe do mês</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Prestadores ativos</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatNumber(data.prestadoresAtivos + data.tomadoresAtivos)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {formatNumber(data.prestadoresAtivos)} prestadores · {formatNumber(data.tomadoresAtivos)} tomadores
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Prestadores ativos</CardDescription>
+              <CardTitle className="text-2xl">
+                {formatNumber(data.prestadoresAtivos + data.tomadoresAtivos)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {formatNumber(data.prestadoresAtivos)} prestadores · {formatNumber(data.tomadoresAtivos)} tomadores
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>NFSe recentes</CardTitle>
-            <CardDescription>Últimas emissões registradas na plataforma</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>NFSe</TableHead>
-                  <TableHead>Tomador</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Emissão</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.recentNotas.length === 0 ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>NFSe recentes</CardTitle>
+              <CardDescription>Últimas emissões registradas na plataforma</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-sm text-muted-foreground">
-                      Nenhuma NFSe emitida ainda.
-                    </TableCell>
+                    <TableHead>NFSe</TableHead>
+                    <TableHead>Tomador</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Emissão</TableHead>
                   </TableRow>
-                ) : (
-                  data.recentNotas.map((nota) => (
-                    <TableRow key={nota.id}>
-                      <TableCell>
-                        <div className="font-medium">{nota.numero}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {nota.prestador?.nomeFantasia || "Prestador"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{nota.tomador.nomeRazaoSocial}</div>
-                        <div className="text-xs text-muted-foreground">{nota.chaveAcesso}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{nota.dps?.status ?? "-"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {format(nota.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                </TableHeader>
+                <TableBody>
+                  {data.recentNotas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-sm text-muted-foreground">
+                        Nenhuma NFSe emitida ainda.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ) : (
+                    data.recentNotas.map((nota) => (
+                      <TableRow key={nota.id}>
+                        <TableCell>
+                          <div className="font-medium">{nota.numero}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {nota.prestador?.nomeFantasia || "Prestador"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{nota.tomador.nomeRazaoSocial}</div>
+                          <div className="text-xs text-muted-foreground">{nota.chaveAcesso}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{nota.dps?.status ?? "-"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {format(nota.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Notas Emitidas por Mês</CardTitle>
-            <CardDescription>Evolução das emissões nos últimos 6 meses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartNotasMes data={data.notasPorMes} />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Notas Emitidas por Mês</CardTitle>
+              <CardDescription>Evolução das emissões nos últimos 6 meses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartNotasMes data={data.notasPorMes} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  } catch (error) {
+    if (error instanceof RobotCredentialsMissingError) {
+      redirect("/configuracoes?missingRobotCredentials=1");
+    }
+
+    throw error;
+  }
 }

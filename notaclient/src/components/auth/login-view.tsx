@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 const credentialsSchema = z.object({
   email: z.string().email("Informe um e-mail válido"),
@@ -84,7 +85,7 @@ export default function LoginView() {
     setIsCredentialsPending(true);
     setUserEmail(values.email);
 
-    fetch("/api/auth/login", {
+    fetchWithAuth("/api/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +128,7 @@ export default function LoginView() {
 
     setIsMfaPending(true);
 
-    fetch("/api/auth/mfa/verify", {
+    fetchWithAuth("/api/auth/mfa/verify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { canAccessUsuarios, canAccessConfiguracoes } from "@/lib/permissions";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 interface AppShellProps {
   user: {
@@ -67,7 +68,7 @@ export default function AppShell({ user, children }: AppShellProps) {
   }, [user.role]);
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", {
+    await fetchWithAuth("/api/auth/logout", {
       method: "POST",
     });
 

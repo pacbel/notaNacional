@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 const forgotSchema = z.object({
   email: z.string().email(),
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     const env = getEnv();
 
     // Chamar API externa para solicitar recuperação de senha
-    const response = await fetch(`${env.API_BASE_URL}/api/Auth/forgot-password`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Auth/forgot-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

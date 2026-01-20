@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 export async function PUT(
   request: Request,
@@ -22,7 +23,7 @@ export async function PUT(
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}/senha`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}/senha`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

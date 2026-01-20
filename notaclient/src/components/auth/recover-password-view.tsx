@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 const requestSchema = z.object({
   email: z.string().email("Informe um e-mail válido"),
@@ -76,7 +77,7 @@ export default function RecoverPasswordView() {
   function handleRequest(values: RequestFormValues) {
     startTransition(async () => {
       try {
-        const response = await fetch("/api/auth/password/forgot", {
+        const response = await fetchWithAuth("/api/auth/password/forgot", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -101,7 +102,7 @@ export default function RecoverPasswordView() {
   function handleReset(values: ResetFormValues) {
     startTransition(async () => {
       try {
-        const response = await fetch("/api/auth/password/reset", {
+        const response = await fetchWithAuth("/api/auth/password/reset", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

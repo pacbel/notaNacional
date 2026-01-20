@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getRobotToken, getPrestadorIdFromToken } from "@/lib/notanacional-api";
+import { getRobotToken } from "@/lib/notanacional-api";
+import { getPrestadorIdFromToken } from "@/lib/token-utils";
 import { getEnv } from "@/lib/env";
 import { canAccessUsuarios } from "@/lib/permissions";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 export async function GET() {
   try {
@@ -23,7 +25,7 @@ export async function GET() {
       );
     }
 
-    const token = await getRobotToken();
+    const token = await getRobotToken(currentUser.prestadorId);
     const env = getEnv();
 
     // Usar prestadorId do usuário logado
@@ -37,7 +39,7 @@ export async function GET() {
 
     console.log("[Usuarios] URL completa:", url.toString());
 
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithAuth(url.toString(), {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const token = await getRobotToken();
+    const token = await getRobotToken(currentUser.prestadorId);
     const env = getEnv();
 
     // Garantir que o usuário seja criado para o prestador correto
@@ -106,7 +108,7 @@ export async function POST(request: Request) {
       prestadorId: currentUser.prestadorId,
     };
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

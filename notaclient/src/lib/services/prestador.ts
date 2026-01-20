@@ -1,5 +1,6 @@
-import { getRobotToken } from "@/lib/notanacional-api";
+import { RobotCredentialsMissingError } from "@/lib/errors";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "../fetch-with-auth";
 
 export interface PrestadorData {
   id: string;
@@ -25,10 +26,11 @@ export interface PrestadorData {
  */
 export async function getPrestadorById(prestadorId: string): Promise<PrestadorData | null> {
   try {
-    const token = await getRobotToken();
+    const { getRobotToken } = await import("@/lib/notanacional-api");
+    const token = await getRobotToken(prestadorId);
     const env = getEnv();
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Prestadores`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Prestadores`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -57,6 +59,10 @@ export async function getPrestadorById(prestadorId: string): Promise<PrestadorDa
 
     return prestador;
   } catch (error) {
+    if (error instanceof RobotCredentialsMissingError) {
+      throw error;
+    }
+
     console.error(`[PrestadorService] Erro ao buscar prestador ${prestadorId}:`, error);
     return null;
   }
@@ -70,10 +76,15 @@ export async function getPrestadoresByIds(prestadorIds: string[]): Promise<Map<s
   const prestadoresMap = new Map<string, PrestadorData>();
 
   try {
-    const token = await getRobotToken();
+    if (uniqueIds.length === 0) {
+      return prestadoresMap;
+    }
+
+    const { getRobotToken } = await import("@/lib/notanacional-api");
+    const token = await getRobotToken(uniqueIds[0]);
     const env = getEnv();
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Prestadores`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Prestadores`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -100,6 +111,10 @@ export async function getPrestadoresByIds(prestadorIds: string[]): Promise<Map<s
 
     return prestadoresMap;
   } catch (error) {
+    if (error instanceof RobotCredentialsMissingError) {
+      throw error;
+    }
+
     console.error(`[PrestadorService] Erro ao buscar prestadores:`, error);
     return prestadoresMap;
   }

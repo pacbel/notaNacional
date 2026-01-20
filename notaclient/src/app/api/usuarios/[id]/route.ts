@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
 import { canAccessUsuarios, isAdministrador } from "@/lib/permissions";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 export async function GET(
   request: Request,
@@ -30,7 +31,7 @@ export async function GET(
     const token = await getRobotToken();
     const env = getEnv();
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -94,7 +95,7 @@ export async function PUT(
     const env = getEnv();
 
     // Primeiro buscar o usuário para validar ownership
-    const checkResponse = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
+    const checkResponse = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -140,7 +141,7 @@ export async function PUT(
       prestadorId: currentUser.prestadorId,
     };
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -194,7 +195,7 @@ export async function DELETE(
     const env = getEnv();
 
     // Primeiro buscar o usuário para validar ownership
-    const checkResponse = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
+    const checkResponse = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -234,7 +235,7 @@ export async function DELETE(
       }
     }
 
-    const response = await fetch(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
+    const response = await fetchWithAuth(`${env.API_BASE_URL}/api/Usuarios/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

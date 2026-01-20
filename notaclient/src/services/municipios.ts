@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
+
 export interface MunicipioDto {
   codigo: string;
   nome: string;
@@ -21,7 +23,7 @@ export async function listMunicipios(uf?: string): Promise<MunicipioDto[]> {
 
   const queryString = params.size > 0 ? `?${params.toString()}` : "";
 
-  const response = await fetch(`/api/municipios${queryString}`, {
+  const response = await fetchWithAuth(`/api/municipios${queryString}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

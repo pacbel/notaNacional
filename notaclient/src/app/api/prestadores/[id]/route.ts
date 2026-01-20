@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getRobotToken } from "@/lib/notanacional-api";
 import { getEnv } from "@/lib/env";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 /**
  * GET /api/prestadores/[id]
@@ -31,7 +32,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     console.log("[Prestadores] URL:", url);
     console.log("[Prestadores] Token presente:", !!token);
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

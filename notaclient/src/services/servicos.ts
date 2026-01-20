@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import type { ServicoCreateInput, ServicoUpdateInput } from "@/lib/validators/servico";
 
 export type ServicoStatusFilter = "ativos" | "inativos" | "todos";
@@ -70,7 +71,7 @@ export async function listServicos({
     params.set("search", search);
   }
 
-  const response = await fetch(`/api/servicos?${params.toString()}`, {
+  const response = await fetchWithAuth(`/api/servicos?${params.toString()}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export async function listServicos({
 }
 
 export async function createServico(input: ServicoCreateInput): Promise<ServicoDto> {
-  const response = await fetch(`/api/servicos`, {
+  const response = await fetchWithAuth(`/api/servicos`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -94,7 +95,7 @@ export async function createServico(input: ServicoCreateInput): Promise<ServicoD
 }
 
 export async function updateServico(id: string, input: ServicoUpdateInput): Promise<ServicoDto> {
-  const response = await fetch(`/api/servicos/${id}`, {
+  const response = await fetchWithAuth(`/api/servicos/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -106,7 +107,7 @@ export async function updateServico(id: string, input: ServicoUpdateInput): Prom
 }
 
 export async function inactivateServico(id: string): Promise<ServicoDto> {
-  const response = await fetch(`/api/servicos/${id}`, {
+  const response = await fetchWithAuth(`/api/servicos/${id}`, {
     method: "DELETE",
   });
 
@@ -114,7 +115,7 @@ export async function inactivateServico(id: string): Promise<ServicoDto> {
 }
 
 export async function reactivateServico(id: string): Promise<ServicoDto> {
-  const response = await fetch(`/api/servicos/${id}`, {
+  const response = await fetchWithAuth(`/api/servicos/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

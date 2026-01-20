@@ -4,6 +4,7 @@ import type {
   TomadorCreateInput,
   TomadorUpdateInput,
 } from "@/lib/validators/tomador";
+import { fetchWithAuth } from "@/lib/fetch-with-auth";
 
 export type TomadorDto = Omit<Tomador, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -55,7 +56,7 @@ export async function listTomadores({
     params.set("documento", documento);
   }
 
-  const response = await fetch(`/api/tomadores?${params.toString()}`, {
+  const response = await fetchWithAuth(`/api/tomadores?${params.toString()}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -67,7 +68,7 @@ export async function listTomadores({
 }
 
 export async function createTomador(input: TomadorCreateInput): Promise<TomadorDto> {
-  const response = await fetch(`/api/tomadores`, {
+  const response = await fetchWithAuth(`/api/tomadores`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export async function updateTomador(
   id: string,
   input: TomadorUpdateInput
 ): Promise<TomadorDto> {
-  const response = await fetch(`/api/tomadores/${id}`, {
+  const response = await fetchWithAuth(`/api/tomadores/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -94,7 +95,7 @@ export async function updateTomador(
 }
 
 export async function inactivateTomador(id: string): Promise<TomadorDto> {
-  const response = await fetch(`/api/tomadores/${id}`, {
+  const response = await fetchWithAuth(`/api/tomadores/${id}`, {
     method: "DELETE",
   });
 
@@ -102,7 +103,7 @@ export async function inactivateTomador(id: string): Promise<TomadorDto> {
 }
 
 export async function reactivateTomador(id: string): Promise<TomadorDto> {
-  const response = await fetch(`/api/tomadores/${id}`, {
+  const response = await fetchWithAuth(`/api/tomadores/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
