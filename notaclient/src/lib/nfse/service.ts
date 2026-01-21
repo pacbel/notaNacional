@@ -558,11 +558,6 @@ export async function createDps(payload: CreateDpsInput) {
       tribISSQN: configuracao.tribISSQN,
       tpImunidade: configuracao.tpImunidade,
       tpRetISSQN: configuracao.tpRetISSQN,
-      pTotTrib: {
-        fed: configuracao.pTotTribFed,
-        est: configuracao.pTotTribEst,
-        mun: configuracao.pTotTribMun,
-      },
     },
     observacoes: data.observacoes ?? undefined,
   };
@@ -591,7 +586,7 @@ export async function createDps(payload: CreateDpsInput) {
         versaoAplicacao: configuracao.versaoAplicacao,
         ambiente: configuracao.ambientePadrao,
         jsonEntrada: jsonEntradaString,
-        observacoes: data.observacoes ?? configuracao.xTribNac,
+        observacoes: data.observacoes ?? null,
       },
       include: {
         tomador: true,
@@ -704,8 +699,6 @@ async function resolveConfiguracaoDps(prestadorId: string) {
         versaoAplicacao: "1.0.0",
         xLocEmi: "1",
         xLocPrestacao: "1",
-        xTribNac: "01.07.00",
-        xNBS: "1.0101.10.00",
         tpAmb: 2,
         opSimpNac: 1,
         regEspTrib: 0,
@@ -779,9 +772,6 @@ function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
     tribISSQN: config.tribISSQN,
     tpImunidade: config.tpImunidade,
     tpRetISSQN: config.tpRetISSQN,
-    pTotTribFed: config.pTotTribFed,
-    pTotTribEst: config.pTotTribEst,
-    pTotTribMun: config.pTotTribMun,
     xLocPrestacao: config.xLocPrestacao,
   };
 }
