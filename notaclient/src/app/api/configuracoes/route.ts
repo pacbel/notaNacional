@@ -37,6 +37,9 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
       tpImunidade: configuracao.tpImunidade,
       tpRetISSQN: configuracao.tpRetISSQN,
     },
+    pTotTribFed: configuracao.pTotTribFed.toNumber(),
+    pTotTribEst: configuracao.pTotTribEst.toNumber(),
+    pTotTribMun: configuracao.pTotTribMun.toNumber(),
   };
 }
 
@@ -151,6 +154,9 @@ export async function PUT(request: Request) {
       tribISSQN: data.tribMun.tribISSQN,
       tpImunidade: data.tribMun.tpImunidade,
       tpRetISSQN: data.tribMun.tpRetISSQN,
+      pTotTribFed: data.pTotTribFed,
+      pTotTribEst: data.pTotTribEst,
+      pTotTribMun: data.pTotTribMun,
     };
 
     // Buscar ou criar configuração do prestador

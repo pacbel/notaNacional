@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: internos_mysql:3306
--- Tempo de geração: 21/01/2026 às 00:56
+-- Tempo de geração: 21/01/2026 às 13:31
 -- Versão do servidor: 9.5.0
 -- Versão do PHP: 8.2.27
 
@@ -64,7 +64,8 @@ CREATE TABLE `ConfiguracaoDps` (
 --
 
 INSERT INTO `ConfiguracaoDps` (`id`, `nomeSistema`, `versaoAplicacao`, `ambientePadrao`, `seriePadrao`, `emailRemetente`, `robotClientId`, `robotClientSecret`, `robotTokenCacheMinutos`, `mfaCodigoExpiracaoMinutos`, `enviarNotificacaoEmailPrestador`, `ativo`, `createdAt`, `updatedAt`, `ambGer`, `cStat`, `dhProc`, `procEmi`, `tpEmis`, `tpImunidade`, `tpRetISSQN`, `tribISSQN`, `xLocEmi`, `xLocPrestacao`, `numeroInicialDps`, `prestadorId`, `opSimpNac`, `regEspTrib`, `tpAmb`) VALUES
-('b67cba75-3425-4c8d-b0c4-07d2c9e3f98f', 'NotaClient', '1.0.0', 'HOMOLOGACAO', 1, NULL, 'rc-ea8ed3-d287fb28d4074ed6b9453ca2b2cb828f', 'bal6OzdeTp_kt0EZl95wwIYpDZvIltelUxPqvKdZdMe2Jf6N9YqyXW3cRXisuuic', 50, 10, 1, 1, '2026-01-21 00:52:58.568', '2026-01-21 00:55:47.648', 2, 100, NULL, 1, 1, 0, 1, 1, '3106200', '3106200', 19, 'ea8ed3d8-b956-40af-8f6c-066aa0e2cd71', 1, 0, 2);
+('9856705a-e4dc-42e1-b577-6a5ab881b83e', 'NotaClient', '1.0.0', 'HOMOLOGACAO', 1, NULL, 'rc-2ed6be-aef5d6fac2b64e0c88e3e1a71fa60525', 'zYn1voqZETCItqJhCzOPEIFkMTsz-4GCynoFwWYuKarwLBGNpbBVD0UtsjboXT4N', 50, 10, 1, 1, '2026-01-21 13:30:19.914', '2026-01-21 13:31:16.254', 2, 100, NULL, 1, 1, 0, 1, 1, '3106200', '3106200', 1, '2ed6be3e-e7b2-4e4b-b887-cfccdcd473ba', 1, 0, 2),
+('b67cba75-3425-4c8d-b0c4-07d2c9e3f98f', 'NotaClient', '1.0.0', 'HOMOLOGACAO', 1, NULL, 'rc-ea8ed3-d287fb28d4074ed6b9453ca2b2cb828f', 'bal6OzdeTp_kt0EZl95wwIYpDZvIltelUxPqvKdZdMe2Jf6N9YqyXW3cRXisuuic', 50, 10, 1, 1, '2026-01-21 00:52:58.568', '2026-01-21 12:13:48.775', 2, 100, NULL, 1, 1, 0, 1, 1, '3106200', '3106200', 20, 'ea8ed3d8-b956-40af-8f6c-066aa0e2cd71', 1, 0, 2);
 
 -- --------------------------------------------------------
 
@@ -194,7 +195,7 @@ CREATE TABLE `Servico` (
 --
 
 INSERT INTO `Servico` (`id`, `descricao`, `codigoTributacaoMunicipal`, `codigoTributacaoNacional`, `codigoNbs`, `valorUnitario`, `aliquotaIss`, `issRetido`, `ativo`, `createdAt`, `updatedAt`, `pTotTribEst`, `pTotTribFed`, `pTotTribMun`, `prestadorId`) VALUES
-('84b6cb5a-2539-4242-9280-e747edc1e79c', 'Locação de imóvel não residencial – aluguel mensal - Competência 01/2026 Endereço do imóvel: Rua Ilha Grande, 555, Jardim Atlântico, Belo Horizonte - Sala Operação de locação de imóvel não residencial com contrato firmado até 31/12/2025. Aplicação da regra de transição do art. 487 da Lei Complementar nº 214/2025. IBS diferido. CBS 3,5% = Base aluguel R$ 1.431,88 x 3,5% = 50,12', '001', '990101', '110022000', 1431.88, NULL, 0, 1, '2026-01-21 00:55:36.545', '2026-01-21 00:55:36.545', NULL, NULL, NULL, 'ea8ed3d8-b956-40af-8f6c-066aa0e2cd71');
+('84b6cb5a-2539-4242-9280-e747edc1e79c', 'Processamento de dados', '001', '010101', '115090000', 1431.88, NULL, 0, 1, '2026-01-21 00:55:36.545', '2026-01-21 12:02:31.382', NULL, NULL, NULL, 'ea8ed3d8-b956-40af-8f6c-066aa0e2cd71');
 
 -- --------------------------------------------------------
 
@@ -217,7 +218,7 @@ CREATE TABLE `TokenIntegracao` (
 --
 
 INSERT INTO `TokenIntegracao` (`id`, `tipo`, `token`, `expiresAt`, `ativo`, `createdAt`, `updatedAt`) VALUES
-('ea8ed3d8-b956-40af-8f6c-066aa0e2cd71', 'ROBOT', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb2JvdDpyYy1lYThlZDMtZDI4N2ZiMjhkNDA3NGVkNmI5NDUzY2EyYjJjYjgyOGYiLCJjbGllbnRfaWQiOiJyYy1lYThlZDMtZDI4N2ZiMjhkNDA3NGVkNmI5NDUzY2EyYjJjYjgyOGYiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJSb2JvdCIsInByZXN0YWRvcklkIjoiZWE4ZWQzZDgtYjk1Ni00MGFmLThmNmMtMDY2YWEwZTJjZDcxIiwic2NvcGUiOiJuZnNlLmNhbmNlbGFyIG5mc2UuY2VydGlmaWNhZG9zIG5mc2UuZGFuZnNlIG5mc2UuZW1pdGlyIG5mc2UuZW1haWwiLCJleHAiOjE3Njg5NTg2MjAsImlzcyI6IkFQSV9ORlNlIiwiYXVkIjoiQVBJX05GU2UifQ.5KGoDc2W6azPZc77zt4-dXUuscugM9mbxUzVuuocIWk', '2026-01-21 01:23:40.000', 1, '2026-01-21 00:53:25.877', '2026-01-21 00:53:25.877');
+('ea8ed3d8-b956-40af-8f6c-066aa0e2cd71', 'ROBOT', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyb2JvdDpyYy1lYThlZDMtZDI4N2ZiMjhkNDA3NGVkNmI5NDUzY2EyYjJjYjgyOGYiLCJjbGllbnRfaWQiOiJyYy1lYThlZDMtZDI4N2ZiMjhkNDA3NGVkNmI5NDUzY2EyYjJjYjgyOGYiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJSb2JvdCIsInByZXN0YWRvcklkIjoiZWE4ZWQzZDgtYjk1Ni00MGFmLThmNmMtMDY2YWEwZTJjZDcxIiwic2NvcGUiOiJuZnNlLmNhbmNlbGFyIG5mc2UuY2VydGlmaWNhZG9zIG5mc2UuZGFuZnNlIG5mc2UuZW1pdGlyIG5mc2UuZW1haWwiLCJleHAiOjE3Njg5OTg3NTEsImlzcyI6IkFQSV9ORlNlIiwiYXVkIjoiQVBJX05GU2UifQ.0TiASTIGsZZbJ30vihm5Arrl0sK3A0wIEEbZIwB_w70', '2026-01-21 12:32:31.000', 1, '2026-01-21 00:53:25.877', '2026-01-21 12:02:17.029');
 
 -- --------------------------------------------------------
 

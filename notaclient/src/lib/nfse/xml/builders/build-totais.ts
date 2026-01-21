@@ -28,21 +28,15 @@ function buildTotTrib(w: XmlWriter, context: DpsContext): void {
   
   const valorServicoNumber = Number.parseFloat(context.valorServico);
   
-  // Calcular tributos aproximados baseados no valor do serviço
-  // Alíquotas aproximadas conforme Lei 12.741/2012
+  // Usar os percentuais configurados nas configurações do sistema
+  const pTotTribFedPercent = context.input.configuracao.pTotTribFed ?? 0;
+  const pTotTribEstPercent = context.input.configuracao.pTotTribEst ?? 0;
+  const pTotTribMunPercent = context.input.configuracao.pTotTribMun ?? 0;
   
-  // Tributos Federais (CBS/PIS/COFINS) - aproximadamente 3.5% do valor
-  const pTotTribFed = valorServicoNumber * 0.035;
-  
-  // Tributos Estaduais - geralmente não se aplicam a serviços (0%)
-  const pTotTribEst = 0;
-  
-  // Tributos Municipais (ISSQN) - usar alíquota do serviço se informada
-  let pTotTribMun = 0;
-  if (context.aliquotaIss) {
-    const aliquotaNumber = Number.parseFloat(context.aliquotaIss);
-    pTotTribMun = valorServicoNumber * (aliquotaNumber / 100);
-  }
+  // Calcular valores monetários baseados nos percentuais configurados
+  const pTotTribFed = valorServicoNumber * (pTotTribFedPercent / 100);
+  const pTotTribEst = valorServicoNumber * (pTotTribEstPercent / 100);
+  const pTotTribMun = valorServicoNumber * (pTotTribMunPercent / 100);
   
   // pTotTrib é um GRUPO COMPOSTO (CG) - obrigatório 1-1
   // Deve conter os 3 valores monetários obrigatórios

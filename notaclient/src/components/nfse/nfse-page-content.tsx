@@ -119,9 +119,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useCurrentUser } from "@/hooks/use-auth";
 
 interface CreateFormState {
-  prestadorId: string;
   tomadorId: string;
   servicoId: string;
   competencia: string;
@@ -579,13 +579,14 @@ export default function NfsePageContent() {
   const DEFAULT_SIGNATURE_TAG = "infDPS";
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState>(() => ({
-    prestadorId: "",
     tomadorId: "",
     servicoId: "",
     competencia: new Date().toISOString(),
     dataEmissao: new Date().toISOString(),
     observacoes: "",
   }));
+
+  const currentUserQuery = useCurrentUser();
   const [cancelState, setCancelState] = useState<{
     nota: NotaDto;
     motivoCodigo: CancelamentoMotivoCodigo | "";
@@ -1112,7 +1113,6 @@ export default function NfsePageContent() {
 
   const resetCreateForm = () => {
     setCreateForm({
-      prestadorId: "",
       tomadorId: "",
       servicoId: "",
       competencia: new Date().toISOString(),
@@ -1122,8 +1122,13 @@ export default function NfsePageContent() {
   };
 
   const handleSubmitCreate = () => {
+    if (!currentUserQuery.data?.prestadorId) {
+      toast.error("Prestador não identificado no contexto");
+      return;
+    }
+
     createDpsMutation.mutate({
-      prestadorId: createForm.prestadorId,
+      prestadorId: currentUserQuery.data.prestadorId,
       tomadorId: createForm.tomadorId,
       servicoId: createForm.servicoId,
       competencia: createForm.competencia,
@@ -2016,37 +2021,7 @@ export default function NfsePageContent() {
           </DialogHeader>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="prestadorId">Prestador</Label>
-              <Select
-                value={createForm.prestadorId}
-                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, prestadorId: value }))}
-                disabled={prestadoresQuery.isLoading || createDpsMutation.isPending}
-              >
-                <SelectTrigger id="prestadorId">
-                  <SelectValue placeholder="Selecione" className="max-w-full text-left wrap-break-word line-clamp-2" />
-                </SelectTrigger>
-                <SelectContent>
-                  {prestadoresQuery.isLoading ? (
-                    <SelectItem value={SELECT_LOADING_VALUE} disabled>
-                      Carregando...
-                    </SelectItem>
-                  ) : (prestadoresQuery.data ?? []).length > 0 ? (
-                    prestadoresQuery.data?.map((prestador) => (
-                      <SelectItem key={prestador.id} value={prestador.id} className="wrap-break-word">
-                        {prestador.nomeFantasia} · {prestador.cnpj}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={SELECT_EMPTY_VALUE} disabled>
-                      Nenhum prestador disponível
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="tomadorId">Tomador</Label>
               <Select
                 value={createForm.tomadorId}
@@ -2160,7 +2135,7 @@ export default function NfsePageContent() {
               onClick={handleSubmitCreate}
               disabled={
                 createDpsMutation.isPending ||
-                !createForm.prestadorId ||
+                !currentUserQuery.data?.prestadorId ||
                 !createForm.tomadorId ||
                 !createForm.servicoId
               }

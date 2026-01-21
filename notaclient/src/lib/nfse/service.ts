@@ -773,6 +773,9 @@ function mapConfiguracaoToXmlInput(config: ConfiguracaoDps): ConfiguracaoBase {
     tpImunidade: config.tpImunidade,
     tpRetISSQN: config.tpRetISSQN,
     xLocPrestacao: config.xLocPrestacao,
+    pTotTribFed: config.pTotTribFed.toNumber(),
+    pTotTribEst: config.pTotTribEst.toNumber(),
+    pTotTribMun: config.pTotTribMun.toNumber(),
   };
 }
 

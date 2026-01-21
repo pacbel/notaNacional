@@ -59,6 +59,9 @@ export interface ConfiguracaoBase {
   tpImunidade: number | null;
   tpRetISSQN: number;
   xLocPrestacao: string;
+  pTotTribFed: number | null;
+  pTotTribEst: number | null;
+  pTotTribMun: number | null;
 }
 
 export interface GenerateDpsXmlInput {

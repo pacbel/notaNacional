@@ -8,28 +8,28 @@
 
 */
 -- DropForeignKey
-ALTER TABLE `Dps` DROP FOREIGN KEY `Dps_certificadoId_fkey`;
+-- ALTER TABLE `Dps` DROP FOREIGN KEY `Dps_certificadoId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `Dps` DROP FOREIGN KEY `Dps_prestadorId_fkey`;
+-- ALTER TABLE `Dps` DROP FOREIGN KEY `Dps_prestadorId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `NotaFiscal` DROP FOREIGN KEY `NotaFiscal_certificateId_fkey`;
+-- ALTER TABLE `NotaFiscal` DROP FOREIGN KEY `NotaFiscal_certificateId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `NotaFiscal` DROP FOREIGN KEY `NotaFiscal_prestadorId_fkey`;
+-- ALTER TABLE `NotaFiscal` DROP FOREIGN KEY `NotaFiscal_prestadorId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `Prestador` DROP FOREIGN KEY `Prestador_certificadoPadraoId_fkey`;
+-- ALTER TABLE `Prestador` DROP FOREIGN KEY `Prestador_certificadoPadraoId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `Servico` DROP FOREIGN KEY `Servico_prestadorId_fkey`;
+-- ALTER TABLE `Servico` DROP FOREIGN KEY `Servico_prestadorId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `Tomador` DROP FOREIGN KEY `Tomador_prestadorId_fkey`;
+-- ALTER TABLE `Tomador` DROP FOREIGN KEY `Tomador_prestadorId_fkey`;
 
 -- DropIndex
-DROP INDEX `LogSistema_usuarioId_fkey` ON `LogSistema`;
+-- DROP INDEX `LogSistema_usuarioId_fkey` ON `LogSistema`;
 
 -- AlterTable
 ALTER TABLE `ConfiguracaoDps` ADD COLUMN `opSimpNac` INTEGER NOT NULL DEFAULT 1,
@@ -39,19 +39,19 @@ ALTER TABLE `ConfiguracaoDps` ADD COLUMN `opSimpNac` INTEGER NOT NULL DEFAULT 1,
     MODIFY `tribISSQN` INTEGER NOT NULL DEFAULT 1;
 
 -- AlterTable
-ALTER TABLE `Dps` DROP COLUMN `certificadoId`;
+-- ALTER TABLE `Dps` DROP COLUMN `certificadoId`;
 
 -- AlterTable
-ALTER TABLE `NotaFiscal` DROP COLUMN `certificateId`;
+-- ALTER TABLE `NotaFiscal` DROP COLUMN `certificateId`;
 
 -- AlterTable
-ALTER TABLE `Servico` ALTER COLUMN `prestadorId` DROP DEFAULT;
+-- ALTER TABLE `Servico` ALTER COLUMN `prestadorId` DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE `Tomador` ALTER COLUMN `prestadorId` DROP DEFAULT;
+-- ALTER TABLE `Tomador` ALTER COLUMN `prestadorId` DROP DEFAULT;
 
 -- DropTable
-DROP TABLE `Certificado`;
+-- DROP TABLE `Certificado`;
 
 -- DropTable
-DROP TABLE `Prestador`;
+-- DROP TABLE `Prestador`;

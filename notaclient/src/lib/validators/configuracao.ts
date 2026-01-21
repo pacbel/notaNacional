@@ -32,6 +32,9 @@ export const configuracaoUpdateSchema = z.object({
   cStat: z.number().int().min(0),
   dhProc: z.string().datetime().nullable(),
   tribMun: tribMunSchema,
+  pTotTribFed: z.number().min(0).max(100),
+  pTotTribEst: z.number().min(0).max(100),
+  pTotTribMun: z.number().min(0).max(100),
 });
 
 export type ConfiguracaoFormValues = z.infer<typeof configuracaoUpdateSchema>;

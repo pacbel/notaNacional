@@ -37,6 +37,9 @@ model ConfiguracaoDps {
   opSimpNac                       Int       @default(1)
   regEspTrib                      Int       @default(0)
   tpAmb                           Int       @default(2)
+  pTotTribFed                     Decimal   @default(0.00) @db.Decimal(5, 2)
+  pTotTribEst                     Decimal   @default(0.00) @db.Decimal(5, 2)
+  pTotTribMun                     Decimal   @default(0.00) @db.Decimal(5, 2)
 
   @@index([prestadorId])
 }

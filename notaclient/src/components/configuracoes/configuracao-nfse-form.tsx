@@ -89,7 +89,31 @@ const tipoImunidadeOptions = [
   },
 ];
 
+const formatPercentageDisplay = (value: number) =>
+  value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatPercentageField = (value: number) =>
+  value.toFixed(2).replace('.', ',');
+
+const parsePercentageValue = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  
+  const stringValue = typeof value === "string" ? value : String(value);
+  const normalized = stringValue.replace(/\./g, "").replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 export default function ConfiguracaoNfseForm() {
+  const [pTotTribFedDisplay, setPTotTribFedDisplay] = useState("");
+  const [pTotTribEstDisplay, setPTotTribEstDisplay] = useState("");
+  const [pTotTribMunDisplay, setPTotTribMunDisplay] = useState("");
   
   const handleIntegerChange = (onChange: (value: number | undefined) => void) =>
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -127,6 +151,9 @@ export default function ConfiguracaoNfseForm() {
       tpRetISSQN: 1,
       tpImunidade: 0,
     },
+    pTotTribFed: 0,
+    pTotTribEst: 0,
+    pTotTribMun: 0,
   };
 
   const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => {
@@ -169,6 +196,11 @@ export default function ConfiguracaoNfseForm() {
       console.log("[ConfiguracaoNfseForm] Valores mapeados:", mappedValues);
       console.log("[ConfiguracaoNfseForm] tribMun.tribISSQN:", mappedValues.tribMun.tribISSQN);
       form.reset(mappedValues);
+      
+      // Inicializar displays dos percentuais
+      setPTotTribFedDisplay(formatPercentageDisplay(mappedValues.pTotTribFed));
+      setPTotTribEstDisplay(formatPercentageDisplay(mappedValues.pTotTribEst));
+      setPTotTribMunDisplay(formatPercentageDisplay(mappedValues.pTotTribMun));
     }
   }, [configuracaoQuery.data, form]);
 
@@ -389,6 +421,109 @@ export default function ConfiguracaoNfseForm() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Percentuais de Tributos */}
+              <FormField
+                control={form.control}
+                name="pTotTribFed"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>% Tributos Federais</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={pTotTribFedDisplay}
+                        onChange={(event) => {
+                          const digitsOnly = event.target.value.replace(/\D/g, "");
+                          if (digitsOnly === "") {
+                            setPTotTribFedDisplay("");
+                            field.onChange(0);
+                            return;
+                          }
+                          const numeric = Number(digitsOnly) / 100;
+                          const limited = Math.min(100, Math.max(0, numeric));
+                          setPTotTribFedDisplay(formatPercentageDisplay(limited));
+                          field.onChange(limited);
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="0,00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pTotTribEst"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>% Tributos Estaduais</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={pTotTribEstDisplay}
+                        onChange={(event) => {
+                          const digitsOnly = event.target.value.replace(/\D/g, "");
+                          if (digitsOnly === "") {
+                            setPTotTribEstDisplay("");
+                            field.onChange(0);
+                            return;
+                          }
+                          const numeric = Number(digitsOnly) / 100;
+                          const limited = Math.min(100, Math.max(0, numeric));
+                          setPTotTribEstDisplay(formatPercentageDisplay(limited));
+                          field.onChange(limited);
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="0,00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pTotTribMun"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>% Tributos Municipais</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={pTotTribMunDisplay}
+                        onChange={(event) => {
+                          const digitsOnly = event.target.value.replace(/\D/g, "");
+                          if (digitsOnly === "") {
+                            setPTotTribMunDisplay("");
+                            field.onChange(0);
+                            return;
+                          }
+                          const numeric = Number(digitsOnly) / 100;
+                          const limited = Math.min(100, Math.max(0, numeric));
+                          setPTotTribMunDisplay(formatPercentageDisplay(limited));
+                          field.onChange(limited);
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="0,00"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
