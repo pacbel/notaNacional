@@ -27,7 +27,7 @@ export function resolveSerieParaId(value: number): string {
 }
 
 export function resolveSerieParaTag(value: number): string {
-  return String(Math.trunc(value));
+  return String(Math.trunc(value)).padStart(SERIE_LENGTH, "0");
 }
 
 export function resolveNumero15DigitosParaId(value: number): string {

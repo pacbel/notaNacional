@@ -109,13 +109,13 @@ export function validateDpsXsdRules(xml: string): ValidationResult {
     errors.push({ field: "serie", message: "Campo obrigatório não encontrado" });
   }
 
-  // 6. Validação do nDPS (15 dígitos)
+  // 6. Validação do nDPS (1 a 15 dígitos, sem zeros à esquerda)
   const nDPS = extractValue("nDPS");
   if (nDPS) {
-    if (!/^\d{15}$/.test(nDPS)) {
+    if (!/^[1-9]\d{0,14}$/.test(nDPS)) {
       errors.push({
         field: "nDPS",
-        message: "Número do DPS deve ter exatamente 15 dígitos numéricos",
+        message: "Número do DPS deve ter de 1 a 15 dígitos numéricos, sem zeros à esquerda",
         value: nDPS,
       });
     }

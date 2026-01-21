@@ -765,33 +765,49 @@ export default function NfsePageContent() {
 
   const assinarMutation = useMutation({
     mutationFn: (payload: AssinarDpsPayload) => assinarDps(payload),
+    onMutate: (variables) => {
+      console.debug("[NFSe/UI] Assinar DPS - onMutate", { variables });
+    },
     onSuccess: (_response, variables) => {
+      console.debug("[NFSe/UI] Assinar DPS - onSuccess", { variables });
       toast.success("DPS assinada com sucesso");
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
       setActionState(null);
       setSelectedCertificateId(variables.certificateId ?? "");
     },
     onError: (error) => {
+      console.error("[NFSe/UI] Assinar DPS - onError", error);
       if (handleRobotCredentialsError(error)) {
         return;
       }
       toast.error(extractErrorMessage(error, "Erro ao assinar DPS"));
     },
+    onSettled: (_data, _error, variables) => {
+      console.debug("[NFSe/UI] Assinar DPS - onSettled", { variables });
+    },
   });
 
   const emitirMutation = useMutation({
     mutationFn: (payload: EmitirNfsePayload) => emitirNfse(payload),
+    onMutate: (variables) => {
+      console.debug("[NFSe/UI] Emitir NFSe - onMutate", { variables });
+    },
     onSuccess: (response) => {
+      console.debug("[NFSe/UI] Emitir NFSe - onSuccess", { response });
       toast.success(`NFSe emitida. Chave: ${response.chaveAcesso}`);
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
       queryClient.invalidateQueries({ queryKey: ["nfse", "notas"] });
       setActionState(null);
     },
     onError: (error) => {
+      console.error("[NFSe/UI] Emitir NFSe - onError", error);
       if (handleRobotCredentialsError(error)) {
         return;
       }
       toast.error(extractErrorMessage(error, "Erro ao emitir NFSe"));
+    },
+    onSettled: (_data, _error, variables) => {
+      console.debug("[NFSe/UI] Emitir NFSe - onSettled", { variables });
     },
   });
 
@@ -1150,6 +1166,12 @@ export default function NfsePageContent() {
   };
 
   const handleOpenAction = (type: ActionType, dps: DpsDto) => {
+    console.debug("[NFSe/UI] handleOpenAction", {
+      type,
+      dpsId: dps.id,
+      dpsStatus: dps.status,
+      dpsCertificadoId: dps.certificadoId,
+    });
     setActionState({ type, dps });
   };
 
@@ -1185,6 +1207,9 @@ export default function NfsePageContent() {
     }
 
     if (!selectedCertificateId) {
+      console.warn("[NFSe/UI] Nenhum certificado selecionado explicitamente. Tentando assinar com resolução automática.", {
+        dpsId: actionState.dps.id,
+      });
       try {
         await assinarMutation.mutateAsync({
           dpsId: actionState.dps.id,
@@ -1215,6 +1240,11 @@ export default function NfsePageContent() {
         : configuracoesQuery.data?.tpAmb ?? (configuracoesQuery.data?.ambientePadrao === "PRODUCAO" ? 1 : 2);
 
     try {
+      console.debug("[NFSe/UI] Emitindo NFSe - mutateAsync", {
+        dpsId: actionState.dps.id,
+        ambienteNumber,
+        selectedCertificateId,
+      });
       await emitirMutation.mutateAsync({
         dpsId: actionState.dps.id,
         ambiente: ambienteNumber,

@@ -422,6 +422,7 @@ export async function deleteDps(id: string): Promise<void> {
 }
 
 export async function listCertificados() {
+  console.debug("[NFSe/SRV] listCertificados - request");
   const response = await fetchWithAuth("/api/nfse", {
     method: "GET",
     headers: {
@@ -430,7 +431,7 @@ export async function listCertificados() {
     cache: "no-store",
   });
 
-  return handleResponse<
+  const data = await handleResponse<
     {
       id: string;
       nome?: string;
@@ -439,9 +440,13 @@ export async function listCertificados() {
       validadeFim?: string;
     }[]
   >(response);
+
+  console.debug("[NFSe/SRV] listCertificados - response", { count: data.length });
+  return data;
 }
 
 export async function assinarDps(payload: AssinarDpsPayload) {
+  console.debug("[NFSe/SRV] assinarDps - request", { payload });
   const response = await fetchWithAuth("/api/nfse", {
     method: "POST",
     headers: {
@@ -453,10 +458,18 @@ export async function assinarDps(payload: AssinarDpsPayload) {
     }),
   });
 
-  return handleResponse<{ xmlAssinado: string }>(response);
+  try {
+    const result = await handleResponse<{ xmlAssinado: string }>(response);
+    console.debug("[NFSe/SRV] assinarDps - response", { ok: true });
+    return result;
+  } catch (error) {
+    console.error("[NFSe/SRV] assinarDps - error", error);
+    throw error;
+  }
 }
 
 export async function emitirNfse(payload: EmitirNfsePayload) {
+  console.debug("[NFSe/SRV] emitirNfse - request", { payload });
   const response = await fetchWithAuth("/api/nfse", {
     method: "PUT",
     headers: {
@@ -465,7 +478,14 @@ export async function emitirNfse(payload: EmitirNfsePayload) {
     body: JSON.stringify(payload),
   });
 
-  return handleResponse<EmitirNfseResponse>(response);
+  try {
+    const result = await handleResponse<EmitirNfseResponse>(response);
+    console.debug("[NFSe/SRV] emitirNfse - response", { ok: true, statusCode: (result as any)?.statusCode });
+    return result;
+  } catch (error) {
+    console.error("[NFSe/SRV] emitirNfse - error", error);
+    throw error;
+  }
 }
 
 export async function listNotas(params: ListNotasParams = {}): Promise<PaginatedResponse<NotaDto>> {
