@@ -24,8 +24,6 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
     ativo: configuracao.ativo,
     xLocEmi: configuracao.xLocEmi,
     xLocPrestacao: configuracao.xLocPrestacao,
-    xTribNac: configuracao.xTribNac,
-    xNBS: configuracao.xNBS,
     tpAmb: configuracao.tpAmb,
     opSimpNac: configuracao.opSimpNac,
     regEspTrib: configuracao.regEspTrib,
@@ -39,13 +37,6 @@ function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>
       tpImunidade: configuracao.tpImunidade,
       tpRetISSQN: configuracao.tpRetISSQN,
     },
-    totTrib: {
-      pTotTribFed: configuracao.pTotTribFed,
-      pTotTribEst: configuracao.pTotTribEst,
-      pTotTribMun: configuracao.pTotTribMun,
-    },
-    aliquotaIss: configuracao.aliquotaIss?.toNumber() ?? null,
-    issRetido: configuracao.issRetido,
   };
 }
 
@@ -151,8 +142,6 @@ export async function PUT(request: Request) {
       ativo: data.ativo,
       xLocEmi: data.xLocEmi,
       xLocPrestacao: data.xLocPrestacao,
-      xTribNac: data.xTribNac,
-      xNBS: data.xNBS,
       tpAmb: data.tpAmb,
       opSimpNac: data.opSimpNac,
       regEspTrib: data.regEspTrib,
@@ -164,11 +153,6 @@ export async function PUT(request: Request) {
       tribISSQN: data.tribMun.tribISSQN,
       tpImunidade: data.tribMun.tpImunidade,
       tpRetISSQN: data.tribMun.tpRetISSQN,
-      pTotTribFed: data.totTrib.pTotTribFed ?? undefined,
-      pTotTribEst: data.totTrib.pTotTribEst ?? undefined,
-      pTotTribMun: data.totTrib.pTotTribMun ?? undefined,
-      aliquotaIss: data.aliquotaIss ?? undefined,
-      issRetido: data.issRetido,
     };
 
     // Buscar ou criar configuração do prestador

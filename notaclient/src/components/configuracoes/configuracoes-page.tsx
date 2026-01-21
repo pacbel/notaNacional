@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -91,12 +90,6 @@ export default function ConfiguracoesPage() {
       onChange(value === "" ? undefined : Number(value));
     };
 
-  const handleDecimalChange = (onChange: (value: number | undefined) => void) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      onChange(value === "" ? undefined : Number.parseFloat(value));
-    };
-
   const defaultValues: ConfiguracaoFormValues = {
     nomeSistema: "",
     versaoAplicacao: "",
@@ -112,8 +105,6 @@ export default function ConfiguracoesPage() {
     ativo: true,
     xLocEmi: "",
     xLocPrestacao: "",
-    xTribNac: "",
-    xNBS: "",
     tpAmb: 2,
     opSimpNac: 1,
     regEspTrib: 0,
@@ -127,13 +118,6 @@ export default function ConfiguracoesPage() {
       tpImunidade: 3,
       tpRetISSQN: 1,
     },
-    totTrib: {
-      pTotTribFed: 0,
-      pTotTribEst: 0,
-      pTotTribMun: 0,
-    },
-    aliquotaIss: null,
-    issRetido: false,
   };
 
   const configuracaoQuery = useQuery<ConfiguracaoDto>({
@@ -309,34 +293,6 @@ export default function ConfiguracoesPage() {
                         name={field.name}
                         ref={field.ref}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="xTribNac"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>xTribNac</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Medicina." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="xNBS"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>xNBS</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Serviços de clínica médica" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -686,75 +642,6 @@ export default function ConfiguracoesPage() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribFed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>pTotTribFed</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribEst"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>pTotTribEst</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribMun"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>pTotTribMun</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={field.value ?? ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </CardContent>
           </Card>
 
@@ -818,33 +705,6 @@ export default function ConfiguracoesPage() {
                 </span>
               )}
             </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Observações adicionais</CardTitle>
-              <CardDescription>Opcional, para guardar anotações internas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="xTribNac"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Anotações internas</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        className="min-h-[120px]"
-                        placeholder="Registre detalhes importantes para a emissão..."
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
           </Card>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

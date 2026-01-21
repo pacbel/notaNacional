@@ -8,12 +8,6 @@ export const tribMunSchema = z.object({
   tpRetISSQN: z.number().int().min(0).max(9),
 });
 
-export const totTribSchema = z.object({
-  pTotTribFed: z.number().min(0).optional().nullable(),
-  pTotTribEst: z.number().min(0).optional().nullable(),
-  pTotTribMun: z.number().min(0).optional().nullable(),
-});
-
 export const configuracaoUpdateSchema = z.object({
   nomeSistema: z.string().min(1),
   versaoAplicacao: z.string().min(1),
@@ -29,8 +23,6 @@ export const configuracaoUpdateSchema = z.object({
   ativo: z.boolean(),
   xLocEmi: z.string().min(1),
   xLocPrestacao: z.string().min(1),
-  xTribNac: z.string().min(1),
-  xNBS: z.string().min(1),
   tpAmb: z.number().int().min(1).max(2),
   opSimpNac: z.number().int().min(1).max(3),
   regEspTrib: z.number().int().min(0).max(6),
@@ -40,9 +32,6 @@ export const configuracaoUpdateSchema = z.object({
   cStat: z.number().int().min(0),
   dhProc: z.string().datetime().nullable(),
   tribMun: tribMunSchema,
-  totTrib: totTribSchema,
-  aliquotaIss: z.number().min(0).max(100).optional().nullable(),
-  issRetido: z.boolean(),
 });
 
 export type ConfiguracaoFormValues = z.infer<typeof configuracaoUpdateSchema>;

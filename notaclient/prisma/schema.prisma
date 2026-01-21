@@ -25,9 +25,6 @@ model ConfiguracaoDps {
   ambGer                          Int       @default(2)
   cStat                           Int       @default(100)
   dhProc                          DateTime?
-  pTotTribEst                     Decimal   @default(0.00) @db.Decimal(10, 2)
-  pTotTribFed                     Decimal   @default(0.00) @db.Decimal(10, 2)
-  pTotTribMun                     Decimal   @default(0.00) @db.Decimal(10, 2)
   procEmi                         Int       @default(1)
   tpEmis                          Int       @default(1)
   tpImunidade                     Int       @default(0)
@@ -35,15 +32,11 @@ model ConfiguracaoDps {
   tribISSQN                       Int       @default(1)
   xLocEmi                         String
   xLocPrestacao                   String
-  xNBS                            String
-  xTribNac                        String
   numeroInicialDps                Int       @default(1)
   prestadorId                     String    @unique @db.Char(36)
   opSimpNac                       Int       @default(1)
   regEspTrib                      Int       @default(0)
   tpAmb                           Int       @default(2)
-  aliquotaIss                     Decimal?  @db.Decimal(5, 2)
-  issRetido                       Boolean   @default(false)
 
   @@index([prestadorId])
 }

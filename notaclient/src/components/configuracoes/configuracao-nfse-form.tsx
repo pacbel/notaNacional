@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -98,39 +97,6 @@ export default function ConfiguracaoNfseForm() {
       onChange(value === "" ? undefined : Number(value));
     };
 
-  const handleDecimalChange = (onChange: (value: number | undefined | null) => void) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      if (value === "" || value === null) {
-        onChange(null);
-      } else {
-        const numValue = Number.parseFloat(value);
-        onChange(isNaN(numValue) ? null : numValue);
-      }
-    };
-
-  const formatDecimalValue = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) {
-      return "";
-    }
-
-    const numValue = typeof value === "string" ? Number.parseFloat(value) : value;
-
-    if (Number.isNaN(numValue)) {
-      return "";
-    }
-
-    return numValue.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
-
-  const toNumberOrNull = (value: unknown): number | null => {
-    if (value === null || value === undefined) return null;
-    const numeric = typeof value === "number" ? value : Number(value);
-    return Number.isNaN(numeric) ? null : numeric;
-  };
   type FormValues = ConfiguracaoFormValues;
 
   const defaultFormValues: FormValues = {
@@ -148,8 +114,6 @@ export default function ConfiguracaoNfseForm() {
     ativo: true,
     xLocEmi: "",
     xLocPrestacao: "",
-    xTribNac: "",
-    xNBS: "",
     tpAmb: 2,
     opSimpNac: 1,
     regEspTrib: 0,
@@ -163,17 +127,10 @@ export default function ConfiguracaoNfseForm() {
       tpRetISSQN: 1,
       tpImunidade: 0,
     },
-    totTrib: {
-      pTotTribFed: 0,
-      pTotTribEst: 0,
-      pTotTribMun: 0,
-    },
-    aliquotaIss: null,
-    issRetido: false,
   };
 
   const mapDtoToFormValues = (data: ConfiguracaoDto): FormValues => {
-    const { tribMun, totTrib, updatedAt, ...restData } = data;
+    const { tribMun, updatedAt, ...restData } = data;
     
     return {
       ...defaultFormValues,
@@ -192,13 +149,6 @@ export default function ConfiguracaoNfseForm() {
         tpRetISSQN: tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
         tpImunidade: tribMun?.tpImunidade ?? defaultFormValues.tribMun.tpImunidade,
       },
-      totTrib: {
-        pTotTribFed: toNumberOrNull(totTrib?.pTotTribFed) ?? defaultFormValues.totTrib.pTotTribFed,
-        pTotTribEst: toNumberOrNull(totTrib?.pTotTribEst) ?? defaultFormValues.totTrib.pTotTribEst,
-        pTotTribMun: toNumberOrNull(totTrib?.pTotTribMun) ?? defaultFormValues.totTrib.pTotTribMun,
-      },
-      aliquotaIss: data.aliquotaIss ?? null,
-      issRetido: data.issRetido ?? false,
     };
   };
 
@@ -241,23 +191,14 @@ export default function ConfiguracaoNfseForm() {
 
     const base = configuracaoQuery.data;
 
-    const sanitizedTotTrib = {
-      pTotTribFed: toNumberOrNull(values.totTrib.pTotTribFed),
-      pTotTribEst: toNumberOrNull(values.totTrib.pTotTribEst),
-      pTotTribMun: toNumberOrNull(values.totTrib.pTotTribMun),
-    };
-
     const payload: ConfiguracaoFormValues = {
       ...base,
       ...values,
       numeroInicialDps: values.numeroInicialDps,
       seriePadrao: values.seriePadrao,
-      xTribNac: values.xTribNac,
-      xNBS: values.xNBS,
       tpAmb: values.tpAmb,
       opSimpNac: values.opSimpNac,
       regEspTrib: values.regEspTrib,
-      totTrib: sanitizedTotTrib,
       tribMun: {
         tribISSQN: values.tribMun.tribISSQN,
         tpRetISSQN: values.tribMun.tpRetISSQN,
@@ -506,186 +447,6 @@ export default function ConfiguracaoNfseForm() {
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Códigos de Tributação */}
-              <FormField
-                control={form.control}
-                name="xTribNac"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Código Tributação Nacional</FormLabel>
-                    <FormControl>
-                      <Input placeholder="01.07.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="xNBS"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Código NBS</FormLabel>
-                    <FormControl>
-                      <Input placeholder="1.0101.10.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Valores Tributários */}
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribFed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor Tributação Federal</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        value={field.value !== null && field.value !== undefined ? formatDecimalValue(field.value) : ""}
-                        onChange={(e) => {
-                          // Remove formatação brasileira: pontos (separador de milhar) e substitui vírgula por ponto
-                          const value = e.target.value.replace(/\./g, '').replace(',', '.');
-                          const cleanValue = value.replace(/[^0-9.]/g, '');
-                          if (cleanValue === "") {
-                            field.onChange(null);
-                          } else {
-                            const numValue = Number.parseFloat(cleanValue);
-                            field.onChange(isNaN(numValue) ? null : numValue);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const value = field.value;
-                          if (value !== null && value !== undefined) {
-                            field.onChange(Number.parseFloat(value.toFixed(2)));
-                          }
-                          field.onBlur();
-                        }}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="0,00"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribEst"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor Tributação Estadual</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        value={field.value !== null && field.value !== undefined ? formatDecimalValue(field.value) : ""}
-                        onChange={(e) => {
-                          // Remove formatação brasileira: pontos (separador de milhar) e substitui vírgula por ponto
-                          const value = e.target.value.replace(/\./g, '').replace(',', '.');
-                          const cleanValue = value.replace(/[^0-9.]/g, '');
-                          if (cleanValue === "") {
-                            field.onChange(null);
-                          } else {
-                            const numValue = Number.parseFloat(cleanValue);
-                            field.onChange(isNaN(numValue) ? null : numValue);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const value = field.value;
-                          if (value !== null && value !== undefined) {
-                            field.onChange(Number.parseFloat(value.toFixed(2)));
-                          }
-                          field.onBlur();
-                        }}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="0,00"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="totTrib.pTotTribMun"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Total Tributação Municipal</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        value={field.value !== null && field.value !== undefined ? formatDecimalValue(field.value) : ""}
-                        onChange={(e) => {
-                          // Remove formatação brasileira: pontos (separador de milhar) e substitui vírgula por ponto
-                          const value = e.target.value.replace(/\./g, '').replace(',', '.');
-                          const cleanValue = value.replace(/[^0-9.]/g, '');
-                          if (cleanValue === "") {
-                            field.onChange(null);
-                          } else {
-                            const numValue = Number.parseFloat(cleanValue);
-                            field.onChange(isNaN(numValue) ? null : numValue);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const value = field.value;
-                          if (value !== null && value !== undefined) {
-                            field.onChange(Number.parseFloat(value.toFixed(2)));
-                          }
-                          field.onBlur();
-                        }}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="0,00"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="aliquotaIss"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alíquota ISS (%)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={field.value !== null && field.value !== undefined ? field.value : ""}
-                        onChange={handleDecimalChange(field.onChange)}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        placeholder="0,00"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="issRetido"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <FormLabel className="text-sm font-medium">ISS retido?</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
                   </FormItem>
                 )}
               />

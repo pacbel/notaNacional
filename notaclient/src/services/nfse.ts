@@ -83,6 +83,7 @@ export interface DpsDto {
   dataEnvio: string | null;
   dataRetorno: string | null;
   updatedAt: string;
+  xmlAssinado?: string | null;
 }
 
 export interface ListDpsParams {

@@ -19,6 +19,9 @@ import {
   Filter,
   Search,
   ChevronDown,
+  ExternalLink,
+  Trash2,
+  UploadCloud,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -867,6 +870,11 @@ export default function NfsePageContent() {
 
   const selectedCertificate = certificados.find((item) => item.id === selectedCertificateId);
 
+  const handlePreviewSignedXml = (dpsId: string) => {
+    const previewUrl = `/api/nfse/dps/${dpsId}/xml`;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  };
+
   useEffect(() => {
     if (certificadosQuery.error) {
       const error = certificadosQuery.error;
@@ -1575,6 +1583,16 @@ export default function NfsePageContent() {
                             >
                               <Send className="mr-2 h-4 w-4" />
                               Emitir
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={dps.status !== "ASSINADO"}
+                              onClick={() => handlePreviewSignedXml(dps.id)}
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Visualizar
                             </Button>
                             <Button
                               type="button"

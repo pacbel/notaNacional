@@ -127,9 +127,6 @@ export interface ConfiguracaoBase {
   tribISSQN: number;
   tpImunidade: number | null;
   tpRetISSQN: number;
-  pTotTribFed: Prisma.Decimal | number;
-  pTotTribEst: Prisma.Decimal | number;
-  pTotTribMun: Prisma.Decimal | number;
   xLocPrestacao: string;
 }
 
@@ -171,9 +168,6 @@ interface DpsContext {
   readonly tomadorCodigoMunicipio: string | null;
   readonly valorServico: string;
   readonly valorIssqn: string | null;
-  readonly totalTribFederal: string;
-  readonly totalTribEstadual: string;
-  readonly totalTribMunicipal: string;
   readonly aliquotaIss: string | null;
   readonly shouldInformAliquota: boolean;
   readonly shouldInformImunidade: boolean;
@@ -270,7 +264,6 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   buildPrestador(w, context);
   buildTomador(w, context);
   buildServico(w, context);
-  buildTributacao(w, context);
   buildTotais(w, context);
 
   w.close("infDPS");
@@ -304,10 +297,6 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     ? input.servico.valorUnitario.toNumber()
     : Number(input.servico.valorUnitario);
   const valorServico = formatMoney(input.servico.valorUnitario);
-
-  const totalTribFederal = formatPercentage(input.configuracao.pTotTribFed ?? 0);
-  const totalTribEstadual = formatPercentage(input.configuracao.pTotTribEst ?? 0);
-  const totalTribMunicipal = formatPercentage(input.configuracao.pTotTribMun ?? 0);
 
   const aliquotaNumberRaw = input.servico.aliquotaIss instanceof Prisma.Decimal
     ? input.servico.aliquotaIss.toNumber()
@@ -354,9 +343,6 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     tomadorCodigoMunicipio,
     valorServico,
     valorIssqn,
-    totalTribFederal,
-    totalTribEstadual,
-    totalTribMunicipal,
     aliquotaIss,
     shouldInformAliquota,
     shouldInformImunidade,
@@ -664,54 +650,6 @@ function buildServicoBase(w: XmlWriter, context: DpsContext): void {
   }
 }
 
-function buildTributacao(w: XmlWriter, context: DpsContext): void {
-  w.open("trib");
-  switch (context.tributacaoTipo) {
-    case "IMUNE":
-      buildTributacaoImune(w, context);
-      break;
-    case "RETIDA":
-      buildTributacaoRetida(w, context);
-      break;
-    case "SIMPLES":
-      buildTributacaoSimples(w, context);
-      break;
-    default:
-      buildTributacaoNormal(w, context);
-      break;
-  }
-  buildTotTrib(w, context);
-  w.close("trib");
-}
-
-function buildTributacaoNormal(w: XmlWriter, context: DpsContext): void {
-  writeTributacaoMunicipal(w, context, {
-    includeAliquota: context.shouldInformAliquota,
-    includeImunidade: false,
-  });
-}
-
-function buildTributacaoSimples(w: XmlWriter, context: DpsContext): void {
-  writeTributacaoMunicipal(w, context, {
-    includeAliquota: false,
-    includeImunidade: false,
-  });
-}
-
-function buildTributacaoRetida(w: XmlWriter, context: DpsContext): void {
-  writeTributacaoMunicipal(w, context, {
-    includeAliquota: context.shouldInformAliquota,
-    includeImunidade: false,
-  });
-}
-
-function buildTributacaoImune(w: XmlWriter, context: DpsContext): void {
-  writeTributacaoMunicipal(w, context, {
-    includeAliquota: false,
-    includeImunidade: true,
-  });
-}
-
 interface TributacaoMunicipalOptions {
   includeAliquota: boolean;
   includeImunidade: boolean;
@@ -733,20 +671,16 @@ function writeTributacaoMunicipal(w: XmlWriter, context: DpsContext, options: Tr
   w.close("tribMun");
 }
 
-function buildTotTrib(w: XmlWriter, context: DpsContext): void {
-  w.open("totTrib");
-  w.open("pTotTrib");
-  w.leaf("pTotTribFed", context.totalTribFederal);
-  w.leaf("pTotTribEst", context.totalTribEstadual);
-  w.leaf("pTotTribMun", context.totalTribMunicipal);
-  w.close("pTotTrib");
-  w.close("totTrib");
-}
-
 function buildTotais(w: XmlWriter, context: DpsContext): void {
   w.open("valores");
   w.open("vServPrest");
   w.leaf("vServ", context.valorServico);
   w.close("vServPrest");
+  w.open("trib");
+  writeTributacaoMunicipal(w, context, {
+    includeAliquota: context.shouldInformAliquota,
+    includeImunidade: context.shouldInformImunidade && Boolean(context.tpImunidade),
+  });
+  w.close("trib");
   w.close("valores");
 }
