@@ -92,6 +92,7 @@ import {
   listCertificados,
   listDps,
   listNotas,
+  validateXmlXsd,
   type AssinarDpsPayload,
   type CreateDpsPayload,
   type DpsDto,
@@ -876,6 +877,45 @@ export default function NfsePageContent() {
     window.open(previewUrl, "_blank", "noopener,noreferrer");
   };
 
+  const [xsdDialog, setXsdDialog] = useState<{ open: boolean; title: string; report: string }>({ open: false, title: "", report: "" });
+
+  const handleValidateXsd = useCallback(async (dps: DpsDto) => {
+    try {
+      const result = await validateXmlXsd({ dpsId: dps.id });
+
+      if (result.valid && result.warnings.length === 0) {
+        toast.success("XML válido segundo XSD");
+        return;
+      }
+
+      const title = result.valid ? "XML válido com avisos" : "XML inválido";
+      const lines: string[] = [];
+      lines.push(`Engine: ${result.engine}`);
+      if (result.errors.length > 0) {
+        lines.push("\nErros:");
+        result.errors.forEach((e, i) => {
+          lines.push(`  ${i + 1}. ${e.field ? `[${e.field}] ` : ""}${e.message}${e.value ? ` (valor: ${e.value})` : ""}`);
+        });
+      }
+      if (result.warnings.length > 0) {
+        lines.push("\nAvisos:");
+        result.warnings.forEach((w, i) => lines.push(`  ${i + 1}. ${w}`));
+      }
+      if (result.report) {
+        lines.push("\nRelatório:\n" + result.report);
+      }
+
+      setXsdDialog({ open: true, title, report: lines.join("\n") });
+      if (!result.valid) {
+        toast.error("XML inválido segundo XSD");
+      } else if (result.warnings.length > 0) {
+        toast.warning("XML válido com avisos do XSD");
+      }
+    } catch (error) {
+      toast.error(extractErrorMessage(error, "Falha ao validar contra XSD"));
+    }
+  }, []);
+
   useEffect(() => {
     if (certificadosQuery.error) {
       const error = certificadosQuery.error;
@@ -1598,6 +1638,15 @@ export default function NfsePageContent() {
                             >
                               <ExternalLink className="mr-2 h-4 w-4" />
                               Visualizar
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleValidateXsd(dps)}
+                            >
+                              <ScrollText className="mr-2 h-4 w-4" />
+                              Validar XSD
                             </Button>
                             <Button
                               type="button"

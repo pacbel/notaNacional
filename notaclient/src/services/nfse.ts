@@ -130,6 +130,26 @@ export interface CancelarNfsePayload {
   ambiente?: number;
 }
 
+export interface ValidateXsdResponse {
+  valid: boolean;
+  engine: "libxml" | "fallback";
+  errors: { field?: string; message: string; value?: string }[];
+  warnings: string[];
+  report?: string;
+}
+
+export async function validateXmlXsd(payload: { dpsId?: string; xml?: string }): Promise<ValidateXsdResponse> {
+  const response = await fetchWithAuth("/api/nfse/validar", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<ValidateXsdResponse>(response);
+}
+
 export interface NotaDto {
   id: string;
   chaveAcesso: string;
