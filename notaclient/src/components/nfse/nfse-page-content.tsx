@@ -905,7 +905,9 @@ export default function NfsePageContent() {
         lines.push("\nRelatório:\n" + result.report);
       }
 
-      setXsdDialog({ open: true, title, report: lines.join("\n") });
+      const report = lines.join("\n");
+      setXsdDialog({ open: true, title, report });
+
       if (!result.valid) {
         toast.error("XML inválido segundo XSD");
       } else if (result.warnings.length > 0) {
@@ -1643,7 +1645,16 @@ export default function NfsePageContent() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              onClick={() => handleValidateXsd(dps)}
+                              onClick={() => {
+                                // Abre relatório direto em nova aba via rota dedicada
+                                const url = `/api/nfse/validar/relatorio?dpsId=${encodeURIComponent(dps.id)}`;
+                                const win = window.open(url, "_blank", "noopener,noreferrer");
+                                // Em paralelo, mantém feedback em toast reutilizando handler existente
+                                handleValidateXsd(dps);
+                                if (!win) {
+                                  toast.warning("Permita pop-ups para visualizar o relatório");
+                                }
+                              }}
                             >
                               <ScrollText className="mr-2 h-4 w-4" />
                               Validar XSD
