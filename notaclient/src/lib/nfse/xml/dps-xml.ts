@@ -106,6 +106,9 @@ export interface ServicoBase {
   codigoTributacaoNacional: string;
   codigoNbs?: string | null;
   aliquotaIss?: Prisma.Decimal | number | null;
+  pTotTribFed?: Prisma.Decimal | number | null;
+  pTotTribEst?: Prisma.Decimal | number | null;
+  pTotTribMun?: Prisma.Decimal | number | null;
   tipoServico?: "NORMAL" | "EXPORTACAO" | "CONSTRUCAO";
   exportacao?: {
     paisDestino?: string | null;
@@ -671,6 +674,38 @@ function writeTributacaoMunicipal(w: XmlWriter, context: DpsContext, options: Tr
   w.close("tribMun");
 }
 
+function buildTotTrib(w: XmlWriter, context: DpsContext): void {
+  w.open("totTrib");
+  
+  const valorServicoNumber = Number.parseFloat(context.valorServico);
+  
+  // Calcular tributos aproximados baseados no valor do serviço
+  // Alíquotas aproximadas conforme Lei 12.741/2012
+  
+  // Tributos Federais (CBS/PIS/COFINS) - aproximadamente 3.5% do valor
+  const vTotTribFed = valorServicoNumber * 0.035;
+  
+  // Tributos Estaduais - geralmente não se aplicam a serviços (0%)
+  const vTotTribEst = 0;
+  
+  // Tributos Municipais (ISSQN) - usar alíquota do serviço se informada
+  let vTotTribMun = 0;
+  if (context.aliquotaIss) {
+    const aliquotaNumber = Number.parseFloat(context.aliquotaIss);
+    vTotTribMun = valorServicoNumber * (aliquotaNumber / 100);
+  }
+  
+  // vTotTrib é um GRUPO COMPOSTO (CG) - obrigatório 1-1
+  // Deve conter os 3 valores monetários obrigatórios
+  w.open("vTotTrib");
+  w.leaf("vTotTribFed", formatMoney(vTotTribFed));
+  w.leaf("vTotTribEst", formatMoney(vTotTribEst));
+  w.leaf("vTotTribMun", formatMoney(vTotTribMun));
+  w.close("vTotTrib");
+  
+  w.close("totTrib");
+}
+
 function buildTotais(w: XmlWriter, context: DpsContext): void {
   w.open("valores");
   w.open("vServPrest");
@@ -681,6 +716,7 @@ function buildTotais(w: XmlWriter, context: DpsContext): void {
     includeAliquota: context.shouldInformAliquota,
     includeImunidade: context.shouldInformImunidade && Boolean(context.tpImunidade),
   });
+  buildTotTrib(w, context);
   w.close("trib");
   w.close("valores");
 }
