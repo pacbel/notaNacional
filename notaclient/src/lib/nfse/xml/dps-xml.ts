@@ -58,7 +58,7 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
   const w = new XmlWriter();
 
   w.decl("1.0", "UTF-8");
-  w.open("DPS", { xmlns: "http://www.sped.fazenda.gov.br/nfse", versao: "1.01" });
+  w.open("DPS", { versao: "1.01", xmlns: "http://www.sped.fazenda.gov.br/nfse" });
   w.open("infDPS", { Id: context.infDpsId });
 
   buildIdentificacao(w, context);
@@ -86,7 +86,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const dataEmissao = formatDateTimeOffset(input.emissao);
 
   const prestadorCnpj = resolveCnpj(input.prestador.cnpj);
-  const inscricaoMunicipalPrestador = normalizeDigits(input.prestador.inscricaoMunicipal ?? null);
+  const inscricaoMunicipalPrestador = null;
   const telefonePrestador = normalizeDigits(input.prestador.telefone ?? null);
 
   const tomadorDocumentoInfo = resolveTomadorDocumento(input.tomador);
@@ -97,7 +97,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const valorServicoNumber = input.servico.valorUnitario instanceof Prisma.Decimal
     ? input.servico.valorUnitario.toNumber()
     : Number(input.servico.valorUnitario);
-  const valorServico = formatMoney(input.servico.valorUnitario);
+  const valorServico = formatMoney(valorServicoNumber);
 
   const aliquotaNumberRaw = input.servico.aliquotaIss instanceof Prisma.Decimal
     ? input.servico.aliquotaIss.toNumber()

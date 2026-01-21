@@ -1,6 +1,7 @@
 import type { DpsContext } from "../types";
 import { XmlWriter } from "../xml-writer";
-import { formatMoney } from "../utils";
+import { formatMoney, formatPercentage } from "../utils";
+import { Prisma } from "@prisma/client";
 
 interface TributacaoMunicipalOptions {
   includeAliquota: boolean;
@@ -16,9 +17,6 @@ function writeTributacaoMunicipal(w: XmlWriter, context: DpsContext, options: Tr
   w.leaf("tpRetISSQN", context.tpRetIssqn);
   if (options.includeAliquota && context.aliquotaIss) {
     w.leaf("pAliq", context.aliquotaIss);
-    if (context.valorIssqn) {
-      w.leaf("vISSQN", context.valorIssqn);
-    }
   }
   w.close("tribMun");
 }
@@ -26,24 +24,15 @@ function writeTributacaoMunicipal(w: XmlWriter, context: DpsContext, options: Tr
 function buildTotTrib(w: XmlWriter, context: DpsContext): void {
   w.open("totTrib");
   
-  const valorServicoNumber = Number.parseFloat(context.valorServico);
-  
-  // Usar os percentuais configurados nas configurações do sistema
+  // Emitir percentuais exatamente como configurados no banco (sem cálculo)
   const pTotTribFedPercent = context.input.configuracao.pTotTribFed ?? 0;
   const pTotTribEstPercent = context.input.configuracao.pTotTribEst ?? 0;
   const pTotTribMunPercent = context.input.configuracao.pTotTribMun ?? 0;
   
-  // Calcular valores monetários baseados nos percentuais configurados
-  const pTotTribFed = valorServicoNumber * (pTotTribFedPercent / 100);
-  const pTotTribEst = valorServicoNumber * (pTotTribEstPercent / 100);
-  const pTotTribMun = valorServicoNumber * (pTotTribMunPercent / 100);
-  
-  // pTotTrib é um GRUPO COMPOSTO (CG) - obrigatório 1-1
-  // Deve conter os 3 valores monetários obrigatórios
   w.open("pTotTrib");
-  w.leaf("pTotTribFed", formatMoney(pTotTribFed));
-  w.leaf("pTotTribEst", formatMoney(pTotTribEst));
-  w.leaf("pTotTribMun", formatMoney(pTotTribMun));
+  w.leaf("pTotTribFed", formatPercentage(pTotTribFedPercent));
+  w.leaf("pTotTribEst", formatPercentage(pTotTribEstPercent));
+  w.leaf("pTotTribMun", formatPercentage(pTotTribMunPercent));
   w.close("pTotTrib");
   
   w.close("totTrib");
@@ -52,7 +41,11 @@ function buildTotTrib(w: XmlWriter, context: DpsContext): void {
 export function buildTotais(w: XmlWriter, context: DpsContext): void {
   w.open("valores");
   w.open("vServPrest");
-  w.leaf("vServ", context.valorServico);
+  const vServRaw = context.input.servico.valorUnitario as unknown;
+  const vServNumber = vServRaw instanceof Prisma.Decimal
+    ? vServRaw.toNumber()
+    : Number(vServRaw);
+  w.leaf("vServ", formatMoney(vServNumber));
   w.close("vServPrest");
   w.open("trib");
   writeTributacaoMunicipal(w, context, {
