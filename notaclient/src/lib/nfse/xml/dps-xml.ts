@@ -214,7 +214,13 @@ function resolveNumeroSemZeros(value: number): string {
   return String(Math.trunc(value));
 }
 
-function formatDate(date: Date): string { return date.toISOString().slice(0, 10); }
+function formatDate(date: Date): string {
+  // Usar horário local (Brasília) em vez de UTC
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 function formatDateTimeOffset(date: Date): string {
   const offset = date.getTimezoneOffset();
   const sign = offset > 0 ? "-" : "+";
