@@ -333,7 +333,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
       // parse failure mantém mensagem padrão
     }
 
-    throw new Error(errorMessage);
+    console.warn("[NFSe/SRV] handleResponse - resposta não OK", {
+      status: response.status,
+      statusText: response.statusText,
+      errorMessage,
+    });
+
+    return Promise.reject({
+      status: response.status,
+      message: errorMessage,
+    });
   }
 
   if (response.status === 204) {
@@ -463,7 +472,7 @@ export async function assinarDps(payload: AssinarDpsPayload) {
     console.debug("[NFSe/SRV] assinarDps - response", { ok: true });
     return result;
   } catch (error) {
-    console.error("[NFSe/SRV] assinarDps - error", error);
+    console.warn("[NFSe/SRV] assinarDps - error", error);
     throw error;
   }
 }
@@ -483,7 +492,7 @@ export async function emitirNfse(payload: EmitirNfsePayload) {
     console.debug("[NFSe/SRV] emitirNfse - response", { ok: true, statusCode: (result as any)?.statusCode });
     return result;
   } catch (error) {
-    console.error("[NFSe/SRV] emitirNfse - error", error);
+    console.warn("[NFSe/SRV] emitirNfse - error", error);
     throw error;
   }
 }

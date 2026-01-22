@@ -776,7 +776,7 @@ export default function NfsePageContent() {
       setSelectedCertificateId(variables.certificateId ?? "");
     },
     onError: (error) => {
-      console.error("[NFSe/UI] Assinar DPS - onError", error);
+      console.warn("[NFSe/UI] Assinar DPS - onError", error);
       if (handleRobotCredentialsError(error)) {
         return;
       }
@@ -800,7 +800,7 @@ export default function NfsePageContent() {
       setActionState(null);
     },
     onError: (error) => {
-      console.error("[NFSe/UI] Emitir NFSe - onError", error);
+      console.warn("[NFSe/UI] Emitir NFSe - onError", error);
       if (handleRobotCredentialsError(error)) {
         return;
       }
