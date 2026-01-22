@@ -4,8 +4,11 @@ import { XmlWriter } from "../xml-writer";
 export function buildPrestador(w: XmlWriter, context: DpsContext): void {
   w.open("prest");
   w.leaf("CNPJ", context.prestadorCnpj);
-  if (context.inscricaoMunicipalPrestador) {
+  if (context.shouldInformIm && context.inscricaoMunicipalPrestador) {
     w.leaf("IM", context.inscricaoMunicipalPrestador);
+  }
+  if (context.shouldInformPrestadorNome && context.prestadorNome) {
+    w.leaf("xNome", context.prestadorNome);
   }
   if (context.telefonePrestador) {
     w.leaf("fone", context.telefonePrestador);

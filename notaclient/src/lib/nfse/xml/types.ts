@@ -4,6 +4,8 @@ export interface PartyBase {
   cnpj: string;
   codigoMunicipio: string;
   inscricaoMunicipal?: string | null;
+  razaoSocial?: string | null;
+  nomeFantasia?: string | null;
   telefone?: string | null;
   email?: string | null;
 }
@@ -58,6 +60,7 @@ export interface ConfiguracaoBase {
   tribISSQN: number;
   tpImunidade: number | null;
   tpRetISSQN: number;
+  xLocEmi: string;
   xLocPrestacao: string;
   pTotTribFed: number | null;
   pTotTribEst: number | null;
@@ -91,6 +94,9 @@ export interface DpsContext {
   readonly dataEmissao: string;
   readonly prestadorCnpj: string;
   readonly inscricaoMunicipalPrestador: string | null;
+  readonly prestadorNome: string | null;
+  readonly shouldInformIm: boolean;
+  readonly shouldInformPrestadorNome: boolean;
   readonly telefonePrestador: string | null;
   readonly opSimpNac: string;
   readonly regEspTrib: string;

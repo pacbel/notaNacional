@@ -86,12 +86,16 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const dataEmissao = formatDateTimeOffset(input.emissao);
 
   const prestadorCnpj = resolveCnpj(input.prestador.cnpj);
-  const inscricaoMunicipalPrestador = null;
+  const inscricaoMunicipalPrestador = input.prestador.inscricaoMunicipal?.trim() || null;
+  const prestadorNome = sanitizeDescription(input.prestador.razaoSocial || input.prestador.nomeFantasia || "");
   const telefonePrestador = normalizeDigits(input.prestador.telefone ?? null);
 
   const tomadorDocumentoInfo = resolveTomadorDocumento(input.tomador);
   const tomadorTelefone = normalizeDigits(input.tomador.telefone ?? null);
   const tomadorCep = normalizeDigits(input.tomador.cep ?? null);
+  const codigoMunicipioEmissao = resolveCodigoMunicipio(input.configuracao.xLocEmi ?? input.prestador.codigoMunicipio);
+  const shouldInformIm = Boolean(inscricaoMunicipalPrestador) && codigoMunicipioEmissao !== "3106200";
+  const shouldInformPrestadorNome = String(input.configuracao.tpEmis ?? 1) !== "1";
   const tomadorCodigoMunicipio = input.tomador.codigoMunicipio ? resolveCodigoMunicipio(input.tomador.codigoMunicipio) : null;
 
   const valorServicoNumber = input.servico.valorUnitario instanceof Prisma.Decimal
@@ -133,6 +137,9 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     dataEmissao,
     prestadorCnpj,
     inscricaoMunicipalPrestador,
+    shouldInformIm,
+    shouldInformPrestadorNome,
+    prestadorNome: prestadorNome || null,
     telefonePrestador,
     opSimpNac: String(input.configuracao.opSimpNac ?? 1),
     regEspTrib: String(input.configuracao.regEspTrib ?? 0),
@@ -156,7 +163,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     codigoTributacaoNacional,
     servicoTipo,
     tributacaoTipo,
-    codigoMunicipioEmissao: input.prestador.codigoMunicipio,
+    codigoMunicipioEmissao,
     codigoMunicipioPrestacao: input.configuracao.xLocPrestacao,
   };
 }

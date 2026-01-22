@@ -1625,9 +1625,6 @@ export default function NfsePageContent() {
                             {dps.prestador.nomeFantasia}
                           </div>
                           <div className="text-xs text-muted-foreground">CNPJ {dps.prestador.cnpj}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Certificado atual: {resolveCertificateLabel(certificados.find((item) => item.id === dps.certificadoId) ?? null)}
-                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 text-sm">

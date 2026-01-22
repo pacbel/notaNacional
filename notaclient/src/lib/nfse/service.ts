@@ -725,6 +725,8 @@ function mapPrestadorToXmlInput(prestador: PrestadorApi): PartyBase {
     cnpj: prestador.cnpj,
     codigoMunicipio: prestador.codigoMunicipio,
     inscricaoMunicipal: prestador.inscricaoMunicipal ?? null,
+    razaoSocial: prestador.razaoSocial ?? null,
+    nomeFantasia: prestador.nomeFantasia ?? null,
     telefone: prestador.telefone ?? null,
     email: prestador.email ?? null,
   };
