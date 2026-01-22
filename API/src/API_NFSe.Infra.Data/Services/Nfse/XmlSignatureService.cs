@@ -46,7 +46,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 DigestMethod = SignedXml.XmlDsigSHA256Url
             };
             reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
-            reference.AddTransform(new XmlDsigExcC14NWithCommentsTransform());
+            reference.AddTransform(new XmlDsigExcC14NTransform());
             signedXml.AddReference(reference);
 
             var keyInfo = new KeyInfo();
@@ -54,7 +54,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             signedXml.KeyInfo = keyInfo;
             var signedInfo = signedXml.SignedInfo ?? throw new InvalidOperationException("Não foi possível gerar as informações de assinatura do XML.");
             signedInfo.SignatureMethod = SignedXml.XmlDsigRSASHA256Url;
-            signedInfo.CanonicalizationMethod = SignedXml.XmlDsigExcC14NWithCommentsTransformUrl;
+            signedInfo.CanonicalizationMethod = SignedXml.XmlDsigExcC14NTransformUrl;
 
             signedXml.ComputeSignature();
             var xmlDigitalSignature = signedXml.GetXml();
