@@ -94,7 +94,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const tomadorTelefone = normalizeDigits(input.tomador.telefone ?? null);
   const tomadorCep = normalizeDigits(input.tomador.cep ?? null);
   const codigoMunicipioEmissao = resolveCodigoMunicipio(input.configuracao.xLocEmi ?? input.prestador.codigoMunicipio);
-  const shouldInformIm = Boolean(inscricaoMunicipalPrestador) && codigoMunicipioEmissao !== "3106200";
+  const shouldInformIm = Boolean(inscricaoMunicipalPrestador !== null);
   const shouldInformPrestadorNome = String(input.configuracao.tpEmis ?? 1) !== "1";
   const tomadorCodigoMunicipio = input.tomador.codigoMunicipio ? resolveCodigoMunicipio(input.tomador.codigoMunicipio) : null;
 
