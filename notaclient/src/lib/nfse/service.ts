@@ -38,6 +38,7 @@ import {
 import { resolveCertificateId } from "./certificado-service";
 import { generateCancelamentoXml } from "./xml/cancelamento-xml";
 import { saveXmlToFile, analyzeXml } from "./xml/xml-validator";
+import { runWithRobotContext } from "@/lib/robot-context";
 import { gzipSync } from "zlib";
 import { getPrestador, type PrestadorDto } from "@/services/prestadores";
 
@@ -1182,16 +1183,18 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     let danfseAttachment: EmailAttachment | null = null;
 
     try {
-      const { buffer, filename, contentType } = await gerarDanfse(notaInfo.chaveAcesso, {
-        ambiente: ambienteApi,
-        certificateId: resolvedCertificate,
-      });
+      await runWithRobotContext(notaInfo.prestadorId, async () => {
+        const { buffer, filename, contentType } = await gerarDanfse(notaInfo.chaveAcesso, {
+          ambiente: ambienteApi,
+          certificateId: resolvedCertificate,
+        });
 
-      danfseAttachment = {
-        fileName: filename,
-        contentBase64: buffer.toString("base64"),
-        contentType,
-      };
+        danfseAttachment = {
+          fileName: filename,
+          contentBase64: buffer.toString("base64"),
+          contentType,
+        };
+      });
     } catch (error) {
       logError("NFSe e-mail: falha ao gerar DANFSe", {
         ...logContextBase,
@@ -1234,11 +1237,13 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       quantidadeAnexos: attachments.length,
     });
 
-    await sendEmail({
-      to: destinatarios,
-      subject: assunto,
-      html,
-      attachments,
+    await runWithRobotContext(notaInfo.prestadorId, async () => {
+      await sendEmail({
+        to: destinatarios,
+        subject: assunto,
+        html,
+        attachments,
+      });
     });
 
     logInfo("NFSe e-mail enviado com sucesso", {
@@ -1497,54 +1502,57 @@ export async function gerarDanfse(
     throw new AppError("NFSe não encontrada", 404);
   }
 
-  const prestadorDto = await getPrestador(nota.prestadorId);
+  return runWithRobotContext(nota.prestadorId, async () => {
+    const prestadorDto = await getPrestador(nota.prestadorId);
 
-  const resolvedCertificate = await resolveCertificateId({
-    prestadorCnpj: prestadorDto.cnpj ?? "",
-    provided: options.certificateId,
-    notaCertificado: null,
-    dpsCertificado: null,
-    prestadorCertificado: null,
-  });
+    const resolvedCertificate = await resolveCertificateId({
+      prestadorCnpj: prestadorDto.cnpj ?? "",
+      provided: options.certificateId,
+      notaCertificado: null,
+      dpsCertificado: null,
+      prestadorCertificado: null,
+    });
 
-  const ambienteApi = mapAmbienteToApi(nota.ambiente, options.ambiente);
+    const ambienteApi = mapAmbienteToApi(nota.ambiente, options.ambiente);
 
-  logInfo("Solicitando DANFSE", {
-    chaveAcesso,
-    prestadorId: nota.prestadorId,
-    ambiente: ambienteApi,
-    certificateId: resolvedCertificate,
-  });
-
-  let buffer: Buffer;
-
-  try {
-    buffer = await gerarDanfseApi(chaveAcesso, {
+    logInfo("Solicitando DANFSE", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
       ambiente: ambienteApi,
       certificateId: resolvedCertificate,
     });
-  } catch (error) {
-    const notaError = parseNotaApiError(error);
-    logError("Falha ao gerar DANFSE", {
+
+    let buffer: Buffer;
+
+    try {
+      buffer = await gerarDanfseApi(chaveAcesso, {
+        ambiente: ambienteApi,
+        certificateId: resolvedCertificate,
+      });
+    } catch (error) {
+      const notaError = parseNotaApiError(error);
+      logError("Falha ao gerar DANFSE", {
+        chaveAcesso,
+        prestadorId: nota.prestadorId,
+        statusCode: notaError.statusCode,
+        detalhes: notaError.details,
+      });
+
+      throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
+    }
+
+    logInfo("DANFSE gerada com sucesso", {
       chaveAcesso,
       prestadorId: nota.prestadorId,
-      statusCode: notaError.statusCode,
-      detalhes: notaError.details,
+      cabecalho: buffer.subarray(0, 5).toString("ascii"),
     });
 
-    throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
-  }
+    const filename = `NFSe-${nota.numero || chaveAcesso}.pdf`;
 
-  logInfo("DANFSE gerada com sucesso", {
-    chaveAcesso,
-    prestadorId: nota.prestadorId,
+    return {
+      buffer,
+      filename,
+      contentType: "application/pdf",
+    };
   });
-
-  const filename = `NFSe-${nota.numero || chaveAcesso}.pdf`;
-
-  return {
-    buffer,
-    filename,
-    contentType: "application/pdf",
-  };
 }

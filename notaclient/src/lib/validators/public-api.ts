@@ -17,6 +17,15 @@ export const publicTomadorWithDpsSchema = z.object({
   }),
 });
 
+export const publicProcessDpsSchema = z.object({
+  prestadorId: z.string().uuid({ message: "Prestador inválido" }),
+  dpsIds: z.array(z.string().uuid({ message: "DPS inválida" })).min(1, "Informe ao menos uma DPS").optional(),
+  certificateId: z.string().optional(),
+  ambiente: z.number().int().min(1).max(2).optional(),
+  tag: z.string().min(1).optional(),
+});
+
 export type PublicTomadorCreateInput = z.infer<typeof publicTomadorCreateSchema>;
 export type PublicDpsCreateInput = z.infer<typeof publicDpsCreateSchema>;
 export type PublicTomadorWithDpsInput = z.infer<typeof publicTomadorWithDpsSchema>;
+export type PublicProcessDpsInput = z.infer<typeof publicProcessDpsSchema>;

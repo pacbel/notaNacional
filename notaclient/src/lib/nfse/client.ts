@@ -20,12 +20,35 @@ async function withAuthorization<T>(callback: () => Promise<T>): Promise<T> {
 function logApiRequest(method: string, url: string, payload?: unknown, params?: unknown) {
   const context: Record<string, unknown> = { url };
 
-  if (payload !== undefined) {
-    context.payload = payload;
+  if (params && typeof params === "object") {
+    const query = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) {
+        query.set(key, String(value));
+      }
+    }
+
+    if (query.toString()) {
+      context.queryString = query.toString();
+    }
   }
 
-  if (params !== undefined) {
-    context.params = params;
+  const baseUrl = notaApi.defaults.baseURL ?? "";
+
+  if (baseUrl) {
+    context.fullUrl = `${baseUrl}${url}`;
+  }
+
+  const authorizationHeader =
+    (notaApi.defaults.headers.common?.Authorization ?? notaApi.defaults.headers.common?.authorization) as string | undefined;
+
+  if (authorizationHeader) {
+    context.authorizationHeader = authorizationHeader;
+  }
+
+  if (payload !== undefined) {
+    context.payload = payload;
   }
 
   console.info(`[NFSe][API] ${method} ${url}`, context);
@@ -78,6 +101,9 @@ export async function gerarDanfse(
     const response = await notaApi.get<ArrayBuffer>(url, {
       params,
       responseType: "arraybuffer",
+      headers: {
+        Accept: "text/plain",
+      },
     });
 
     logApiResponse("GET", url, response.status, {

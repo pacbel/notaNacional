@@ -4,6 +4,7 @@ import { getEnv } from "@/lib/env";
 import { RobotCredentialsMissingError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { decodeTokenPayload, getPrestadorIdFromToken } from "@/lib/token-utils";
+import { getRobotContextPrestadorId } from "@/lib/robot-context";
 import { TokenIntegracaoTipo } from "@prisma/client";
 
 interface RobotTokenResponse {
@@ -135,6 +136,12 @@ function resolveExpiration(accessToken: string, expiresIn?: number, cacheMinutes
 async function resolvePrestadorId(provided?: string): Promise<string> {
   if (provided) {
     return provided;
+  }
+
+  const contextPrestadorId = getRobotContextPrestadorId();
+
+  if (contextPrestadorId) {
+    return contextPrestadorId;
   }
 
   const { getCurrentUser } = await import("@/lib/auth");
