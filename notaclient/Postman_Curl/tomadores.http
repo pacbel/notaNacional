@@ -1,0 +1,23 @@
+curl --request POST \
+  --url https://notanacional.virtual.app.br/api/public/tomadores \
+  --header 'Authorization: Basic cG9udG9icjphcmdlbnRpbmE5OQ==' \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/12.3.0' \
+  --data '{
+  "prestadorId": "2ed6be3e-e7b2-4e4b-b887-cfccdcd473ba",
+  "tipoTomador": "NACIONAL",
+  "tipoDocumento": "CNPJ",
+  "documento": "11222333000181",
+  "nomeRazaoSocial": "Cliente Exemplo LTDA",
+  "email": "contato@clienteexemplo.com.br",
+  "telefone": "71988887777",
+  "inscricaoMunicipal": "123456",
+  "codigoMunicipio": "2927408",
+  "cidade": "Salvador",
+  "estado": "BA",
+  "cep": "40010000",
+  "logradouro": "Rua Teste",
+  "numero": "123",
+  "complemento": "Sala 402",
+  "bairro": "Comércio"
+}'

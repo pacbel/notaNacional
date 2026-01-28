@@ -1,0 +1,31 @@
+curl --request POST \
+  --url https://notanacional.virtual.app.br/api/public/tomadores-com-dps \
+  --header 'Authorization: Basic cG9udG9icjphcmdlbnRpbmE5OQ==' \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/12.3.0' \
+  --data '{
+  "tomador": {
+    "prestadorId": "2ed6be3e-e7b2-4e4b-b887-cfccdcd473ba",
+    "tipoTomador": "NACIONAL",
+    "tipoDocumento": "CPF",
+    "documento": "57231571085",
+    "nomeRazaoSocial": "Thais Araújo",
+    "email": "joao.silva@example.com",
+    "telefone": "11999998888",
+    "codigoMunicipio": "3550308",
+    "cidade": "São Paulo",
+    "estado": "SP",
+    "cep": "01310000",
+    "logradouro": "Av. Paulista",
+    "numero": "1000",
+    "bairro": "Bela Vista"
+  },
+  "dps": {
+    "prestadorId": "2ed6be3e-e7b2-4e4b-b887-cfccdcd473ba",
+    "servicoId": "e3d0c5f8-4066-4823-8a87-7a73dea0e466",
+    "competencia": "2025-02-01T00:00:00.000Z",
+    "dataEmissao": "2025-02-05T14:30:00.000Z",
+    "tipoEmissao": 1,
+    "observacoes": "DPS gerada junto com tomador."
+  }
+}'

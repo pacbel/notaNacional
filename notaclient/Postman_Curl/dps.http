@@ -1,0 +1,14 @@
+curl --request POST \
+  --url https://notanacional.virtual.app.br/api/public/dps \
+  --header 'Authorization: Basic cG9udG9icjphcmdlbnRpbmE5OQ==' \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/12.3.0' \
+  --data '{
+  "prestadorId": "2ed6be3e-e7b2-4e4b-b887-cfccdcd473ba",
+  "tomadorId": "06568623-b160-4134-9648-9d6608ab4851",
+  "servicoId": "e3d0c5f8-4066-4823-8a87-7a73dea0e466",
+  "competencia": "2025-01-01T00:00:00.000Z",
+  "dataEmissao": "2025-01-15T13:45:00.000Z",
+  "tipoEmissao": 1,
+  "observacoes": "Serviço prestado conforme contrato 123/2024."
+}'
