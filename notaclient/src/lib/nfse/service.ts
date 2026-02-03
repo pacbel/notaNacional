@@ -40,7 +40,8 @@ import { resolveCertificateId } from "./certificado-service";
 import { generateCancelamentoXml } from "./xml/cancelamento-xml";
 import { saveXmlToFile, analyzeXml } from "./xml/xml-validator";
 import { runWithRobotContext } from "@/lib/robot-context";
-import { gzipSync } from "zlib";
+import { gzipSync, gunzipSync } from "zlib";
+import JSZip from "jszip";
 import { getPrestador, type PrestadorDto } from "@/services/prestadores";
 
 type Nullable<T> = T | null | undefined;
@@ -425,6 +426,472 @@ function mapAmbienteToApi(ambiente: Ambiente | null | undefined, override?: Null
   }
 
   return ambiente === AmbienteEnum.PRODUCAO ? 1 : 2;
+}
+
+interface CollectNotaAttachmentsInput {
+  notaInfo: NotaEmitidaPersisted;
+  resolvedCertificate: string;
+  ambienteApi: number;
+  response?: EmitirNfseResponse | null;
+  logContextBase: Record<string, unknown>;
+}
+
+interface CollectNotaAttachmentsResult {
+  xmlConteudo: string;
+  xmlNomeArquivo: string;
+  xmlContentType: string;
+  attachments: EmailAttachment[];
+}
+
+async function collectNotaAttachments({
+  notaInfo,
+  resolvedCertificate,
+  ambienteApi,
+  response,
+  logContextBase,
+}: CollectNotaAttachmentsInput): Promise<CollectNotaAttachmentsResult | null> {
+  const numeroNota = logContextBase.numeroNota as string;
+
+  let xmlConteudo = response?.xmlNfse?.trim() ?? null;
+  let xmlNomeArquivo = `NFSe-${numeroNota}.xml`;
+  let xmlContentType = "application/xml";
+
+  if (!xmlConteudo) {
+    const documentoXml = await prisma.notaDocumento.findFirst({
+      where: {
+        notaFiscalId: notaInfo.id,
+        tipo: NotaDocumentoTipo.XML_NFSE,
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        conteudo: true,
+        nomeArquivo: true,
+        contentType: true,
+      },
+    });
+
+    if (documentoXml?.conteudo) {
+      xmlConteudo = documentoXml.conteudo;
+      xmlNomeArquivo = documentoXml.nomeArquivo ?? xmlNomeArquivo;
+      xmlContentType = documentoXml.contentType ?? xmlContentType;
+    }
+  }
+
+  let xmlOriginalAttachment: EmailAttachment | null = null;
+
+  if (!response?.xmlNfse && response?.nfseBase64Gzip) {
+    try {
+      const xmlBuffer = Buffer.from(response.nfseBase64Gzip, "base64");
+      xmlOriginalAttachment = {
+        fileName: `NFSe-${numeroNota}.xml.gz`,
+        contentBase64: xmlBuffer.toString("base64"),
+        contentType: "application/gzip",
+      };
+    } catch (error) {
+      logError("NFSe anexos: falha ao converter XML GZip recebido", {
+        ...logContextBase,
+        erro: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (!xmlOriginalAttachment) {
+    const documentoGzip = await prisma.notaDocumento.findFirst({
+      where: {
+        notaFiscalId: notaInfo.id,
+        tipo: NotaDocumentoTipo.NFSE_GZIP,
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        conteudo: true,
+        nomeArquivo: true,
+      },
+    });
+
+    if (documentoGzip?.conteudo) {
+      xmlOriginalAttachment = {
+        fileName: documentoGzip.nomeArquivo ?? `NFSe-${numeroNota}.xml.gz`,
+        contentBase64: documentoGzip.conteudo,
+        contentType: "application/gzip",
+      };
+
+      if (!xmlConteudo) {
+        try {
+          const xmlBuffer = gunzipSync(Buffer.from(documentoGzip.conteudo, "base64"));
+          xmlConteudo = xmlBuffer.toString("utf-8");
+        } catch (error) {
+          logError("NFSe anexos: falha ao descomprimir XML GZip armazenado", {
+            ...logContextBase,
+            erro: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+  }
+
+  if (!xmlConteudo) {
+    return null;
+  }
+
+  let danfseAttachment: EmailAttachment | null = null;
+
+  try {
+    await runWithRobotContext(notaInfo.prestadorId, async () => {
+      const { buffer, filename, contentType } = await gerarDanfse(notaInfo.chaveAcesso, {
+        ambiente: ambienteApi,
+        certificateId: resolvedCertificate,
+      });
+
+      danfseAttachment = {
+        fileName: filename,
+        contentBase64: buffer.toString("base64"),
+        contentType,
+      };
+    });
+  } catch (error) {
+    logError("NFSe anexos: falha ao gerar DANFSe", {
+      ...logContextBase,
+      erro: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!danfseAttachment) {
+    return null;
+  }
+
+  const attachments: EmailAttachment[] = [
+    {
+      fileName: xmlNomeArquivo,
+      contentBase64: Buffer.from(xmlConteudo, "utf-8").toString("base64"),
+      contentType: xmlContentType,
+    },
+    danfseAttachment,
+  ];
+
+  if (xmlOriginalAttachment) {
+    attachments.push(xmlOriginalAttachment);
+  }
+
+  return {
+    xmlConteudo,
+    xmlNomeArquivo,
+    xmlContentType,
+    attachments,
+  };
+}
+
+interface ResolveNotaContextOptions {
+  ambiente?: number;
+  certificateId?: string;
+}
+
+interface NotaEmailContext {
+  notaInfo: NotaEmitidaPersisted;
+  prestadorDto: PrestadorDto;
+  resolvedCertificate: string;
+  ambienteApi: number;
+  dpsId: string | null;
+}
+
+async function resolveNotaEmailContext(
+  chaveAcesso: string,
+  options: ResolveNotaContextOptions = {}
+): Promise<NotaEmailContext> {
+  const nota = await prisma.notaFiscal.findFirst({
+    where: { chaveAcesso },
+  });
+
+  if (!nota) {
+    throw new AppError("NFSe não encontrada", 404);
+  }
+
+  const prestadorDto = await getPrestador(nota.prestadorId);
+
+  const resolvedCertificate = await resolveCertificateId({
+    prestadorCnpj: prestadorDto.cnpj ?? "",
+    provided: options.certificateId,
+    dpsCertificado: null,
+    notaCertificado: null,
+    prestadorCertificado: null,
+  });
+
+  const ambienteApi = mapAmbienteToApi(nota.ambiente, options.ambiente);
+
+  const notaInfo: NotaEmitidaPersisted = {
+    id: nota.id,
+    numero: nota.numero ?? null,
+    chaveAcesso: nota.chaveAcesso,
+    prestadorId: nota.prestadorId,
+    tomadorId: nota.tomadorId,
+  };
+
+  return {
+    notaInfo,
+    prestadorDto,
+    resolvedCertificate,
+    ambienteApi,
+    dpsId: null,
+  };
+}
+
+interface SendNotaFiscalEmailInput {
+  notaInfo: NotaEmitidaPersisted;
+  prestadorDto: PrestadorDto;
+  resolvedCertificate: string;
+  ambienteApi: number;
+  dpsId?: string | null;
+  response?: EmitirNfseResponse | null;
+  uploadToFtp?: boolean;
+}
+
+async function sendNotaFiscalEmail({
+  notaInfo,
+  prestadorDto,
+  resolvedCertificate,
+  ambienteApi,
+  dpsId,
+  response,
+  uploadToFtp = true,
+}: SendNotaFiscalEmailInput): Promise<void> {
+  const numeroNota = notaInfo.numero && notaInfo.numero.trim().length > 0 ? notaInfo.numero.trim() : notaInfo.chaveAcesso;
+
+  const logContextBase = {
+    dpsId,
+    notaId: notaInfo.id,
+    chaveAcesso: notaInfo.chaveAcesso,
+    numeroNota,
+  };
+
+  try {
+    logInfo("NFSe iniciando preparo de e-mail", {
+      ...logContextBase,
+      prestadorId: notaInfo.prestadorId,
+      tomadorId: notaInfo.tomadorId,
+    });
+
+    const tomador = notaInfo.tomadorId
+      ? await prisma.tomador.findUnique({
+          where: { id: notaInfo.tomadorId },
+          select: {
+            email: true,
+            nomeRazaoSocial: true,
+          },
+        })
+      : null;
+
+    const tomadorEmail = tomador?.email?.trim();
+    const prestadorEmail = prestadorDto.email?.trim();
+    const destinatarioFixo = "carlos.pacheco@pacbel.com.br";
+
+    const destinatarios = Array.from(
+      new Set(
+        [tomadorEmail, prestadorEmail, destinatarioFixo].filter((value): value is string => Boolean(value))
+      )
+    );
+
+    if (destinatarios.length === 0) {
+      logInfo("NFSe e-mail não enviado: nenhum destinatário válido", {
+        ...logContextBase,
+        prestadorEmail,
+        tomadorEmail,
+      });
+      return;
+    }
+
+    logInfo("NFSe preparando anexos para e-mail", {
+      ...logContextBase,
+      destinatarios,
+    });
+
+    const attachmentsResult = await collectNotaAttachments({
+      notaInfo,
+      resolvedCertificate,
+      ambienteApi,
+      response,
+      logContextBase,
+    });
+
+    if (!attachmentsResult) {
+      logError("NFSe e-mail abortado: não foi possível montar anexos", logContextBase);
+      return;
+    }
+
+    const emailAttachments = attachmentsResult.attachments.filter(
+      (attachment) => !attachment.fileName.toLowerCase().endsWith(".gz")
+    );
+
+    const ftpUploadPromise = uploadToFtp
+      ? uploadPrestadorFilesToFtp({
+          prestadorId: notaInfo.prestadorId,
+          attachments: emailAttachments.map(({ fileName, contentBase64 }) => ({
+            fileName,
+            contentBase64,
+          })),
+        }).catch((error) => {
+          logError("NFSe FTP: falha ao enviar arquivos", {
+            ...logContextBase,
+            prestadorId: notaInfo.prestadorId,
+            erro: error instanceof Error ? error.message : String(error),
+          });
+        })
+      : Promise.resolve();
+
+    const nomePrestador =
+      prestadorDto.nomeFantasia ?? prestadorDto.razaoSocial ?? prestadorDto.cnpj ?? prestadorDto.id;
+
+    const html = [
+      `<p>Olá,</p>`,
+      `<p>A NFS-e número <strong>${numeroNota}</strong> foi emitida com sucesso.</p>`,
+      `<p>Prestador: ${nomePrestador}</p>`,
+      `<p>Chave de acesso: ${notaInfo.chaveAcesso}</p>`,
+      `<p>Em anexo seguem o XML e o DANFSe correspondentes.</p>`,
+      `<p>Atenciosamente,<br/>Equipe Nota Nacional</p>`,
+    ].join("");
+
+    logInfo("NFSe enviando e-mail", {
+      ...logContextBase,
+      destinatarios,
+      quantidadeAnexos: emailAttachments.length,
+    });
+
+    await runWithRobotContext(notaInfo.prestadorId, async () => {
+      await sendEmail({
+        to: destinatarios,
+        subject: `NFSe ${numeroNota} emitida`,
+        html,
+        attachments: emailAttachments,
+      });
+    });
+
+    await ftpUploadPromise;
+
+    logInfo("NFSe e-mail enviado com sucesso", {
+      ...logContextBase,
+      destinatarios,
+    });
+  } catch (error) {
+    logError("NFSe falha inesperada ao enviar e-mail", {
+      ...logContextBase,
+      erro: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+interface ReenviarNotaFiscalEmailInput {
+  chaveAcesso: string;
+  ambiente?: number;
+  certificateId?: string;
+}
+
+export async function reenviarNotaFiscalEmail({
+  chaveAcesso,
+  ambiente,
+  certificateId,
+}: ReenviarNotaFiscalEmailInput): Promise<void> {
+  const context = await resolveNotaEmailContext(chaveAcesso, {
+    ambiente,
+    certificateId,
+  });
+
+  await sendNotaFiscalEmail({
+    ...context,
+    response: null,
+    uploadToFtp: false,
+  });
+}
+
+interface DownloadNotaZipInput {
+  chaveAcesso: string;
+  ambiente?: number;
+  certificateId?: string;
+  uploadToFtp?: boolean;
+}
+
+export async function downloadNotaZip({
+  chaveAcesso,
+  ambiente,
+  certificateId,
+  uploadToFtp = true,
+}: DownloadNotaZipInput): Promise<{
+  buffer: Buffer;
+  filename: string;
+  contentType: string;
+}> {
+  const context = await resolveNotaEmailContext(chaveAcesso, {
+    ambiente,
+    certificateId,
+  });
+
+  const numeroNota = context.notaInfo.numero && context.notaInfo.numero.trim().length > 0
+    ? context.notaInfo.numero.trim()
+    : context.notaInfo.chaveAcesso;
+
+  const logContextBase = {
+    notaId: context.notaInfo.id,
+    chaveAcesso: context.notaInfo.chaveAcesso,
+    numeroNota,
+    prestadorId: context.notaInfo.prestadorId,
+  };
+
+  logInfo("NFSe preparando ZIP para download", logContextBase);
+
+  const attachmentsResult = await collectNotaAttachments({
+    notaInfo: context.notaInfo,
+    resolvedCertificate: context.resolvedCertificate,
+    ambienteApi: context.ambienteApi,
+    response: null,
+    logContextBase,
+  });
+
+  if (!attachmentsResult) {
+    throw new AppError("Não foi possível montar os arquivos da NFSe para download", 404);
+  }
+
+  const normalizedAttachments = attachmentsResult.attachments.reduce<EmailAttachment[]>((accumulator, attachment) => {
+    const lowerName = attachment.fileName.toLowerCase();
+    const hasExtension = lowerName.includes(".pdf") || lowerName.includes(".xml") || lowerName.includes(".gz");
+
+    if (!hasExtension) {
+      accumulator.push({
+        ...attachment,
+        fileName: `${attachment.fileName}.xml`,
+        contentType: "application/xml",
+      });
+      return accumulator;
+    }
+
+    if (lowerName.endsWith(".xml") || lowerName.endsWith(".pdf")) {
+      accumulator.push(attachment);
+      return accumulator;
+    }
+
+    // Ignora arquivos .gz para manter apenas XML e PDF
+    return accumulator;
+  }, []);
+
+  const zip = new JSZip();
+
+  for (const attachment of normalizedAttachments) {
+    try {
+      const data = Buffer.from(attachment.contentBase64, "base64");
+      zip.file(attachment.fileName, data, { binary: true });
+    } catch (error) {
+      logError("NFSe ZIP: falha ao anexar arquivo", {
+        ...logContextBase,
+        fileName: attachment.fileName,
+        erro: error instanceof Error ? error.message : String(error),
+      });
+      throw new AppError("Erro ao preparar o arquivo compactado", 500);
+    }
+  }
+
+  const buffer = await zip.generateAsync({ type: "nodebuffer" });
+
+  return {
+    buffer,
+    filename: `NFSe-${numeroNota}.zip`,
+    contentType: "application/zip",
+  };
 }
 
 function sanitizeCodigoMunicipio(value?: string | null): string {
@@ -1113,210 +1580,18 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
 
   const notaInfo = notaPersisted as NotaEmitidaPersisted;
 
-  const numeroNota = notaInfo.numero && notaInfo.numero.trim().length > 0
-    ? notaInfo.numero.trim()
-    : chaveAcesso;
-  const logContextBase = {
+  await sendNotaFiscalEmail({
+    notaInfo,
+    prestadorDto,
+    resolvedCertificate,
+    ambienteApi,
     dpsId,
-    notaId: notaInfo.id,
-    chaveAcesso: notaInfo.chaveAcesso,
-    numeroNota,
-  };
-
-  try {
-    logInfo("NFSe iniciando preparo de e-mail", {
-      ...logContextBase,
-      prestadorId: notaInfo.prestadorId,
-      tomadorId: notaInfo.tomadorId,
-    });
-
-    const tomador = notaInfo.tomadorId
-      ? await prisma.tomador.findUnique({
-          where: { id: notaInfo.tomadorId },
-          select: {
-            email: true,
-            nomeRazaoSocial: true,
-          },
-        })
-      : null;
-
-    const tomadorEmail = tomador?.email?.trim();
-    const prestadorEmail = prestadorDto.email?.trim();
-    const destinatarioFixo = "carlos.pacheco@pacbel.com.br";
-
-    const destinatarios = Array.from(
-      new Set([
-        tomadorEmail,
-        prestadorEmail,
-        destinatarioFixo,
-      ].filter((value): value is string => Boolean(value)))
-    );
-
-    if (destinatarios.length === 0) {
-      logInfo("NFSe e-mail não enviado: nenhum destinatário válido", {
-        ...logContextBase,
-        prestadorEmail,
-        tomadorEmail,
-      });
-      return response;
-    }
-
-    logInfo("NFSe preparando anexos para e-mail", {
-      ...logContextBase,
-      destinatarios,
-    });
-
-    let xmlConteudo = response.xmlNfse?.trim() ?? null;
-    let xmlNomeArquivo = `NFSe-${numeroNota}.xml`;
-    let xmlContentType = "application/xml";
-
-    if (!xmlConteudo) {
-      const documentoXml = await prisma.notaDocumento.findFirst({
-        where: {
-          notaFiscalId: notaInfo.id,
-          tipo: NotaDocumentoTipo.XML_NFSE,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          conteudo: true,
-          nomeArquivo: true,
-          contentType: true,
-        },
-      });
-
-      if (documentoXml?.conteudo) {
-        xmlConteudo = documentoXml.conteudo;
-        xmlNomeArquivo = documentoXml.nomeArquivo ?? xmlNomeArquivo;
-        xmlContentType = documentoXml.contentType ?? xmlContentType;
-      }
-    }
-
-    if (!xmlConteudo && response.xmlNfse) {
-      xmlConteudo = response.xmlNfse;
-    }
-
-    if (!xmlConteudo) {
-      logError("NFSe e-mail abortado: XML da nota não encontrado", logContextBase);
-      return response;
-    }
-
-    let xmlOriginalAttachment: EmailAttachment | null = null;
-
-    if (!response.xmlNfse && response.nfseBase64Gzip) {
-      try {
-        const xmlBuffer = Buffer.from(response.nfseBase64Gzip, "base64");
-        xmlOriginalAttachment = {
-          fileName: `NFSe-${numeroNota}.xml.gz`,
-          contentBase64: xmlBuffer.toString("base64"),
-          contentType: "application/gzip",
-        };
-      } catch (error) {
-        logError("NFSe e-mail: falha ao converter XML GZip", {
-          ...logContextBase,
-          erro: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    let danfseAttachment: EmailAttachment | null = null;
-
-    try {
-      await runWithRobotContext(notaInfo.prestadorId, async () => {
-        const { buffer, filename, contentType } = await gerarDanfse(notaInfo.chaveAcesso, {
-          ambiente: ambienteApi,
-          certificateId: resolvedCertificate,
-        });
-
-        danfseAttachment = {
-          fileName: filename,
-          contentBase64: buffer.toString("base64"),
-          contentType,
-        };
-      });
-    } catch (error) {
-      logError("NFSe e-mail: falha ao gerar DANFSe", {
-        ...logContextBase,
-        erro: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    if (!danfseAttachment) {
-      logError("NFSe e-mail abortado: DANFSe não gerada", logContextBase);
-      return response;
-    }
-
-    const attachments: EmailAttachment[] = [
-      {
-        fileName: xmlNomeArquivo,
-        contentBase64: Buffer.from(xmlConteudo, "utf-8").toString("base64"),
-        contentType: xmlContentType,
-      },
-      danfseAttachment,
-    ];
-
-    if (xmlOriginalAttachment) {
-      attachments.push(xmlOriginalAttachment);
-    }
-
-    const assunto = `NFSe ${numeroNota} emitida`;
-    const nomePrestador = prestadorDto.nomeFantasia
-      ?? prestadorDto.razaoSocial
-      ?? prestadorDto.cnpj
-      ?? prestadorDto.id;
-
-    const ftpUploadPromise = uploadPrestadorFilesToFtp({
-      prestadorId: notaInfo.prestadorId,
-      attachments: attachments.map(({ fileName, contentBase64 }) => ({
-        fileName,
-        contentBase64,
-      })),
-    }).catch((error) => {
-      logError("NFSe FTP: falha ao enviar arquivos", {
-        ...logContextBase,
-        prestadorId: notaInfo.prestadorId,
-        erro: error instanceof Error ? error.message : String(error),
-      });
-    });
-
-    const html = [
-      `<p>Olá,</p>`,
-      `<p>A NFS-e número <strong>${numeroNota}</strong> foi emitida com sucesso.</p>`,
-      `<p>Prestador: ${nomePrestador}</p>`,
-      `<p>Chave de acesso: ${notaInfo.chaveAcesso}</p>`,
-      `<p>Em anexo seguem o XML e o DANFSe correspondentes.</p>`,
-      `<p>Atenciosamente,<br/>Equipe Nota Nacional</p>`,
-    ].join("");
-
-    logInfo("NFSe enviando e-mail", {
-      ...logContextBase,
-      destinatarios,
-      quantidadeAnexos: attachments.length,
-    });
-
-    await runWithRobotContext(notaInfo.prestadorId, async () => {
-      await sendEmail({
-        to: destinatarios,
-        subject: assunto,
-        html,
-        attachments,
-      });
-    });
-
-    await ftpUploadPromise;
-
-    logInfo("NFSe e-mail enviado com sucesso", {
-      ...logContextBase,
-      destinatarios,
-    });
-  } catch (error) {
-    logError("NFSe falha inesperada ao enviar e-mail", {
-      ...logContextBase,
-      erro: error instanceof Error ? error.message : String(error),
-    });
-  }
+    response,
+  });
 
   return response;
 }
+
 export const cancelarNfseSchema = z.object({
   chaveAcesso: z.string().min(1),
   motivoCodigo: z.enum(CANCELAMENTO_MOTIVO_CODES),

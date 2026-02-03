@@ -10,6 +10,7 @@ import {
   RefreshCw,
   FileSignature,
   Send,
+  Download as DownloadIcon,
   Building2,
   User2,
   ScrollText,
@@ -88,10 +89,12 @@ import {
   createDps,
   deleteDps,
   downloadDanfse,
+  downloadNotaZip,
   emitirNfse,
   listCertificados,
   listDps,
   listNotas,
+  reenviarNotaFiscal,
   validateXmlXsd,
   type AssinarDpsPayload,
   type CreateDpsPayload,
@@ -1669,6 +1672,7 @@ export default function NfsePageContent() {
                               <Send className="mr-2 h-4 w-4" />
                               Emitir
                             </Button>
+                            {/*
                             <Button
                               type="button"
                               size="sm"
@@ -1697,6 +1701,7 @@ export default function NfsePageContent() {
                               <ScrollText className="mr-2 h-4 w-4" />
                               Validar XSD
                             </Button>
+                            */}
                             <Button
                               type="button"
                               size="sm"
@@ -1828,6 +1833,58 @@ export default function NfsePageContent() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await toast.promise(
+                                    reenviarNotaFiscal(nota.chaveAcesso, {
+                                      ambiente: nota.ambiente === "PRODUCAO" ? 1 : 2,
+                                      certificateId: nota.certificateId ?? nota.dps?.certificadoId,
+                                    }),
+                                    {
+                                      loading: "Reenviando e-mail...",
+                                      success: "E-mail reenviado com sucesso",
+                                      error: "Falha ao reenviar o e-mail",
+                                    }
+                                  );
+                                } catch (error) {
+                                  if (error instanceof Error) {
+                                    toast.error(error.message);
+                                  }
+                                }
+                              }}
+                            >
+                              <Send className="mr-2 h-4 w-4" /> Reenvio
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await toast.promise(
+                                    downloadNotaZip(nota.chaveAcesso, {
+                                      ambiente: nota.ambiente === "PRODUCAO" ? 1 : 2,
+                                      certificateId: nota.certificateId ?? nota.dps?.certificadoId,
+                                    }),
+                                    {
+                                      loading: "Preparando download...",
+                                      success: "Download iniciado",
+                                      error: "Falha ao preparar download",
+                                    }
+                                  );
+                                } catch (error) {
+                                  if (error instanceof Error) {
+                                    toast.error(error.message);
+                                  }
+                                }
+                              }}
+                            >
+                              <DownloadIcon className="mr-2 h-4 w-4" /> Download
+                            </Button>
                             <Button
                               type="button"
                               size="sm"

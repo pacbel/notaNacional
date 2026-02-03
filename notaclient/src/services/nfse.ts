@@ -569,3 +569,81 @@ export async function downloadDanfse(chaveAcesso: string, params: { ambiente?: n
 
   window.location.href = url;
 }
+
+export async function reenviarNotaFiscal(
+  chaveAcesso: string,
+  params: { ambiente?: number; certificateId?: string } = {}
+): Promise<{ success: boolean }> {
+  const body: Record<string, unknown> = {};
+
+  if (typeof params.ambiente === "number") {
+    body.ambiente = params.ambiente;
+  }
+
+  if (params.certificateId) {
+    body.certificateId = params.certificateId;
+  }
+
+  const response = await fetchWithAuth(`/api/nfse/notas/${encodeURIComponent(chaveAcesso)}/reenviar`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+  });
+
+  return handleResponse<{ success: boolean }>(response);
+}
+
+export async function downloadNotaZip(
+  chaveAcesso: string,
+  params: { ambiente?: number; certificateId?: string } = {}
+): Promise<void> {
+  const searchParams = new URLSearchParams();
+
+  if (typeof params.ambiente === "number") {
+    searchParams.set("ambiente", String(params.ambiente));
+  }
+
+  if (params.certificateId) {
+    searchParams.set("certificateId", params.certificateId);
+  }
+
+  const url = `/api/nfse/notas/${encodeURIComponent(chaveAcesso)}/download${
+    searchParams.size ? `?${searchParams.toString()}` : ""
+  }`;
+
+  const response = await fetchWithAuth(url, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text().catch(() => "");
+    console.warn("[NFSe/SRV] downloadNotaZip - resposta não OK", {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorData,
+    });
+    throw new Error(`Falha ao baixar arquivos da NFSe (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = URL.createObjectURL(blob);
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = filenameMatch ? filenameMatch[1] : `NFSe-${chaveAcesso}.zip`;
+
+  const anchor = document.createElement("a");
+  anchor.href = downloadUrl;
+  anchor.download = filename;
+  anchor.style.display = "none";
+
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+
+  setTimeout(() => {
+    URL.revokeObjectURL(downloadUrl);
+  }, 30000);
+}
