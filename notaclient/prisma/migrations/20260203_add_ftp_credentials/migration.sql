@@ -1,0 +1,4 @@
+ALTER TABLE `ConfiguracaoDps`
+    ADD COLUMN `ftpHost` VARCHAR(255) NULL,
+    ADD COLUMN `ftpUsuario` VARCHAR(255) NULL,
+    ADD COLUMN `ftpSenha` VARCHAR(255) NULL;

@@ -15,8 +15,11 @@ model ConfiguracaoDps {
   seriePadrao                     Int       @default(1)
   emailRemetente                  String?
   robotClientId                   String?
-  robotClientSecret               String?
+  robotClientSecret               String?  @db.VarChar(255)
   robotTokenCacheMinutos          Int       @default(50)
+  ftpHost                         String?  @db.VarChar(255)
+  ftpUsuario                      String?  @db.VarChar(255)
+  ftpSenha                        String?  @db.VarChar(255)
   mfaCodigoExpiracaoMinutos       Int       @default(10)
   enviarNotificacaoEmailPrestador Boolean   @default(true)
   ativo                           Boolean   @default(true)

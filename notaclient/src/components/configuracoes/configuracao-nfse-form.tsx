@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2, Save } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -114,6 +114,7 @@ export default function ConfiguracaoNfseForm() {
   const [pTotTribFedDisplay, setPTotTribFedDisplay] = useState("");
   const [pTotTribEstDisplay, setPTotTribEstDisplay] = useState("");
   const [pTotTribMunDisplay, setPTotTribMunDisplay] = useState("");
+  const [isFtpPasswordVisible, setIsFtpPasswordVisible] = useState(false);
   
   const handleIntegerChange = (onChange: (value: number | undefined) => void) =>
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -133,6 +134,9 @@ export default function ConfiguracaoNfseForm() {
     robotClientId: null,
     robotClientSecret: null,
     robotTokenCacheMinutos: 50,
+    ftpHost: null,
+    ftpUsuario: null,
+    ftpSenha: null,
     mfaCodigoExpiracaoMinutos: 10,
     enviarNotificacaoEmailPrestador: true,
     ativo: true,
@@ -171,6 +175,9 @@ export default function ConfiguracaoNfseForm() {
       tpEmis: data.tpEmis ?? defaultFormValues.tpEmis,
       procEmi: data.procEmi ?? defaultFormValues.procEmi,
       cStat: data.cStat ?? defaultFormValues.cStat,
+      ftpHost: data.ftpHost ?? defaultFormValues.ftpHost,
+      ftpUsuario: data.ftpUsuario ?? defaultFormValues.ftpUsuario,
+      ftpSenha: data.ftpSenha ?? defaultFormValues.ftpSenha,
       tribMun: {
         tribISSQN: tribMun?.tribISSQN ?? defaultFormValues.tribMun.tribISSQN,
         tpRetISSQN: tribMun?.tpRetISSQN ?? defaultFormValues.tribMun.tpRetISSQN,
@@ -677,6 +684,89 @@ export default function ConfiguracaoNfseForm() {
                         name={field.name}
                         ref={field.ref}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Credenciais FTP</CardTitle>
+              <CardDescription>Informe os dados da conta FTP utilizada pelo sistema.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="ftpHost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Host</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value || null)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="ftp.seudominio.com"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ftpUsuario"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usuário</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={field.value ?? ""}
+                        onChange={(event) => field.onChange(event.target.value || null)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        placeholder="usuario_ftp"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ftpSenha"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Senha</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={isFtpPasswordVisible ? "text" : "password"}
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value || null)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          placeholder="••••••••"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsFtpPasswordVisible((previous) => !previous)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                        >
+                          {isFtpPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <span className="sr-only">{isFtpPasswordVisible ? "Ocultar senha" : "Mostrar senha"}</span>
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
