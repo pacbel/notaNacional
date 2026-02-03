@@ -7,8 +7,10 @@ export const dpsCreateSchema = z
       .string()
       .uuid({ message: "Tomador inválido" })
       .nullable()
-      .optional(),
-    tomadorNaoIdentificado: z.boolean().optional().default(false),
+      .optional()
+      .or(z.literal(""))
+      .transform((value) => (value === "" ? null : value)),
+    tomadorNaoIdentificado: z.boolean().optional(),
     servicoId: z.string().uuid({ message: "Serviço inválido" }),
     competencia: z.string().datetime({ message: "Competência inválida" }),
     dataEmissao: z.string().datetime({ message: "Data de emissão inválida" }),
@@ -16,9 +18,7 @@ export const dpsCreateSchema = z
     observacoes: z.union([z.string(), z.literal("")]).optional(),
   })
   .superRefine((data, ctx) => {
-    const tomadorObrigatorio = !(data.tomadorNaoIdentificado ?? false);
-
-    if (tomadorObrigatorio && !data.tomadorId) {
+    if (data.tomadorNaoIdentificado === false && !data.tomadorId) {
       ctx.addIssue({
         path: ["tomadorId"],
         code: z.ZodIssueCode.custom,

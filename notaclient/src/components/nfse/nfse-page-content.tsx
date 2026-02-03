@@ -1643,9 +1643,9 @@ export default function NfsePageContent() {
                             <User2 className="h-4 w-4 text-muted-foreground" />
                             {dps.tomador ? dps.tomador.nomeRazaoSocial : "Tomador não identificado"}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Documento {dps.tomador ? dps.tomador.documento : "—"}
-                          </div>
+                          {dps.tomador ? (
+                            <div className="text-xs text-muted-foreground">Documento {dps.tomador.documento}</div>
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_BADGE_VARIANT[dps.status]}>{STATUS_LABELS[dps.status]}</Badge>

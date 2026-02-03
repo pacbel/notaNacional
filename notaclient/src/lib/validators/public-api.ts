@@ -15,6 +15,7 @@ export const publicTomadorWithDpsSchema = z.object({
   dps: z
     .object({
       prestadorId: publicDpsCreateSchema.shape.prestadorId,
+      tomadorId: publicDpsCreateSchema.shape.tomadorId.optional(),
       servicoId: publicDpsCreateSchema.shape.servicoId,
       competencia: publicDpsCreateSchema.shape.competencia,
       dataEmissao: publicDpsCreateSchema.shape.dataEmissao,

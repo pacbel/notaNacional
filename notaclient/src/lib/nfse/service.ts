@@ -934,14 +934,15 @@ export type CreateDpsInput = z.infer<typeof createDpsSchema>;
 
 export async function createDps(payload: CreateDpsInput) {
   const data = createDpsSchema.parse(payload);
-  const tomadorNaoIdentificado = data.tomadorNaoIdentificado ?? false;
+  const tomadorIdNormalizado = data.tomadorId ?? null;
+  const tomadorNaoIdentificado = data.tomadorNaoIdentificado === true || tomadorIdNormalizado === null;
 
   const [prestadorDto, tomador, servico, configuracao] = await Promise.all([
     getPrestador(data.prestadorId),
-    !tomadorNaoIdentificado && data.tomadorId
+    !tomadorNaoIdentificado && tomadorIdNormalizado
       ? prisma.tomador.findFirst({
           where: {
-            id: data.tomadorId!,
+            id: tomadorIdNormalizado!,
             prestadorId: data.prestadorId,
             ativo: true,
           },
