@@ -36,6 +36,7 @@ export interface ServicoBase {
   codigoTributacaoNacional: string;
   codigoNbs?: string | null;
   aliquotaIss?: Prisma.Decimal | number | null;
+  codigoInternoContribuinte?: string | null;
   pTotTribFed?: Prisma.Decimal | number | null;
   pTotTribEst?: Prisma.Decimal | number | null;
   pTotTribMun?: Prisma.Decimal | number | null;
@@ -117,6 +118,7 @@ export interface DpsContext {
   readonly serviceDescription: string;
   readonly informacoesComplementares: string | null;
   readonly codigoNbs: string;
+  readonly codigoInternoContribuinte: string | null;
   readonly codigoTributacaoNacional: string;
   readonly servicoTipo: ServicoTipo;
   readonly tributacaoTipo: TributacaoTipo;

@@ -28,6 +28,7 @@ import {
   formatMoney,
   formatPercentage,
   sanitizeDescription,
+  sanitizeCodigoInternoContribuinte,
   normalizeDigits,
   formatCodigoTributacaoNacional,
 } from "./utils";
@@ -123,6 +124,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const informacoesComplementares = observacoesSanitized ? observacoesSanitized : null;
   const codigoNbs = normalizeDigits(input.servico.codigoNbs) ?? DEFAULT_NBS_CODE;
   const codigoTributacaoNacional = formatCodigoTributacaoNacional(input.servico.codigoTributacaoNacional);
+  const codigoInternoContribuinte = sanitizeCodigoInternoContribuinte(input.servico.codigoInternoContribuinte);
 
   const servicoTipo = resolveServicoTipo(input.servico);
   const tributacaoTipo = resolveTributacaoTipo(input);
@@ -160,6 +162,7 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     serviceDescription,
     informacoesComplementares,
     codigoNbs,
+    codigoInternoContribuinte,
     codigoTributacaoNacional,
     servicoTipo,
     tributacaoTipo,

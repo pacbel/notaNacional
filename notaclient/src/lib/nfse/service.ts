@@ -624,6 +624,7 @@ export async function createDps(payload: CreateDpsInput) {
       }),
       servico: mapServicoToXmlInput({
         id: created.servico.id,
+        codigo: created.servico.codigo ?? null,
         descricao: created.servico.descricao,
         valorUnitario: created.servico.valorUnitario.toNumber(),
         codigoTributacaoMunicipal: created.servico.codigoTributacaoMunicipal,
@@ -761,6 +762,7 @@ function mapServicoToXmlInput(servico: ServicoApi): ServicoBase {
     codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
     codigoTributacaoNacional: servico.codigoTributacaoNacional,
     codigoNbs: servico.codigoNbs,
+    codigoInternoContribuinte: servico.codigo ?? null,
     aliquotaIss: servico.aliquotaIss,
   };
 }

@@ -73,6 +73,20 @@ export function sanitizeDescription(value: string | null | undefined): string {
   return value.trim().replace(XML_INVALID_CHARACTERS, "").replace(DESCRIPTION_ALLOWED_CHARS, " ").replace(/\s{2,}/g, " ").trim();
 }
 
+export function sanitizeCodigoInternoContribuinte(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const sanitized = value.trim().replace(XML_INVALID_CHARACTERS, "");
+
+  if (sanitized === "") {
+    return null;
+  }
+
+  return sanitized.slice(0, 20);
+}
+
 export function normalizeDigits(value?: string | null): string | null {
   return value ? value.replace(/\D/g, "") || null : null;
 }

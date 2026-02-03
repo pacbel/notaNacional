@@ -74,6 +74,9 @@ function buildServicoBase(w: XmlWriter, context: DpsContext): void {
   w.leaf("cTribMun", context.input.servico.codigoTributacaoMunicipal);
   w.leaf("xDescServ", context.serviceDescription);
   w.leaf("cNBS", context.codigoNbs);
+  if (context.codigoInternoContribuinte) {
+    w.leaf("cIntContrib", context.codigoInternoContribuinte);
+  }
   w.close("cServ");
 
   if (context.informacoesComplementares) {
