@@ -21,6 +21,7 @@ import {
   gerarDanfse as gerarDanfseApi,
   listarCertificados,
 } from "./client";
+import { uploadPrestadorFilesToFtp } from "../integrations/ftp";
 import { CANCELAMENTO_MOTIVO_CODES, findCancelamentoMotivo } from "./cancelamento-motivos";
 import type {
   AssinarXmlResponse,
@@ -1225,6 +1226,20 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       ?? prestadorDto.cnpj
       ?? prestadorDto.id;
 
+    const ftpUploadPromise = uploadPrestadorFilesToFtp({
+      prestadorId: notaInfo.prestadorId,
+      attachments: attachments.map(({ fileName, contentBase64 }) => ({
+        fileName,
+        contentBase64,
+      })),
+    }).catch((error) => {
+      logError("NFSe FTP: falha ao enviar arquivos", {
+        ...logContextBase,
+        prestadorId: notaInfo.prestadorId,
+        erro: error instanceof Error ? error.message : String(error),
+      });
+    });
+
     const html = [
       `<p>Olá,</p>`,
       `<p>A NFS-e número <strong>${numeroNota}</strong> foi emitida com sucesso.</p>`,
@@ -1248,6 +1263,8 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
         attachments,
       });
     });
+
+    await ftpUploadPromise;
 
     logInfo("NFSe e-mail enviado com sucesso", {
       ...logContextBase,
