@@ -1144,14 +1144,6 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
     const prestadorEmail = prestadorDto.email?.trim();
     const destinatarioFixo = "carlos.pacheco@pacbel.com.br";
 
-    if (!tomadorEmail) {
-      logInfo("NFSe e-mail não enviado: tomador sem e-mail", {
-        ...logContextBase,
-        prestadorEmail,
-      });
-      return response;
-    }
-
     const destinatarios = Array.from(
       new Set([
         tomadorEmail,
@@ -1159,6 +1151,15 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
         destinatarioFixo,
       ].filter((value): value is string => Boolean(value)))
     );
+
+    if (destinatarios.length === 0) {
+      logInfo("NFSe e-mail não enviado: nenhum destinatário válido", {
+        ...logContextBase,
+        prestadorEmail,
+        tomadorEmail,
+      });
+      return response;
+    }
 
     logInfo("NFSe preparando anexos para e-mail", {
       ...logContextBase,
@@ -1190,9 +1191,31 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       }
     }
 
+    if (!xmlConteudo && response.xmlNfse) {
+      xmlConteudo = response.xmlNfse;
+    }
+
     if (!xmlConteudo) {
       logError("NFSe e-mail abortado: XML da nota não encontrado", logContextBase);
       return response;
+    }
+
+    let xmlOriginalAttachment: EmailAttachment | null = null;
+
+    if (!response.xmlNfse && response.nfseBase64Gzip) {
+      try {
+        const xmlBuffer = Buffer.from(response.nfseBase64Gzip, "base64");
+        xmlOriginalAttachment = {
+          fileName: `NFSe-${numeroNota}.xml.gz`,
+          contentBase64: xmlBuffer.toString("base64"),
+          contentType: "application/gzip",
+        };
+      } catch (error) {
+        logError("NFSe e-mail: falha ao converter XML GZip", {
+          ...logContextBase,
+          erro: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     let danfseAttachment: EmailAttachment | null = null;
@@ -1230,6 +1253,10 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       },
       danfseAttachment,
     ];
+
+    if (xmlOriginalAttachment) {
+      attachments.push(xmlOriginalAttachment);
+    }
 
     const assunto = `NFSe ${numeroNota} emitida`;
     const nomePrestador = prestadorDto.nomeFantasia
