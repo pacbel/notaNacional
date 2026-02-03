@@ -80,6 +80,7 @@ interface TomadorApi {
 
 interface ServicoApi {
   id: string;
+  codigo?: string | null;
   descricao: string;
   valorUnitario: number;
   codigoTributacaoMunicipal: string;

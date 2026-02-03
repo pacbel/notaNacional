@@ -5,6 +5,7 @@ export type ServicoStatusFilter = "ativos" | "inativos" | "todos";
 
 export interface ServicoDto {
   id: string;
+  codigo: string | null;
   descricao: string;
   codigoTributacaoMunicipal: string;
   codigoTributacaoNacional: string;

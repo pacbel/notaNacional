@@ -1,5 +1,5 @@
 -- AlterTable ConfiguracaoDps - Adicionar campos de percentuais de tributos
-ALTER TABLE `ConfiguracaoDps` 
-ADD COLUMN `pTotTribFed` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
-ADD COLUMN `pTotTribEst` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
-ADD COLUMN `pTotTribMun` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;
+-- ALTER TABLE `ConfiguracaoDps` 
+-- ADD COLUMN `pTotTribFed` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+-- ADD COLUMN `pTotTribEst` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+-- ADD COLUMN `pTotTribMun` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;

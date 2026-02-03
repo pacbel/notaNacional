@@ -39,6 +39,7 @@ export async function GET(request: Request) {
       const normalizedDigits = normalized.replace(/\D/g, "");
       where.OR = [
         { descricao: { contains: normalized } },
+        { codigo: { contains: normalized.toUpperCase() } },
         { codigoTributacaoMunicipal: { contains: normalized.toUpperCase() } },
         { codigoTributacaoNacional: { contains: normalized.toUpperCase() } },
         { codigoNbs: { contains: normalized.toUpperCase() } },
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
     const servico = await prisma.servico.create({
       data: {
         prestadorId: currentUser.prestadorId,
+        codigo: data.codigo,
         descricao: data.descricao,
         codigoTributacaoMunicipal: data.codigoTributacaoMunicipal,
         codigoTributacaoNacional: data.codigoTributacaoNacional,

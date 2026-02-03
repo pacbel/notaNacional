@@ -72,7 +72,27 @@ const numberSchema = z
     message: "Valor deve ser maior ou igual a zero",
   });
 
+const codigoSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value) => {
+    if (value == null) {
+      return null;
+    }
+
+    const sanitized = sanitizeString(value);
+
+    if (typeof sanitized !== "string" || sanitized === "") {
+      return null;
+    }
+
+    return sanitized;
+  })
+  .refine((value) => value === null || value.length <= 20, {
+    message: "O código deve ter no máximo 20 caracteres",
+  });
+
 export const servicoBaseSchema = z.object({
+  codigo: codigoSchema,
   descricao: z
     .string()
     .min(1, "Informe a descrição do serviço")

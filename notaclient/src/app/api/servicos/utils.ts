@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 export const servicoSelect = {
   id: true,
+  codigo: true,
   descricao: true,
   codigoTributacaoMunicipal: true,
   codigoTributacaoNacional: true,

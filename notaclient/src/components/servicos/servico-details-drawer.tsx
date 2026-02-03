@@ -45,6 +45,7 @@ interface ServicoDetailsDrawerProps {
 type ServicoFormValues = z.input<typeof servicoUpdateSchema>;
 
 const EMPTY_VALUES: ServicoFormValues = {
+  codigo: "",
   descricao: "",
   codigoTributacaoMunicipal: "",
   codigoTributacaoNacional: "",
@@ -87,6 +88,7 @@ const parseCurrencyValue = (value: string | number | null | undefined) => {
 
 function mapServicoToForm(servico: ServicoDto): ServicoFormValues {
   return {
+    codigo: servico.codigo ?? "",
     descricao: servico.descricao,
     codigoTributacaoMunicipal: servico.codigoTributacaoMunicipal,
     codigoTributacaoNacional: servico.codigoTributacaoNacional,
@@ -221,6 +223,20 @@ export function ServicoDetailsDrawer({
             <Form {...form}>
               <form className="space-y-4 p-4 bg-muted/30 rounded-lg" onSubmit={form.handleSubmit(handleSubmit)}>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="codigo"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Código</FormLabel>
+                        <FormControl>
+                          <Input value={field.value ?? ""} onChange={field.onChange} disabled={isMutating} maxLength={20} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="descricao"

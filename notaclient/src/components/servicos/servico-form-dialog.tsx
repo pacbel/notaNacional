@@ -30,6 +30,7 @@ interface ServicoFormDialogProps {
 }
 
 const DEFAULT_VALUES: ServicoFormValues = {
+  codigo: "",
   descricao: "",
   codigoTributacaoMunicipal: "",
   codigoTributacaoNacional: "",
@@ -165,6 +166,26 @@ export function ServicoFormDialog({ open, onOpenChange, onSubmit, isSubmitting =
         <Form {...form}>
           <form className="space-y-6 p-4 bg-muted/30 rounded-lg" onSubmit={form.handleSubmit(handleSubmit)}>
             <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="codigo"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Código</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex.: SRV001"
+                        disabled={isSubmitting}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        maxLength={20}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="descricao"

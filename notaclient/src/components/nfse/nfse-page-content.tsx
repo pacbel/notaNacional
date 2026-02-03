@@ -1095,7 +1095,12 @@ export default function NfsePageContent() {
     const term = servicoSearch.trim().toLowerCase();
     return servicosQuery.data
       .filter((servico) =>
-        [servico.descricao, servico.codigoTributacaoMunicipal, servico.codigoTributacaoNacional]
+        [
+          servico.descricao,
+          servico.codigo,
+          servico.codigoTributacaoMunicipal,
+          servico.codigoTributacaoNacional,
+        ]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(term)),
       )

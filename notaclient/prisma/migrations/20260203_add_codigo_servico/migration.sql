@@ -1,0 +1,2 @@
+ALTER TABLE `Servico`
+    ADD COLUMN `codigo` VARCHAR(20) NULL;

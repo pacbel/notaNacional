@@ -74,6 +74,9 @@ export async function PATCH(request: Request, context: RouteParams) {
     if (data.descricao !== undefined) {
       updateData.descricao = data.descricao;
     }
+    if (data.codigo !== undefined) {
+      updateData.codigo = data.codigo;
+    }
     if (data.codigoTributacaoMunicipal !== undefined) {
       updateData.codigoTributacaoMunicipal = data.codigoTributacaoMunicipal;
     }
