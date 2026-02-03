@@ -249,11 +249,13 @@ export async function GET(request: Request) {
             nomeFantasia: "Prestador",
             cnpj: "",
           },
-      tomador: {
-        id: nota.tomador.id,
-        nomeRazaoSocial: nota.tomador.nomeRazaoSocial,
-        documento: nota.tomador.documento,
-      },
+      tomador: nota.tomador
+        ? {
+            id: nota.tomador.id,
+            nomeRazaoSocial: nota.tomador.nomeRazaoSocial,
+            documento: nota.tomador.documento,
+          }
+        : null,
       dps: nota.dps
         ? {
             id: nota.dps.id,

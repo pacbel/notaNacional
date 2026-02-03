@@ -113,10 +113,11 @@ model Dps {
   ambiente           Ambiente    @default(HOMOLOGACAO)
   status             DpsStatus   @default(RASCUNHO)
   prestadorId        String      @db.Char(36)
-  tomadorId          String      @db.Char(36)
+  tomadorId          String?     @db.Char(36)
   servicoId          String      @db.Char(36)
   xmlGerado          String?     @db.LongText
   observacoes        String?     @db.LongText
+  tomadorNaoIdentificado Boolean @default(false)
   ativo              Boolean     @default(true)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
@@ -133,7 +134,7 @@ model Dps {
   versaoAplicacao    String      @db.VarChar(60)
   xmlAssinado        String?     @db.LongText
   servico            Servico     @relation(fields: [servicoId], references: [id])
-  tomador            Tomador     @relation(fields: [tomadorId], references: [id])
+  tomador            Tomador?    @relation(fields: [tomadorId], references: [id])
   notaFiscal         NotaFiscal?
 
   @@unique([prestadorId, identificador])
@@ -149,7 +150,7 @@ model NotaFiscal {
   id                     String          @id @default(uuid()) @db.Char(36)
   dpsId                  String          @unique @db.Char(36)
   prestadorId            String          @db.Char(36)
-  tomadorId              String          @db.Char(36)
+  tomadorId              String?         @db.Char(36)
   ambiente               Ambiente        @default(HOMOLOGACAO)
   chaveAcesso            String          @db.VarChar(60)
   numero                 String          @db.VarChar(30)
@@ -163,7 +164,7 @@ model NotaFiscal {
   updatedAt              DateTime        @updatedAt
   documentos             NotaDocumento[]
   dps                    Dps             @relation(fields: [dpsId], references: [id])
-  tomador                Tomador         @relation(fields: [tomadorId], references: [id])
+  tomador                Tomador?        @relation(fields: [tomadorId], references: [id])
 
   @@index([chaveAcesso])
   @@index([ambiente])

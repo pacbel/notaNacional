@@ -1,54 +1,59 @@
-import type { DpsContext } from "../types";
+import type { DpsContext, TomadorBase } from "../types";
 import { XmlWriter } from "../xml-writer";
 
 export function buildTomador(w: XmlWriter, context: DpsContext): void {
+  const tomador = context.input.tomador;
+  if (!tomador) {
+    return;
+  }
+
   w.open("toma");
   switch (context.tomadorTipo) {
     case "ESTRANGEIRO":
-      buildTomadorEstrangeiro(w, context);
+      buildTomadorEstrangeiro(w, context, tomador);
       break;
     case "ANONIMO":
-      buildTomadorAnonimo(w, context);
+      buildTomadorAnonimo(w, context, tomador);
       break;
     default:
-      buildTomadorNacional(w, context);
+      buildTomadorNacional(w, context, tomador);
       break;
   }
   w.close("toma");
 }
 
-function buildTomadorNacional(w: XmlWriter, context: DpsContext): void {
+function buildTomadorNacional(w: XmlWriter, context: DpsContext, tomador: TomadorBase): void {
   if (context.tomadorDocumentoTag && context.tomadorDocumento) {
     w.leaf(context.tomadorDocumentoTag, context.tomadorDocumento);
   }
-  buildTomadorDadosComplementares(w, context);
+  buildTomadorDadosComplementares(w, context, tomador);
 }
 
-function buildTomadorEstrangeiro(w: XmlWriter, context: DpsContext): void {
-  const documento = context.tomadorDocumento ?? context.input.tomador.documento;
+function buildTomadorEstrangeiro(w: XmlWriter, context: DpsContext, tomador: TomadorBase): void {
+  const documento = context.tomadorDocumento ?? tomador.documento ?? undefined;
   if (documento) {
     w.leaf("idEstrangeiro", documento);
   }
-  buildTomadorDadosComplementares(w, context);
+  buildTomadorDadosComplementares(w, context, tomador);
 }
 
-function buildTomadorAnonimo(w: XmlWriter, context: DpsContext): void {
-  buildTomadorDadosComplementares(w, context);
+function buildTomadorAnonimo(w: XmlWriter, context: DpsContext, tomador: TomadorBase): void {
+  buildTomadorDadosComplementares(w, context, tomador);
 }
 
-function buildTomadorDadosComplementares(w: XmlWriter, context: DpsContext): void {
-  w.leaf("xNome", context.input.tomador.nomeRazaoSocial);
-  buildTomadorEndereco(w, context);
+function buildTomadorDadosComplementares(w: XmlWriter, context: DpsContext, tomador: TomadorBase): void {
+  w.leaf("xNome", tomador.nomeRazaoSocial);
+  buildTomadorEndereco(w, context, tomador);
   if (context.tomadorTelefone) {
     w.leaf("fone", context.tomadorTelefone);
   }
-  if (context.input.tomador.email) {
-    w.leaf("email", context.input.tomador.email);
+  if (tomador.email) {
+    w.leaf("email", tomador.email);
   }
 }
 
-function buildTomadorEndereco(w: XmlWriter, context: DpsContext): void {
-  const dados = context.input.tomador;
+function buildTomadorEndereco(w: XmlWriter, context: DpsContext, tomador: TomadorBase): void {
+  const dados = tomador;
 
   const hasEnderecoNacional = Boolean(
     dados.logradouro ||

@@ -75,7 +75,8 @@ export interface GenerateDpsXmlInput {
   competencia: Date;
   emissao: Date;
   prestador: PartyBase;
-  tomador: TomadorBase;
+  tomador: TomadorBase | null;
+  tomadorNaoIdentificado: boolean;
   servico: ServicoBase;
   configuracao: ConfiguracaoBase;
   observacoes?: string | null;
@@ -101,7 +102,8 @@ export interface DpsContext {
   readonly telefonePrestador: string | null;
   readonly opSimpNac: string;
   readonly regEspTrib: string;
-  readonly tomadorTipo: TomadorTipo;
+  readonly tomadorNaoIdentificado: boolean;
+  readonly tomadorTipo: TomadorTipo | null;
   readonly tomadorDocumentoTag: "CPF" | "CNPJ" | "idEstrangeiro" | null;
   readonly tomadorDocumento: string | null;
   readonly tomadorTelefone: string | null;

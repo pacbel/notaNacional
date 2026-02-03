@@ -95,7 +95,7 @@ type NotaEmitidaPersisted = {
   numero: string | null;
   chaveAcesso: string;
   prestadorId: string;
-  tomadorId: string;
+  tomadorId: string | null;
 };
 
 type DpsWithRelations = Prisma.DpsGetPayload<{
@@ -463,21 +463,23 @@ function sanitizeTelefone(value?: string | null): string | null {
 
 
 export const createDpsSchema = dpsCreateSchema;
-
 export type CreateDpsInput = z.infer<typeof createDpsSchema>;
 
 export async function createDps(payload: CreateDpsInput) {
   const data = createDpsSchema.parse(payload);
+  const tomadorNaoIdentificado = data.tomadorNaoIdentificado ?? false;
 
   const [prestadorDto, tomador, servico, configuracao] = await Promise.all([
     getPrestador(data.prestadorId),
-    prisma.tomador.findFirst({ 
-      where: { 
-        id: data.tomadorId, 
-        prestadorId: data.prestadorId,
-        ativo: true 
-      } 
-    }),
+    !tomadorNaoIdentificado && data.tomadorId
+      ? prisma.tomador.findFirst({
+          where: {
+            id: data.tomadorId!,
+            prestadorId: data.prestadorId,
+            ativo: true,
+          },
+        })
+      : Promise.resolve(null),
     prisma.servico.findFirst({ 
       where: { 
         id: data.servicoId,
@@ -507,7 +509,7 @@ export async function createDps(payload: CreateDpsInput) {
     email: sanitizeOptionalString(prestadorDto.email ?? null) ?? undefined,
   };
 
-  if (!tomador) {
+  if (!tomador && !tomadorNaoIdentificado) {
     throw new AppError("Tomador não encontrado, inativo ou não pertence ao prestador", 404);
   }
 
@@ -530,13 +532,15 @@ export async function createDps(payload: CreateDpsInput) {
       cidade: prestador.cidade,
       estado: prestador.estado,
     },
-    tomador: {
-      id: tomador.id,
-      nome: tomador.nomeRazaoSocial,
-      documento: tomador.documento,
-      cidade: tomador.cidade,
-      estado: tomador.estado,
-    },
+    tomador: tomadorNaoIdentificado
+      ? null
+      : {
+          id: tomador!.id,
+          nome: tomador!.nomeRazaoSocial,
+          documento: tomador!.documento,
+          cidade: tomador!.cidade,
+          estado: tomador!.estado,
+        },
     servico: {
       id: servico.id,
       descricao: servico.descricao,
@@ -579,7 +583,7 @@ export async function createDps(payload: CreateDpsInput) {
         numero,
         serie,
         prestadorId: prestador.id,
-        tomadorId: tomador.id,
+        ...(tomador ? { tomadorId: tomador.id } : {}),
         servicoId: servico.id,
         competencia,
         dataEmissao: emissao,
@@ -590,6 +594,7 @@ export async function createDps(payload: CreateDpsInput) {
         ambiente: configuracao.ambientePadrao,
         jsonEntrada: jsonEntradaString,
         observacoes: data.observacoes ?? null,
+        tomadorNaoIdentificado,
       },
       include: {
         tomador: true,
@@ -604,25 +609,28 @@ export async function createDps(payload: CreateDpsInput) {
       competencia,
       emissao,
       prestador: mapPrestadorToXmlInput(prestador),
-      tomador: mapTomadorToXmlInput({
-        id: created.tomador.id,
-        tipoTomador: created.tomador.tipoTomador,
-        tipoDocumento: created.tomador.tipoDocumento ?? null,
-        documento: created.tomador.documento ?? null,
-        nomeRazaoSocial: created.tomador.nomeRazaoSocial,
-        codigoMunicipio: created.tomador.codigoMunicipio ?? null,
-        logradouro: created.tomador.logradouro ?? null,
-        numero: created.tomador.numero ?? null,
-        bairro: created.tomador.bairro ?? null,
-        complemento: created.tomador.complemento ?? null,
-        cep: created.tomador.cep ?? null,
-        telefone: created.tomador.telefone ?? null,
-        email: created.tomador.email,
-        codigoPais: created.tomador.codigoPais ?? null,
-        codigoPostalExterior: created.tomador.codigoPostalExterior ?? null,
-        cidadeExterior: created.tomador.cidadeExterior ?? null,
-        estadoExterior: created.tomador.estadoExterior ?? null,
-      }),
+      tomador: created.tomador
+        ? mapTomadorToXmlInput({
+            id: created.tomador.id,
+            tipoTomador: created.tomador.tipoTomador,
+            tipoDocumento: created.tomador.tipoDocumento ?? null,
+            documento: created.tomador.documento ?? null,
+            nomeRazaoSocial: created.tomador.nomeRazaoSocial,
+            codigoMunicipio: created.tomador.codigoMunicipio ?? null,
+            logradouro: created.tomador.logradouro ?? null,
+            numero: created.tomador.numero ?? null,
+            bairro: created.tomador.bairro ?? null,
+            complemento: created.tomador.complemento ?? null,
+            cep: created.tomador.cep ?? null,
+            telefone: created.tomador.telefone ?? null,
+            email: created.tomador.email,
+            codigoPais: created.tomador.codigoPais ?? null,
+            codigoPostalExterior: created.tomador.codigoPostalExterior ?? null,
+            cidadeExterior: created.tomador.cidadeExterior ?? null,
+            estadoExterior: created.tomador.estadoExterior ?? null,
+          })
+        : null,
+      tomadorNaoIdentificado,
       servico: mapServicoToXmlInput({
         id: created.servico.id,
         codigo: created.servico.codigo ?? null,
@@ -1023,7 +1031,7 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       create: {
         dpsId,
         prestadorId: dps.prestadorId,
-        tomadorId: dps.tomadorId,
+        tomadorId: dps.tomadorId ?? null,
         ambiente: dps.ambiente,
         chaveAcesso,
         numero: response.numero ?? "",
@@ -1043,6 +1051,7 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
         rawResponseContentType: response.rawResponseContentType,
         rawResponseContent: response.rawResponseContent,
         ativo: true,
+        tomadorId: dps.tomadorId ?? null,
       },
     });
 
@@ -1121,13 +1130,15 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
       tomadorId: notaInfo.tomadorId,
     });
 
-    const tomador = await prisma.tomador.findUnique({
-      where: { id: notaInfo.tomadorId },
-      select: {
-        email: true,
-        nomeRazaoSocial: true,
-      },
-    });
+    const tomador = notaInfo.tomadorId
+      ? await prisma.tomador.findUnique({
+          where: { id: notaInfo.tomadorId },
+          select: {
+            email: true,
+            nomeRazaoSocial: true,
+          },
+        })
+      : null;
 
     const tomadorEmail = tomador?.email?.trim();
     const prestadorEmail = prestadorDto.email?.trim();

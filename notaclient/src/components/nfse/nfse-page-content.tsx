@@ -124,6 +124,7 @@ import { useCurrentUser } from "@/hooks/use-auth";
 
 interface CreateFormState {
   tomadorId: string;
+  tomadorNaoIdentificado: boolean;
   servicoId: string;
   competencia: string;
   dataEmissao: string;
@@ -581,6 +582,7 @@ export default function NfsePageContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState>(() => ({
     tomadorId: "",
+    tomadorNaoIdentificado: false,
     servicoId: "",
     competencia: new Date().toISOString(),
     dataEmissao: new Date().toISOString(),
@@ -1183,6 +1185,7 @@ export default function NfsePageContent() {
   const resetCreateForm = () => {
     setCreateForm({
       tomadorId: "",
+      tomadorNaoIdentificado: false,
       servicoId: "",
       competencia: new Date().toISOString(),
       dataEmissao: new Date().toISOString(),
@@ -1198,7 +1201,8 @@ export default function NfsePageContent() {
 
     createDpsMutation.mutate({
       prestadorId: currentUserQuery.data.prestadorId,
-      tomadorId: createForm.tomadorId,
+      tomadorId: createForm.tomadorNaoIdentificado ? undefined : createForm.tomadorId,
+      tomadorNaoIdentificado: createForm.tomadorNaoIdentificado,
       servicoId: createForm.servicoId,
       competencia: createForm.competencia,
       dataEmissao: createForm.dataEmissao,
@@ -1634,9 +1638,11 @@ export default function NfsePageContent() {
                         <TableCell>
                           <div className="flex items-center gap-2 text-sm">
                             <User2 className="h-4 w-4 text-muted-foreground" />
-                            {dps.tomador.nomeRazaoSocial}
+                            {dps.tomador ? dps.tomador.nomeRazaoSocial : "Tomador não identificado"}
                           </div>
-                          <div className="text-xs text-muted-foreground">Documento {dps.tomador.documento}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Documento {dps.tomador ? dps.tomador.documento : "—"}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_BADGE_VARIANT[dps.status]}>{STATUS_LABELS[dps.status]}</Badge>
@@ -1801,8 +1807,14 @@ export default function NfsePageContent() {
                           <div className="text-xs text-muted-foreground">CNPJ {nota.prestador.cnpj}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-sm">{nota.tomador.nomeRazaoSocial}</div>
-                          <div className="text-xs text-muted-foreground">Documento {nota.tomador.documento}</div>
+                          <div className="font-medium text-sm">
+                            {nota.tomador ? nota.tomador.nomeRazaoSocial : "Tomador não identificado"}
+                          </div>
+                          {nota.tomador ? (
+                            <div className="text-xs text-muted-foreground">
+                              Documento {nota.tomador.documento}
+                            </div>
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm font-medium">
@@ -1927,8 +1939,17 @@ export default function NfsePageContent() {
                     <span className="font-medium text-foreground">Prestador:</span> {actionState.dps.prestador.nomeFantasia}
                   </p>
                   <p>
-                    <span className="font-medium text-foreground">Tomador:</span> {actionState.dps.tomador.nomeRazaoSocial}
+                    <span className="font-medium text-foreground">Tomador:</span>{" "}
+                    {actionState.dps.tomador
+                      ? actionState.dps.tomador.nomeRazaoSocial
+                      : "Não identificado"}
                   </p>
+                  {actionState.dps.tomador ? (
+                    <p>
+                      <span className="font-medium text-foreground">Documento:</span>{" "}
+                      {actionState.dps.tomador.documento}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -2114,14 +2135,37 @@ export default function NfsePageContent() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="tomadorId">Tomador</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="tomadorId">Tomador</Label>
+                <label className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border"
+                    checked={createForm.tomadorNaoIdentificado}
+                    onChange={(event) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        tomadorNaoIdentificado: event.target.checked,
+                        tomadorId: event.target.checked ? "" : prev.tomadorId,
+                      }))
+                    }
+                    disabled={createDpsMutation.isPending}
+                  />
+                  <span>Tomador não identificado</span>
+                </label>
+              </div>
               <Select
                 value={createForm.tomadorId}
                 onValueChange={(value) => setCreateForm((prev) => ({ ...prev, tomadorId: value }))}
-                disabled={tomadoresQuery.isLoading || createDpsMutation.isPending}
+                disabled={
+                  tomadoresQuery.isLoading || createDpsMutation.isPending || createForm.tomadorNaoIdentificado
+                }
               >
                 <SelectTrigger id="tomadorId">
-                  <SelectValue placeholder="Selecione" className="max-w-full text-left wrap-break-word line-clamp-2" />
+                  <SelectValue
+                    placeholder={createForm.tomadorNaoIdentificado ? "Tomador não será informado" : "Selecione"}
+                    className="max-w-full text-left wrap-break-word line-clamp-2"
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {tomadoresQuery.isLoading ? (
@@ -2228,7 +2272,7 @@ export default function NfsePageContent() {
               disabled={
                 createDpsMutation.isPending ||
                 !currentUserQuery.data?.prestadorId ||
-                !createForm.tomadorId ||
+                (!createForm.tomadorNaoIdentificado && !createForm.tomadorId) ||
                 !createForm.servicoId
               }
             >

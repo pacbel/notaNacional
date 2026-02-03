@@ -64,7 +64,9 @@ export function generateDpsXml(input: GenerateDpsXmlInput): string {
 
   buildIdentificacao(w, context);
   buildPrestador(w, context);
-  buildTomador(w, context);
+  if (!context.tomadorNaoIdentificado && context.input.tomador) {
+    buildTomador(w, context);
+  }
   buildServico(w, context);
   buildTotais(w, context);
 
@@ -91,13 +93,16 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
   const prestadorNome = sanitizeDescription(input.prestador.razaoSocial || input.prestador.nomeFantasia || "");
   const telefonePrestador = normalizeDigits(input.prestador.telefone ?? null);
 
-  const tomadorDocumentoInfo = resolveTomadorDocumento(input.tomador);
-  const tomadorTelefone = normalizeDigits(input.tomador.telefone ?? null);
-  const tomadorCep = normalizeDigits(input.tomador.cep ?? null);
+  const tomador = input.tomador ?? null;
+  const tomadorDocumentoInfo = tomador
+    ? resolveTomadorDocumento(tomador)
+    : { tipo: "ANONIMO" as TomadorTipo, tag: null, valor: null };
+  const tomadorTelefone = normalizeDigits(tomador?.telefone ?? null);
+  const tomadorCep = normalizeDigits(tomador?.cep ?? null);
   const codigoMunicipioEmissao = resolveCodigoMunicipio(input.configuracao.xLocEmi ?? input.prestador.codigoMunicipio);
   const shouldInformIm = Boolean(inscricaoMunicipalPrestador !== "");
   const shouldInformPrestadorNome = String(input.configuracao.tpEmis ?? 1) !== "1";
-  const tomadorCodigoMunicipio = input.tomador.codigoMunicipio ? resolveCodigoMunicipio(input.tomador.codigoMunicipio) : null;
+  const tomadorCodigoMunicipio = tomador?.codigoMunicipio ? resolveCodigoMunicipio(tomador.codigoMunicipio) : null;
 
   const valorServicoNumber = input.servico.valorUnitario instanceof Prisma.Decimal
     ? input.servico.valorUnitario.toNumber()
@@ -145,7 +150,8 @@ function createDpsContext(input: GenerateDpsXmlInput): DpsContext {
     telefonePrestador,
     opSimpNac: String(input.configuracao.opSimpNac ?? 1),
     regEspTrib: String(input.configuracao.regEspTrib ?? 0),
-    tomadorTipo: tomadorDocumentoInfo.tipo,
+    tomadorNaoIdentificado: input.tomadorNaoIdentificado,
+    tomadorTipo: tomador ? tomadorDocumentoInfo.tipo : null,
     tomadorDocumentoTag: tomadorDocumentoInfo.tag,
     tomadorDocumento: tomadorDocumentoInfo.valor,
     tomadorTelefone,

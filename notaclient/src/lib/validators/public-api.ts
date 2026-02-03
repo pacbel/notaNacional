@@ -12,9 +12,27 @@ export const publicDpsCreateSchema = dpsCreateSchema;
 
 export const publicTomadorWithDpsSchema = z.object({
   tomador: publicTomadorCreateSchema,
-  dps: publicDpsCreateSchema.omit({ tomadorId: true }).extend({
-    observacoes: publicDpsCreateSchema.shape.observacoes.optional(),
-  }),
+  dps: z
+    .object({
+      prestadorId: publicDpsCreateSchema.shape.prestadorId,
+      servicoId: publicDpsCreateSchema.shape.servicoId,
+      competencia: publicDpsCreateSchema.shape.competencia,
+      dataEmissao: publicDpsCreateSchema.shape.dataEmissao,
+      tipoEmissao: publicDpsCreateSchema.shape.tipoEmissao,
+      tomadorNaoIdentificado: publicDpsCreateSchema.shape.tomadorNaoIdentificado,
+      observacoes: publicDpsCreateSchema.shape.observacoes.optional(),
+    })
+    .superRefine((data, ctx) => {
+      const tomadorObrigatorio = !(data.tomadorNaoIdentificado ?? false);
+
+      if (tomadorObrigatorio) {
+        ctx.addIssue({
+          path: ["tomadorNaoIdentificado"],
+          code: z.ZodIssueCode.custom,
+          message: "Informe o tomador ou marque como não identificado",
+        });
+      }
+    }),
 });
 
 export const publicProcessDpsSchema = z.object({

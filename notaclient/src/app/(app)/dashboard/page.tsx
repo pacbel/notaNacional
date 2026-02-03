@@ -319,7 +319,9 @@ export default async function DashboardPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">{nota.tomador.nomeRazaoSocial}</div>
+                          <div className="text-sm">
+                            {nota.tomador ? nota.tomador.nomeRazaoSocial : "Tomador não identificado"}
+                          </div>
                           <div className="text-xs text-muted-foreground">{nota.chaveAcesso}</div>
                         </TableCell>
                         <TableCell>

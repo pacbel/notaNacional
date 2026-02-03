@@ -72,7 +72,7 @@ export interface DpsDto {
     id: string;
     nomeRazaoSocial: string;
     documento: string;
-  };
+  } | null;
   servico: {
     id: string;
     descricao: string;
@@ -103,7 +103,8 @@ export interface ListDpsParams {
 
 export interface CreateDpsPayload {
   prestadorId: string;
-  tomadorId: string;
+  tomadorId?: string | null;
+  tomadorNaoIdentificado?: boolean;
   servicoId: string;
   competencia: string;
   dataEmissao: string;

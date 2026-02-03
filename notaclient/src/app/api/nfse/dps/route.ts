@@ -92,11 +92,13 @@ export async function POST(request: Request) {
         dataEmissao: dps.dataEmissao.toISOString(),
         ambiente: dps.ambiente,
         prestadorId: dps.prestadorId,
-        tomador: {
-          id: dps.tomador.id,
-          nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
-          documento: dps.tomador.documento,
-        },
+        tomador: dps.tomador
+          ? {
+              id: dps.tomador.id,
+              nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
+              documento: dps.tomador.documento,
+            }
+          : null,
         servico: {
           id: dps.servico.id,
           descricao: dps.servico.descricao,
@@ -322,11 +324,13 @@ export async function GET(request: Request) {
             nomeFantasia: "Prestador",
             cnpj: "",
           },
-      tomador: {
-        id: dps.tomador.id,
-        nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
-        documento: dps.tomador.documento,
-      },
+      tomador: dps.tomador
+        ? {
+            id: dps.tomador.id,
+            nomeRazaoSocial: dps.tomador.nomeRazaoSocial,
+            documento: dps.tomador.documento,
+          }
+        : null,
       servico: {
         id: dps.servico.id,
         descricao: dps.servico.descricao,
