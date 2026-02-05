@@ -40,7 +40,7 @@ import { resolveCertificateId } from "./certificado-service";
 import { generateCancelamentoXml } from "./xml/cancelamento-xml";
 import { saveXmlToFile, analyzeXml } from "./xml/xml-validator";
 import { runWithRobotContext } from "@/lib/robot-context";
-import { gzipSync, gunzipSync } from "zlib";
+import { gzipSync, gunzipSync, inflateRawSync, inflateSync } from "node:zlib";
 import JSZip from "jszip";
 import { getPrestador, type PrestadorDto } from "@/services/prestadores";
 
@@ -105,6 +105,14 @@ type DpsWithRelations = Prisma.DpsGetPayload<{
     servico: true;
   };
 }>;
+
+type DpsUpdateDataWithEvento = Prisma.DpsUncheckedUpdateInput & {
+  eventoXmlGZipBase64?: string | null;
+  eventoXmlCancelamento?: string | null;
+  cancelamentoInfPedRegId?: string | null;
+  cancelamentoResponseContentType?: string | null;
+  cancelamentoResponseContent?: string | null;
+};
 
 function logWithLevel(level: "info" | "debug" | "error", message: string, context?: Record<string, unknown>) {
   const logger = level === "debug" ? console.debug : level === "error" ? console.error : console.info;
@@ -428,6 +436,38 @@ function mapAmbienteToApi(ambiente: Ambiente | null | undefined, override?: Null
   return ambiente === AmbienteEnum.PRODUCAO ? 1 : 2;
 }
 
+function resolveNumeroNota(numero: string | null | undefined, chaveAcesso: string): string {
+  const trimmed = numero?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : chaveAcesso;
+}
+
+function buildNotaFileName(numeroNota: string, extension: string): string {
+  const normalizedExtension = extension.startsWith(".") ? extension : `.${extension}`;
+  return `NFSe-${numeroNota}${normalizedExtension}`;
+}
+
+function sanitizeNotaFileName(existingName: string | null | undefined, numeroNota: string, extension: string): string {
+  const normalizedExtension = extension.startsWith(".") ? extension : `.${extension}`;
+  const fallback = buildNotaFileName(numeroNota, normalizedExtension);
+  const candidate = existingName?.trim();
+
+  if (!candidate) {
+    return fallback;
+  }
+
+  if (!candidate.toLowerCase().endsWith(normalizedExtension.toLowerCase())) {
+    return fallback;
+  }
+
+  const baseName = candidate.slice(0, candidate.length - normalizedExtension.length);
+
+  if (!/\d/.test(baseName)) {
+    return fallback;
+  }
+
+  return candidate;
+}
+
 interface CollectNotaAttachmentsInput {
   notaInfo: NotaEmitidaPersisted;
   resolvedCertificate: string;
@@ -450,10 +490,10 @@ async function collectNotaAttachments({
   response,
   logContextBase,
 }: CollectNotaAttachmentsInput): Promise<CollectNotaAttachmentsResult | null> {
-  const numeroNota = logContextBase.numeroNota as string;
+  const numeroNota = resolveNumeroNota(notaInfo.numero, notaInfo.chaveAcesso);
 
   let xmlConteudo = response?.xmlNfse?.trim() ?? null;
-  let xmlNomeArquivo = `NFSe-${numeroNota}.xml`;
+  let xmlNomeArquivo = buildNotaFileName(numeroNota, ".xml");
   let xmlContentType = "application/xml";
 
   if (!xmlConteudo) {
@@ -472,7 +512,7 @@ async function collectNotaAttachments({
 
     if (documentoXml?.conteudo) {
       xmlConteudo = documentoXml.conteudo;
-      xmlNomeArquivo = documentoXml.nomeArquivo ?? xmlNomeArquivo;
+      xmlNomeArquivo = sanitizeNotaFileName(documentoXml.nomeArquivo, numeroNota, ".xml");
       xmlContentType = documentoXml.contentType ?? xmlContentType;
     }
   }
@@ -510,15 +550,14 @@ async function collectNotaAttachments({
 
     if (documentoGzip?.conteudo) {
       xmlOriginalAttachment = {
-        fileName: documentoGzip.nomeArquivo ?? `NFSe-${numeroNota}.xml.gz`,
+        fileName: sanitizeNotaFileName(documentoGzip.nomeArquivo, numeroNota, ".xml.gz"),
         contentBase64: documentoGzip.conteudo,
         contentType: "application/gzip",
       };
 
       if (!xmlConteudo) {
         try {
-          const xmlBuffer = gunzipSync(Buffer.from(documentoGzip.conteudo, "base64"));
-          xmlConteudo = xmlBuffer.toString("utf-8");
+          xmlConteudo = decompressGzipBase64(documentoGzip.conteudo);
         } catch (error) {
           logError("NFSe anexos: falha ao descomprimir XML GZip armazenado", {
             ...logContextBase,
@@ -653,7 +692,7 @@ async function sendNotaFiscalEmail({
   response,
   uploadToFtp = true,
 }: SendNotaFiscalEmailInput): Promise<void> {
-  const numeroNota = notaInfo.numero && notaInfo.numero.trim().length > 0 ? notaInfo.numero.trim() : notaInfo.chaveAcesso;
+  const numeroNota = resolveNumeroNota(notaInfo.numero, notaInfo.chaveAcesso);
 
   const logContextBase = {
     dpsId,
@@ -822,9 +861,7 @@ export async function downloadNotaZip({
     certificateId,
   });
 
-  const numeroNota = context.notaInfo.numero && context.notaInfo.numero.trim().length > 0
-    ? context.notaInfo.numero.trim()
-    : context.notaInfo.chaveAcesso;
+  const numeroNota = resolveNumeroNota(context.notaInfo.numero, context.notaInfo.chaveAcesso);
 
   const logContextBase = {
     notaId: context.notaInfo.id,
@@ -889,7 +926,7 @@ export async function downloadNotaZip({
 
   return {
     buffer,
-    filename: `NFSe-${numeroNota}.zip`,
+    filename: buildNotaFileName(numeroNota, ".zip"),
     contentType: "application/zip",
   };
 }
@@ -1731,7 +1768,42 @@ export async function cancelarNota({
     notaApiPayload,
   });
 
-  const isSefinError = response.statusCode >= 400;
+  logDebug("Conteúdo bruto retornado pela SEFIN no cancelamento", {
+    chaveAcesso,
+    statusCode: response.statusCode,
+    contentType: response.contentType,
+    hasContent: Boolean(response.content),
+    contentLength: response.content?.length ?? 0,
+    contentPreview: response.content?.slice(0, 2000),
+  });
+
+  const resolvedEventoGzipBase64 = resolveEventoGzipBase64({
+    responseContentType: response.contentType,
+    responseContent: response.content,
+    fallbackGzip: eventoXmlGZipBase64,
+  });
+
+  const resolvedEventoXmlCancelamento = resolveEventoXmlCancelamento({
+    responseContentType: response.contentType,
+    responseContent: response.content,
+    fallbackGzip: resolvedEventoGzipBase64 ?? eventoXmlGZipBase64,
+  });
+
+  const cancelamentoResponseContentType = response.contentType ?? null;
+  const cancelamentoResponseContent = response.content ?? null;
+  const cancelamentoXmlTexto = resolvedEventoXmlCancelamento ?? decodeEventoXmlBase64(eventoXmlGZipBase64);
+  const alreadyCancelled = isSefinAlreadyCancelled(response);
+
+  if (alreadyCancelled) {
+    logInfo("SEFIN informou cancelamento já registrado", {
+      chaveAcesso,
+      prestadorId: nota.prestadorId,
+      statusCode: response.statusCode,
+      infPedRegId,
+    });
+  }
+
+  const isSefinError = response.statusCode >= 400 && !alreadyCancelled;
 
   if (isSefinError) {
     logError("SEFIN rejeitou cancelamento", {
@@ -1753,13 +1825,20 @@ export async function cancelarNota({
     });
 
     if (nota.dpsId) {
+      const dpsErroUpdateData: DpsUpdateDataWithEvento = {
+        status: DpsStatus.ENVIADO,
+        mensagemErro: resolveSefinErrorMessage(response.content, response.statusCode),
+        dataRetorno: new Date(),
+        eventoXmlGZipBase64: resolvedEventoGzipBase64 ?? eventoXmlGZipBase64,
+        eventoXmlCancelamento: resolvedEventoXmlCancelamento ?? cancelamentoXmlTexto,
+        cancelamentoInfPedRegId: infPedRegId,
+        cancelamentoResponseContentType,
+        cancelamentoResponseContent,
+      };
+
       await prisma.dps.update({
         where: { id: nota.dpsId },
-        data: {
-          status: DpsStatus.ENVIADO,
-          mensagemErro: resolveSefinErrorMessage(response.content, response.statusCode),
-          dataRetorno: new Date(),
-        },
+        data: dpsErroUpdateData,
       });
     }
 
@@ -1780,15 +1859,21 @@ export async function cancelarNota({
         ativo: false,
       },
     });
-
     if (nota.dpsId) {
+      const dpsUpdateData: DpsUpdateDataWithEvento = {
+        status: DpsStatus.CANCELADO,
+        mensagemErro: null,
+        dataRetorno: new Date(),
+        eventoXmlGZipBase64: resolvedEventoGzipBase64 ?? eventoXmlGZipBase64,
+        eventoXmlCancelamento: resolvedEventoXmlCancelamento ?? cancelamentoXmlTexto,
+        cancelamentoInfPedRegId: infPedRegId,
+        cancelamentoResponseContentType,
+        cancelamentoResponseContent,
+      };
+
       await tx.dps.update({
         where: { id: nota.dpsId },
-        data: {
-          status: DpsStatus.CANCELADO,
-          mensagemErro: null,
-          dataRetorno: new Date(),
-        },
+        data: dpsUpdateData,
       });
     }
 
@@ -1803,6 +1888,29 @@ export async function cancelarNota({
     });
   });
 
+  logInfo("Cancelamento confirmado pela SEFIN e dados persistidos", {
+    chaveAcesso,
+    prestadorId: nota.prestadorId,
+    statusCode: response.statusCode,
+    infPedRegId,
+  });
+
+  logDebug("Conteúdo detalhado retornado pela SEFIN no cancelamento", {
+    chaveAcesso,
+    statusCode: response.statusCode,
+    contentType: response.contentType,
+    hasContent: Boolean(response.content),
+    contentLength: response.content?.length ?? 0,
+    contentPreview: response.content?.slice(0, 2000),
+    content: response.content,
+  });
+
+  await uploadCancelamentoXmlToFtp({
+    prestadorId: nota.prestadorId,
+    infPedRegId,
+    xmlConteudo: cancelamentoXmlTexto,
+  });
+
   return response;
 }
 
@@ -1811,6 +1919,207 @@ function compressToGzipBase64(value: string): string {
   const buffer = Buffer.from(normalized, "utf-8");
   const compressed = gzipSync(buffer);
   return compressed.toString("base64");
+}
+
+function decompressGzipBase64(value: string): string {
+  const buffer = Buffer.from(value, "base64");
+  const decompressed = gunzipSync(buffer);
+  return decompressed.toString("utf-8");
+}
+
+interface SefinErrorDetail {
+  codigo?: string;
+  descricao?: string;
+}
+
+function extractSefinErrorDetails(content: string | null | undefined): SefinErrorDetail[] {
+  if (!content) {
+    return [];
+  }
+
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { erro?: Array<{ codigo?: string; descricao?: string }> } | undefined;
+
+    if (parsed?.erro && Array.isArray(parsed.erro)) {
+      return parsed.erro.map((item) => ({ codigo: item.codigo, descricao: item.descricao }));
+    }
+  } catch {
+    // Conteúdo não é JSON ou não segue o formato esperado
+  }
+
+  return [];
+}
+
+function isSefinAlreadyCancelled(response: CancelarNfseResponse): boolean {
+  if (!response || response.statusCode < 400) {
+    return false;
+  }
+
+  const errors = extractSefinErrorDetails(response.content);
+  return errors.some((error) => error.codigo === "E0840");
+}
+
+interface ResolveEventoParams {
+  responseContentType?: string | null;
+  responseContent?: string | null;
+  fallbackGzip: string;
+}
+
+function resolveEventoGzipBase64({
+  responseContentType,
+  responseContent,
+  fallbackGzip,
+}: ResolveEventoParams): string | null {
+  const fromResponse = extractEventoXmlGzipBase64(responseContentType, responseContent);
+
+  if (fromResponse) {
+    return fromResponse;
+  }
+
+  return fallbackGzip ?? null;
+}
+
+function resolveEventoXmlCancelamento(params: ResolveEventoParams): string | null {
+  const base64Value = resolveEventoGzipBase64(params);
+
+  if (!base64Value) {
+    return null;
+  }
+
+  return decodeEventoXmlBase64(base64Value);
+}
+
+const EVENTO_XML_GZIP_KEYS = [
+  "eventoXmlGZipB64",
+  "eventoXmlGzipB64",
+  "eventoXmlGZipBase64",
+  "eventoXmlGzipBase64",
+  "eventoXmlBase64",
+];
+
+const BASE64_CANDIDATE_REGEX = /^[A-Za-z0-9+/=_\s-]+$/;
+
+function extractEventoXmlGzipBase64(
+  responseContentType: string | null | undefined,
+  responseContent: string | null | undefined
+): string | null {
+  if (!responseContent) {
+    return null;
+  }
+
+  const trimmedContent = responseContent.trim();
+
+  if (!trimmedContent) {
+    return null;
+  }
+
+  const shouldParseJson =
+    (responseContentType && responseContentType.includes("json")) || trimmedContent.startsWith("{");
+
+  if (shouldParseJson) {
+    try {
+      const json = JSON.parse(trimmedContent) as Record<string, unknown>;
+
+      for (const key of EVENTO_XML_GZIP_KEYS) {
+        const value = json[key];
+
+        if (typeof value === "string" && value.trim()) {
+          return value.trim();
+        }
+      }
+    } catch (error) {
+      logDebug("Falha ao interpretar resposta de cancelamento como JSON", {
+        erro: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (BASE64_CANDIDATE_REGEX.test(trimmedContent)) {
+    return trimmedContent.replace(/\s+/g, "");
+  }
+
+  return null;
+}
+
+function decodeEventoXmlBase64(base64Value: string): string | null {
+  if (!base64Value) {
+    return null;
+  }
+
+  const sanitized = base64Value.replace(/\s+/g, "");
+
+  try {
+    return decompressGzipBase64(sanitized);
+  } catch {
+    // Continua tentando outros formatos de compactação
+  }
+
+  let buffer: Buffer;
+
+  try {
+    buffer = Buffer.from(sanitized, "base64");
+  } catch {
+    return null;
+  }
+
+  const decompressors = [
+    (input: Buffer) => inflateSync(input),
+    (input: Buffer) => inflateRawSync(input),
+  ];
+
+  for (const decompress of decompressors) {
+    try {
+      const result = decompress(buffer);
+      const text = result.toString("utf-8");
+
+      if (text.trim()) {
+        return text;
+      }
+    } catch {
+      // Ignora e tenta próximo método
+    }
+  }
+
+  const fallbackText = buffer.toString("utf-8");
+  return fallbackText.trim() ? fallbackText : null;
+}
+
+async function uploadCancelamentoXmlToFtp({
+  prestadorId,
+  infPedRegId,
+  xmlConteudo,
+}: {
+  prestadorId: string;
+  infPedRegId: string | null;
+  xmlConteudo: string | null;
+}): Promise<void> {
+  if (!prestadorId || !infPedRegId || !xmlConteudo) {
+    return;
+  }
+
+  const attachment = {
+    fileName: `${infPedRegId}.xml`,
+    contentBase64: Buffer.from(xmlConteudo, "utf-8").toString("base64"),
+  };
+
+  try {
+    await uploadPrestadorFilesToFtp({
+      prestadorId,
+      attachments: [attachment],
+    });
+  } catch (error) {
+    logError("NFSe FTP: falha ao enviar arquivo de cancelamento", {
+      prestadorId,
+      infPedRegId,
+      erro: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 interface GerarDanfseOptions {

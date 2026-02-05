@@ -71,7 +71,13 @@ function buildServicoBase(w: XmlWriter, context: DpsContext): void {
 
   w.open("cServ");
   w.leaf("cTribNac", context.codigoTributacaoNacional);
-  w.leaf("cTribMun", context.input.servico.codigoTributacaoMunicipal);
+  const codigoTribMunRaw = context.input.servico.codigoTributacaoMunicipal;
+  const codigoTribMun = codigoTribMunRaw == null ? "" : String(codigoTribMunRaw).trim();
+  const isCodigoTribMunZero = codigoTribMun !== "" && Number(codigoTribMun) === 0;
+
+  if (codigoTribMun !== "" && !isCodigoTribMunZero) {
+    w.leaf("cTribMun", codigoTribMun);
+  }
   w.leaf("xDescServ", context.serviceDescription);
   w.leaf("cNBS", context.codigoNbs);
   if (context.codigoInternoContribuinte) {

@@ -133,6 +133,11 @@ model Dps {
   versao             String      @db.VarChar(10)
   versaoAplicacao    String      @db.VarChar(60)
   xmlAssinado        String?     @db.LongText
+  eventoXmlGZipBase64 String?    @db.LongText
+  eventoXmlCancelamento String?  @db.LongText
+  cancelamentoInfPedRegId String? @db.VarChar(64)
+  cancelamentoResponseContentType String? @db.VarChar(120)
+  cancelamentoResponseContent String? @db.LongText
   servico            Servico     @relation(fields: [servicoId], references: [id])
   tomador            Tomador?    @relation(fields: [tomadorId], references: [id])
   notaFiscal         NotaFiscal?

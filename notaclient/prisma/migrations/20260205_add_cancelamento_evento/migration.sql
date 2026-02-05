@@ -1,0 +1,3 @@
+ALTER TABLE `Dps`
+  ADD COLUMN `eventoXmlGZipBase64` LONGTEXT NULL,
+  ADD COLUMN `eventoXmlCancelamento` LONGTEXT NULL;

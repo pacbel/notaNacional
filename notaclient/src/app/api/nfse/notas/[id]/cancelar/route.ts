@@ -23,7 +23,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ message: "Dados inválidos", issues: parseResult.error.format() }, { status: 400 });
     }
 
+    console.info("[NFSe/API] Cancelar NFSe - requisição recebida", {
+      chaveAcesso: parseResult.data.chaveAcesso,
+      motivoCodigo: parseResult.data.motivoCodigo,
+      ambiente: parseResult.data.ambiente ?? "auto",
+    });
+
     const response = await cancelarNota(parseResult.data);
+
+    console.info("[NFSe/API] Cancelar NFSe - resposta entregue", {
+      chaveAcesso: parseResult.data.chaveAcesso,
+      statusCode: response.statusCode,
+      contentType: response.contentType,
+    });
 
     return NextResponse.json(response);
   } catch (error) {

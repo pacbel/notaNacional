@@ -22,6 +22,7 @@ export const swaggerSpec = {
       PublicTomadorCreate: {
         type: "object",
         required: [
+          "prestadorId",
           "tipoDocumento",
           "documento",
           "nomeRazaoSocial",
@@ -35,6 +36,7 @@ export const swaggerSpec = {
           "bairro",
         ],
         properties: {
+          prestadorId: { type: "string", format: "uuid" },
           tipoDocumento: { type: "string", enum: ["CPF", "CNPJ"] },
           documento: { type: "string", description: "Apenas números" },
           nomeRazaoSocial: { type: "string" },
@@ -53,14 +55,15 @@ export const swaggerSpec = {
       },
       PublicDpsCreate: {
         type: "object",
-        required: ["prestadorId", "tomadorId", "servicoId", "competencia", "dataEmissao"],
+        required: ["prestadorId", "servicoId", "competencia", "dataEmissao"],
         properties: {
           prestadorId: { type: "string", format: "uuid" },
-          tomadorId: { type: "string", format: "uuid" },
+          tomadorId: { type: "string", format: "uuid", nullable: true },
           servicoId: { type: "string", format: "uuid" },
           competencia: { type: "string", format: "date-time" },
           dataEmissao: { type: "string", format: "date-time" },
           tipoEmissao: { type: "integer", minimum: 0, maximum: 9 },
+          tomadorNaoIdentificado: { type: "boolean", description: "Informe true quando não houver tomador identificado", default: false },
           observacoes: { type: "string", nullable: true },
         },
       },
@@ -79,6 +82,54 @@ export const swaggerSpec = {
                 },
               },
             ],
+          },
+        },
+      },
+      PublicProcessDps: {
+        type: "object",
+        required: ["prestadorId"],
+        properties: {
+          prestadorId: { type: "string", format: "uuid" },
+          dpsIds: {
+            type: "array",
+            items: { type: "string", format: "uuid" },
+            minItems: 1,
+            nullable: true,
+            description: "Lista opcional de DPS a processar. Quando omitido, o sistema processa todas as DPS do prestador elegíveis.",
+          },
+          certificateId: { type: "string", nullable: true },
+          ambiente: { type: "integer", minimum: 1, maximum: 2, nullable: true },
+          tag: { type: "string", nullable: true },
+        },
+      },
+      PublicProcessDpsResponse: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["dpsId", "steps"],
+          properties: {
+            dpsId: { type: "string", format: "uuid" },
+            steps: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["step", "success"],
+                properties: {
+                  step: { type: "string", enum: ["assinatura", "emissao"] },
+                  success: { type: "boolean" },
+                  response: { description: "Resposta bruta do processamento quando disponível" },
+                  error: {
+                    type: "object",
+                    nullable: true,
+                    properties: {
+                      message: { type: "string" },
+                      statusCode: { type: "integer", nullable: true },
+                      details: { nullable: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -176,6 +227,32 @@ export const swaggerSpec = {
             },
           },
           "400": { description: "Dados inválidos" },
+        },
+      },
+    },
+    "/api/public/processar-dps": {
+      post: {
+        tags: ["Public"],
+        summary: "Processa DPS (assinatura e emissão)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PublicProcessDps" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Resultado do processamento das DPS",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/PublicProcessDpsResponse" },
+              },
+            },
+          },
+          "400": { description: "Dados inválidos" },
+          "404": { description: "DPS não encontrada para o prestador" },
         },
       },
     },

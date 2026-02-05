@@ -818,16 +818,24 @@ export default function NfsePageContent() {
 
   const cancelarMutation = useMutation({
     mutationFn: cancelarNfse,
-    onSuccess: () => {
+    onMutate: (variables) => {
+      console.info("[NFSe/UI] Cancelar NFSe - onMutate", { variables });
+    },
+    onSuccess: (response, variables) => {
+      console.info("[NFSe/UI] Cancelar NFSe - onSuccess", { response, variables });
       toast.success("NFSe cancelada com sucesso");
       queryClient.invalidateQueries({ queryKey: ["nfse", "notas"] });
       setCancelState(null);
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      console.warn("[NFSe/UI] Cancelar NFSe - onError", { error, variables });
       if (handleRobotCredentialsError(error)) {
         return;
       }
       toast.error(extractErrorMessage(error, "Erro ao cancelar NFSe"));
+    },
+    onSettled: (_data, _error, variables) => {
+      console.debug("[NFSe/UI] Cancelar NFSe - onSettled", { variables });
     },
   });
 
@@ -1889,12 +1897,18 @@ export default function NfsePageContent() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              onClick={() =>
-                                downloadDanfse(nota.chaveAcesso, {
+                              onClick={() => {
+                                const params = {
                                   ambiente: nota.ambiente === "PRODUCAO" ? 1 : 2,
                                   certificateId: nota.certificateId ?? nota.dps?.certificadoId,
-                                })
-                              }
+                                };
+                                console.info("[NFSe/UI] DANFSe - botão acionado", {
+                                  chaveAcesso: nota.chaveAcesso,
+                                  ...params,
+                                });
+
+                                downloadDanfse(nota.chaveAcesso, params);
+                              }}
                             >
                               <ScrollText className="mr-2 h-4 w-4" /> DANFSE
                             </Button>
@@ -1904,6 +1918,11 @@ export default function NfsePageContent() {
                               variant="destructive"
                               disabled={cancelarMutation.isPending || nota.dps?.status === "CANCELADO"}
                               onClick={() => {
+                                console.info("[NFSe/UI] Cancelar NFSe - botão acionado", {
+                                  chaveAcesso: nota.chaveAcesso,
+                                  situacao: nota.dps?.status,
+                                });
+
                                 setCancelState({
                                   nota,
                                   motivoCodigo: CANCELAMENTO_MOTIVOS[0]?.codigo ?? "",

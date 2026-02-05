@@ -18,9 +18,22 @@ export async function GET(request: Request, context: RouteParams) {
     const parsedAmbiente = ambiente ? Number(ambiente) : undefined;
     const { id } = await context.params;
 
+    console.info("[NFSe/API] DANFSe - requisição recebida", {
+      chaveAcesso: id,
+      ambiente: parsedAmbiente ?? "auto",
+      certificateId,
+    });
+
     const { buffer, filename, contentType } = await gerarDanfse(id, {
       ambiente: parsedAmbiente,
       certificateId,
+    });
+
+    console.info("[NFSe/API] DANFSe - resposta gerada", {
+      chaveAcesso: id,
+      contentType,
+      filename,
+      tamanhoBytes: buffer.byteLength,
     });
 
     return new NextResponse(buffer as unknown as BodyInit, {
