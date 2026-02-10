@@ -40,6 +40,21 @@ interface AppShellProps {
   children: ReactNode;
 }
 
+export function useSaldoBilhetagem(prestadorId: string | undefined) {
+  return useQuery({
+    queryKey: ["bilhetagem", "saldo", prestadorId],
+    queryFn: () => {
+      if (!prestadorId) {
+        throw new Error("Prestador não identificado");
+      }
+
+      return getSaldoBilhetagem(prestadorId);
+    },
+    enabled: Boolean(prestadorId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Notas Fiscais", href: "/nfse", icon: FileText },
@@ -57,12 +72,7 @@ export default function AppShell({ user, children }: AppShellProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sheetContentId = useId();
 
-  const saldoQuery = useQuery({
-    queryKey: ["bilhetagem", "saldo", user.prestadorId],
-    queryFn: () => getSaldoBilhetagem(user.prestadorId),
-    staleTime: 5 * 60 * 1000,
-    enabled: Boolean(user.prestadorId),
-  });
+  const saldoQuery = useSaldoBilhetagem(user.prestadorId);
 
   const saldoNotasLabel = useMemo(() => {
     if (saldoQuery.isLoading) {

@@ -2,6 +2,27 @@
  * Utilitário para fazer requisições HTTP com renovação automática de token em caso de 401
  */
 
+if (typeof window === "undefined" && process.env.ALLOW_INSECURE_SSL === "1") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+  const originalEmitWarning = process.emitWarning.bind(process);
+
+  process.emitWarning = ((warning: unknown, ...args: unknown[]) => {
+    const message =
+      typeof warning === "string"
+        ? warning
+        : warning instanceof Error
+          ? warning.message
+          : undefined;
+
+    if (message && message.includes("NODE_TLS_REJECT_UNAUTHORIZED")) {
+      return;
+    }
+
+    return originalEmitWarning(warning as any, ...(args as []));
+  }) as typeof process.emitWarning;
+}
+
 interface FetchWithAuthOptions extends RequestInit {
   skipAuthRetry?: boolean;
 }

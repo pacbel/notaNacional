@@ -802,6 +802,11 @@ export default function NfsePageContent() {
       toast.success(`NFSe emitida. Chave: ${response.chaveAcesso}`);
       queryClient.invalidateQueries({ queryKey: ["nfse", "dps"] });
       queryClient.invalidateQueries({ queryKey: ["nfse", "notas"] });
+      if (currentUserQuery.data?.prestadorId) {
+        queryClient.invalidateQueries({
+          queryKey: ["bilhetagem", "saldo", currentUserQuery.data.prestadorId],
+        });
+      }
       setActionState(null);
     },
     onError: (error) => {
