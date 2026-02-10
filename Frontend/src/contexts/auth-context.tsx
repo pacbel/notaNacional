@@ -45,6 +45,9 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const ROUTES_WITHOUT_GUARD = ["/login", "/forgot-password", "/reset-password"];
 
+const hasAdministratorRole = (roles: RoleName[] | undefined) =>
+  Array.isArray(roles) && roles.includes("Administrador");
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
@@ -100,24 +103,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyTokens = useCallback(
-    (newTokens: AuthTokens | null) => {
-      setTokens(newTokens);
-      persistTokens(newTokens);
-      scheduleRefresh(newTokens);
-
+    (newTokens: AuthTokens | null): boolean => {
       if (!newTokens) {
+        setTokens(null);
+        persistTokens(null);
+        scheduleRefresh(null);
         setUser(null);
-        return;
+        return true;
       }
 
       const nextUser = extractUserFromToken(newTokens.accessToken);
       if (!nextUser) {
+        setTokens(null);
+        persistTokens(null);
+        scheduleRefresh(null);
         setUser(null);
         toast.error("Não foi possível identificar o usuário autenticado.");
-        return;
+        return false;
       }
 
+      if (!hasAdministratorRole(nextUser.roles)) {
+        setTokens(null);
+        persistTokens(null);
+        scheduleRefresh(null);
+        setUser(null);
+        toast.error("Acesso negado.");
+        return false;
+      }
+
+      setTokens(newTokens);
+      persistTokens(newTokens);
+      scheduleRefresh(newTokens);
       setUser(nextUser);
+      return true;
     },
     [persistTokens, scheduleRefresh]
   );
@@ -215,7 +233,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         setMfaChallenge(null);
-        applyTokens(response);
+        const authorized = applyTokens(response);
+        if (!authorized) {
+          router.push("/login");
+          return;
+        }
         toast.success("Autenticação concluída com sucesso.");
         router.push("/dashboard");
       } finally {
@@ -250,8 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         retryOnUnauthorized: false,
       });
 
-      applyTokens(response);
-      return true;
+      return applyTokens(response);
     } catch (error) {
       toast.error(
         error instanceof ApiError && error.status === 401

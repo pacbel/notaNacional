@@ -163,14 +163,29 @@ export default function RobotClientsPage() {
 
   const prestadores = useMemo(() => prestadoresQuery.data ?? [], [prestadoresQuery.data]);
 
-  useEffect(() => {
-    if (prestadorIdFilter) return;
-    if (user?.prestadorId) {
-      setPrestadorIdFilter(user.prestadorId);
-    } else if (prestadores.length > 0) {
-      setPrestadorIdFilter(prestadores[0].id);
+  const defaultPrestadorId = useMemo(() => {
+    if (isAdmin) {
+      return ALL_PRESTADORES_OPTION;
     }
-  }, [prestadorIdFilter, user?.prestadorId, prestadores]);
+
+    if (user?.prestadorId) {
+      return user.prestadorId;
+    }
+
+    if (prestadores.length > 0) {
+      return prestadores[0].id;
+    }
+
+    return null;
+  }, [isAdmin, user?.prestadorId, prestadores]);
+
+  useEffect(() => {
+    if (prestadorIdFilter || !defaultPrestadorId) {
+      return;
+    }
+
+    setPrestadorIdFilter(defaultPrestadorId);
+  }, [prestadorIdFilter, defaultPrestadorId]);
 
   const robotQuery = useApiQuery({
     queryKey: buildRobotClientsQueryKey(prestadorIdFilter, includeInactive, user?.prestadorId ?? ""),
