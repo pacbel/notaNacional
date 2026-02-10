@@ -33,5 +33,11 @@ namespace API_NFSe.Application.DTOs.Prestadores
         [Url]
         [StringLength(255)]
         public string? SmtpResetPasswordUrl { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "O crédito mensal deve ser maior ou igual a zero.")]
+        public int? CreditoMensalPadrao { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "O saldo disponível deve ser maior ou igual a zero.")]
+        public int? SaldoNotasDisponiveis { get; set; }
     }
 }

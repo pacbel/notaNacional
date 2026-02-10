@@ -41,6 +41,7 @@ namespace API_NFSe.Application
             services.AddScoped<IPrestadorService, PrestadorService>();
             services.AddScoped<IRobotClientService, RobotClientService>();
             services.AddScoped<IEmailEnvioService, EmailEnvioService>();
+            services.AddScoped<IBilhetagemService, BilhetagemService>();
 
             return services;
         }

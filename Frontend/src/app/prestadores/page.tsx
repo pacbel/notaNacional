@@ -23,6 +23,10 @@ import {
   removerCertificadoPrestador,
 } from "@/services/prestadores";
 import {
+  obterBilhetagemSaldo,
+  listarLancamentosBilhetagem,
+} from "@/services/bilhetagem";
+import {
   listarUfs,
   listarMunicipiosPorUf,
   obterMunicipioPorCodigoIbge,
@@ -36,10 +40,12 @@ import {
   PrestadorConfiguracaoDto,
   UpsertPrestadorConfiguracaoDto,
   PrestadorCertificadoDto,
+  BilhetagemSaldoDto,
+  BilhetagemLancamentoDto,
 } from "@/types/prestadores";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -99,6 +105,10 @@ const configuracaoSchema = z.object({
   smtpPassword: z.string().optional(),
   smtpFrom: z.string().email("Informe um e-mail válido"),
   smtpFromName: z.string().min(1, "Informe o nome do remetente"),
+  bilhetagemHabilitada: z.boolean(),
+  creditoMensalPadrao: z.coerce.number().int().min(0).nullable(),
+  saldoNotasDisponiveis: z.coerce.number().int().min(0).nullable(),
+  competenciaSaldo: z.string().nullable(),
 });
 
 type ConfigFormValues = z.infer<typeof configuracaoSchema>;
@@ -125,7 +135,54 @@ interface MunicipioOption {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  return new Date(value).toLocaleDateString("pt-BR");
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("pt-BR");
+}
+
+function formatDateLocalInput(value?: string | null) {
+  if (!value) return null;
+
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleString("pt-BR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const integerFormatter = new Intl.NumberFormat("pt-BR");
+
+function formatInteger(value?: number | null) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  return integerFormatter.format(value);
 }
 
 function isCertificadoVigente(validadeInicio?: string | null, validadeFim?: string | null) {
@@ -175,6 +232,9 @@ export default function PrestadoresPage() {
   const [novoCertificadoSenha, setNovoCertificadoSenha] = useState("");
   const [arquivoCertificadoBase64, setArquivoCertificadoBase64] = useState<string | null>(null);
   const [arquivoCertificadoNome, setArquivoCertificadoNome] = useState("");
+  const [bilhetagemSaldo, setBilhetagemSaldo] = useState<BilhetagemSaldoDto | null>(null);
+  const [bilhetagemLancamentos, setBilhetagemLancamentos] = useState<BilhetagemLancamentoDto[]>([]);
+  const [isBilhetagemLoading, setIsBilhetagemLoading] = useState(false);
 
   const prestadoresQuery = useApiQuery({
     queryKey: ["prestadores"],
@@ -217,8 +277,39 @@ export default function PrestadoresPage() {
       smtpPassword: "",
       smtpFrom: "",
       smtpFromName: "",
+      bilhetagemHabilitada: false,
+      creditoMensalPadrao: null,
+      saldoNotasDisponiveis: null,
+      competenciaSaldo: null,
     },
   });
+
+  const bilhetagemHabilitadaWatch = useWatch({
+    control: configForm.control,
+    name: "bilhetagemHabilitada",
+  });
+  const creditoMensalPadraoWatch = useWatch({
+    control: configForm.control,
+    name: "creditoMensalPadrao",
+  });
+  const saldoNotasDisponiveisWatch = useWatch({
+    control: configForm.control,
+    name: "saldoNotasDisponiveis",
+  });
+  const competenciaSaldoWatch = useWatch({
+    control: configForm.control,
+    name: "competenciaSaldo",
+  });
+
+  const resumoBilhetagemHabilitada =
+    bilhetagemHabilitadaWatch ?? bilhetagemSaldo?.bilhetagemHabilitada ?? false;
+  const resumoCreditoMensal =
+    creditoMensalPadraoWatch ?? bilhetagemSaldo?.creditoMensalPadrao ?? null;
+  const resumoSaldoDisponivel =
+    saldoNotasDisponiveisWatch ?? bilhetagemSaldo?.saldoNotasDisponiveis ?? null;
+  const resumoCompetencia = competenciaSaldoWatch
+    ? formatDate(competenciaSaldoWatch)
+    : formatDate(bilhetagemSaldo?.competenciaSaldo);
 
   const filteredPrestadores = useMemo(() => {
     const data = prestadoresQuery.data ?? [];
@@ -320,6 +411,46 @@ export default function PrestadoresPage() {
       }
     },
     []
+  );
+
+  const loadBilhetagem = useCallback(
+    async (prestadorId: string) => {
+      setIsBilhetagemLoading(true);
+      try {
+        const [saldo, lancamentos] = await Promise.all([
+          obterBilhetagemSaldo(prestadorId),
+          listarLancamentosBilhetagem(prestadorId, 10),
+        ]);
+
+        setBilhetagemSaldo(saldo);
+        setBilhetagemLancamentos(lancamentos);
+
+        if (!configForm.formState.isDirty) {
+          configForm.setValue("bilhetagemHabilitada", saldo.bilhetagemHabilitada ?? false, {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+          configForm.setValue("creditoMensalPadrao", saldo.creditoMensalPadrao ?? null, {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+          configForm.setValue("saldoNotasDisponiveis", saldo.saldoNotasDisponiveis ?? null, {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+          configForm.setValue("competenciaSaldo", formatDateLocalInput(saldo.competenciaSaldo), {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Não foi possível carregar os dados de bilhetagem do prestador.");
+      } finally {
+        setIsBilhetagemLoading(false);
+      }
+    },
+    [configForm]
   );
 
   const uploadCertificadoMutation = useApiMutation(
@@ -928,12 +1059,14 @@ export default function PrestadoresPage() {
   };
 
   const onSubmitForm = form.handleSubmit(async (values) => {
+    const inscricaoEstadual = values.inscricaoEstadual?.trim() ?? "";
+
     const payload: CreatePrestadorDto = {
       cnpj: values.cnpj,
       razaoSocial: values.razaoSocial,
       nomeFantasia: values.nomeFantasia,
       inscricaoMunicipal: values.inscricaoMunicipal,
-      inscricaoEstadual: values.inscricaoEstadual || undefined,
+      inscricaoEstadual,
       telefone: values.telefone || undefined,
       email: values.email || undefined,
       website: values.website || undefined,
@@ -954,7 +1087,7 @@ export default function PrestadoresPage() {
         razaoSocial: values.razaoSocial,
         nomeFantasia: values.nomeFantasia,
         inscricaoMunicipal: values.inscricaoMunicipal,
-        inscricaoEstadual: values.inscricaoEstadual || undefined,
+        inscricaoEstadual,
         telefone: values.telefone || undefined,
         email: values.email || undefined,
         website: values.website || undefined,
@@ -1003,6 +1136,10 @@ export default function PrestadoresPage() {
         smtpPassword: "",
         smtpFrom: data.smtpFrom ?? "",
         smtpFromName: data.smtpFromName ?? "",
+        bilhetagemHabilitada: data.bilhetagemHabilitada ?? false,
+        creditoMensalPadrao: data.creditoMensalPadrao ?? null,
+        saldoNotasDisponiveis: data.saldoNotasDisponiveis ?? null,
+        competenciaSaldo: formatDateLocalInput(data.competenciaSaldo),
       });
     } catch (error) {
       console.error(error);
@@ -1016,6 +1153,10 @@ export default function PrestadoresPage() {
         smtpPassword: "",
         smtpFrom: "",
         smtpFromName: "",
+        bilhetagemHabilitada: false,
+        creditoMensalPadrao: null,
+        saldoNotasDisponiveis: null,
+        competenciaSaldo: null,
       });
     } finally {
       setIsConfigLoading(false);
@@ -1034,6 +1175,10 @@ export default function PrestadoresPage() {
         smtpPassword: "",
         smtpFrom: "",
         smtpFromName: "",
+        bilhetagemHabilitada: false,
+        creditoMensalPadrao: null,
+        saldoNotasDisponiveis: null,
+        competenciaSaldo: null,
       });
       setCertificados([]);
       setCertificadoSelecionadoId(null);
@@ -1041,6 +1186,9 @@ export default function PrestadoresPage() {
       setArquivoCertificadoNome("");
       setNovoCertificadoAlias("");
       setNovoCertificadoSenha("");
+      setBilhetagemSaldo(null);
+      setBilhetagemLancamentos([]);
+      setIsBilhetagemLoading(false);
       if (certificadoFileInputRef.current) {
         certificadoFileInputRef.current.value = "";
       }
@@ -1048,7 +1196,8 @@ export default function PrestadoresPage() {
     }
 
     void loadCertificados(configPrestador.id);
-  }, [configPrestador, configForm, loadCertificados]);
+    void loadBilhetagem(configPrestador.id);
+  }, [configPrestador, configForm, loadCertificados, loadBilhetagem]);
 
   const closeConfigModal = () => {
     setConfigPrestador(null);
@@ -1058,6 +1207,13 @@ export default function PrestadoresPage() {
 
   const onSubmitConfiguracao = configForm.handleSubmit(async (values) => {
     if (!configPrestador) return;
+    let competenciaSaldoIso: string | null = null;
+    if (values.competenciaSaldo) {
+      const [year, month, day] = values.competenciaSaldo.split("-").map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      competenciaSaldoIso = date.toISOString();
+    }
+
     const payload: UpsertPrestadorConfiguracaoDto = {
       versaoAplicacao: values.versaoAplicacao,
       enviaEmailAutomatico: values.enviaEmailAutomatico,
@@ -1068,6 +1224,16 @@ export default function PrestadoresPage() {
       smtpPassword: values.smtpPassword || undefined,
       smtpFrom: values.smtpFrom,
       smtpFromName: values.smtpFromName,
+      bilhetagemHabilitada: values.bilhetagemHabilitada,
+      creditoMensalPadrao:
+        values.creditoMensalPadrao === null || Number.isNaN(values.creditoMensalPadrao)
+          ? null
+          : values.creditoMensalPadrao,
+      saldoNotasDisponiveis:
+        values.saldoNotasDisponiveis === null || Number.isNaN(values.saldoNotasDisponiveis)
+          ? null
+          : values.saldoNotasDisponiveis,
+      competenciaSaldo: competenciaSaldoIso,
     };
 
     await configMutation.mutateAsync({
@@ -1696,6 +1862,171 @@ export default function PrestadoresPage() {
                     )}
                   </div>
                 </div>
+
+                <Card className="border border-slate-200 bg-slate-50">
+                  <CardHeader className="pb-2">
+                    <CardTitle>Bilhetagem</CardTitle>
+                    <CardDescription>
+                      Configure a habilitação, crédito mensal e saldo disponível para emissão de notas.
+                    </CardDescription>
+                  </CardHeader>
+
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                      {isBilhetagemLoading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                          Carregando dados de bilhetagem...
+                        </span>
+                      ) : (
+                        <>
+                          <Badge className={resumoBilhetagemHabilitada ? "bg-emerald-500" : "bg-slate-500"}>
+                            {resumoBilhetagemHabilitada ? "Bilhetagem habilitada" : "Bilhetagem desabilitada"}
+                          </Badge>
+                          <span>
+                            Saldo atual:&nbsp;
+                            <strong>{formatInteger(resumoSaldoDisponivel)}</strong>
+                          </span>
+                          <span>
+                            Crédito mensal padrão:&nbsp;
+                            <strong>{formatInteger(resumoCreditoMensal)}</strong>
+                          </span>
+                          <span>
+                            Competência:&nbsp;
+                            <strong>{resumoCompetencia}</strong>
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label
+                          className="text-sm font-medium text-slate-600"
+                          htmlFor="bilhetagemHabilitada"
+                        >
+                          Bilhetagem habilitada
+                        </label>
+                        <Controller
+                          control={configForm.control}
+                          name="bilhetagemHabilitada"
+                          render={({ field }) => (
+                            <Select
+                              id="bilhetagemHabilitada"
+                              value={field.value ? "true" : "false"}
+                              onChange={(event) => field.onChange(event.target.value === "true")}
+                            >
+                              <option value="true">Sim</option>
+                              <option value="false">Não</option>
+                            </Select>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          className="text-sm font-medium text-slate-600"
+                          htmlFor="creditoMensalPadrao"
+                        >
+                          Crédito mensal padrão
+                        </label>
+                        <Controller
+                          control={configForm.control}
+                          name="creditoMensalPadrao"
+                          render={({ field }) => (
+                            <Input
+                              id="creditoMensalPadrao"
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={field.value ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                field.onChange(value === "" ? null : Number.parseInt(value, 10));
+                              }}
+                            />
+                          )}
+                        />
+                        {configForm.formState.errors.creditoMensalPadrao && (
+                          <span className="text-sm text-red-600">
+                            {configForm.formState.errors.creditoMensalPadrao.message}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          className="text-sm font-medium text-slate-600"
+                          htmlFor="saldoNotasDisponiveis"
+                        >
+                          Saldo de notas disponíveis
+                        </label>
+                        <Controller
+                          control={configForm.control}
+                          name="saldoNotasDisponiveis"
+                          render={({ field }) => (
+                            <Input
+                              id="saldoNotasDisponiveis"
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={field.value ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                field.onChange(value === "" ? null : Number.parseInt(value, 10));
+                              }}
+                            />
+                          )}
+                        />
+                        {configForm.formState.errors.saldoNotasDisponiveis && (
+                          <span className="text-sm text-red-600">
+                            {configForm.formState.errors.saldoNotasDisponiveis.message}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          className="text-sm font-medium text-slate-600"
+                          htmlFor="competenciaSaldo"
+                        >
+                          Competência do saldo
+                        </label>
+                        <Controller
+                          control={configForm.control}
+                          name="competenciaSaldo"
+                          render={({ field }) => (
+                            <Input
+                              id="competenciaSaldo"
+                              type="date"
+                              value={field.value ?? ""}
+                              onChange={(event) => field.onChange(event.target.value || null)}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {bilhetagemLancamentos.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-slate-600">Últimos lançamentos</h4>
+                        <ul className="space-y-2">
+                          {bilhetagemLancamentos.slice(0, 5).map((lancamento) => (
+                            <li
+                              key={lancamento.id}
+                              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                            >
+                              <span>{formatDateTime(lancamento.dataCriacao)}</span>
+                              <span className="font-medium text-slate-900">
+                                {formatInteger(lancamento.quantidade)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </Card>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="ghost" onClick={closeConfigModal}>

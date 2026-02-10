@@ -1,7 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using API_NFSe.Application.Services;
+using API_NFSe.Application.Interfaces;
 
 namespace API_NFSe.Tests.Fakes;
 

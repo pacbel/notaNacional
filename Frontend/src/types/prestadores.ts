@@ -52,6 +52,10 @@ export interface PrestadorConfiguracaoDto {
   smtpUser?: string | null;
   smtpFrom?: string | null;
   smtpFromName?: string | null;
+  creditoMensalPadrao?: number | null;
+  saldoNotasDisponiveis?: number | null;
+  competenciaSaldo?: string | null;
+  bilhetagemHabilitada?: boolean | null;
   dataCriacao?: string | null;
   dataAtualizacao?: string | null;
 }
@@ -66,6 +70,10 @@ export interface UpsertPrestadorConfiguracaoDto {
   smtpPassword?: string;
   smtpFrom: string;
   smtpFromName: string;
+  bilhetagemHabilitada: boolean;
+  creditoMensalPadrao?: number | null;
+  saldoNotasDisponiveis?: number | null;
+  competenciaSaldo?: string | null;
 }
 
 export interface PrestadorCertificadoDto {
@@ -97,4 +105,27 @@ export interface PrestadorCertificadoUpdateDto {
 
 export interface PrestadorCertificadoSenhaDto {
   senha: string;
+}
+
+export interface BilhetagemSaldoDto {
+  bilhetagemHabilitada: boolean;
+  creditoMensalPadrao?: number | null;
+  saldoNotasDisponiveis: number;
+  competenciaSaldo?: string | null;
+}
+
+export interface BilhetagemLancamentoDto {
+  id: string;
+  dataCriacao: string;
+  dataAtualizacao?: string | null;
+  quantidade: number;
+  saldoAnterior: number;
+  saldoPosterior: number;
+  observacao?: string | null;
+  usuarioResponsavelId: string;
+}
+
+export interface AdicionarCreditoBilhetagemRequestDto {
+  quantidade: number;
+  observacao?: string | null;
 }

@@ -24,6 +24,7 @@ namespace API_NFSe.Domain.Entities
         public ICollection<PrestadorCertificado> Certificados { get; private set; } = new List<PrestadorCertificado>();
         public ICollection<Usuario> Usuarios { get; private set; } = new List<Usuario>();
         public ICollection<RobotClient> RobotClients { get; private set; } = new List<RobotClient>();
+        public ICollection<BilhetagemLancamento> BilhetagemLancamentos { get; private set; } = new List<BilhetagemLancamento>();
 
         protected Prestador() { }
 

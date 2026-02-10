@@ -3,16 +3,10 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using API_NFSe.Application.Configurations;
+using API_NFSe.Application.Interfaces;
 
 namespace API_NFSe.Application.Services
 {
-    public interface ICryptographyService
-    {
-        string Encrypt(string plainText);
-        string Decrypt(string cipherText);
-        string ComputeSha256(string input);
-    }
-
     public class CryptographyService : ICryptographyService
     {
         private readonly byte[] _key;

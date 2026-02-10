@@ -19,5 +19,8 @@ namespace API_NFSe.Application.DTOs.Prestadores
         public string? SmtpResetPasswordUrl { get; set; }
         public string? CertificadoPadraoId { get; set; }
         public bool HasSmtpPassword { get; set; }
+        public int? CreditoMensalPadrao { get; set; }
+        public int SaldoNotasDisponiveis { get; set; }
+        public DateTime? CompetenciaSaldo { get; set; }
     }
 }

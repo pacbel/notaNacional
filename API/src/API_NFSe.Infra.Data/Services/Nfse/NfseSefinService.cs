@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using API_NFSe.Application.DTOs.Nfse;
 using API_NFSe.Application.Interfaces;
-using API_NFSe.Application.Services;
 using API_NFSe.Domain.Entities;
 using API_NFSe.Domain.Interfaces;
 using API_NFSe.Infra.Data.Services.Nfse.Parsing;
@@ -26,6 +25,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
         private readonly ISefinHttpClient _sefinHttpClient;
         private readonly INfseResponseParser _responseParser;
         private readonly INfseStorageService _storageService;
+        private readonly IBilhetagemService _bilhetagemService;
         private readonly ILogger<NfseSefinService> _logger;
 
         public NfseSefinService(
@@ -38,6 +38,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             INfseResponseParser responseParser,
             INfseStorageService storageService,
             IXmlSignatureService xmlSignatureService,
+            IBilhetagemService bilhetagemService,
             ILogger<NfseSefinService> logger)
         {
             _prestadorRepository = prestadorRepository ?? throw new ArgumentNullException(nameof(prestadorRepository));
@@ -49,6 +50,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             _responseParser = responseParser ?? throw new ArgumentNullException(nameof(responseParser));
             _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
             _xmlSignatureService = xmlSignatureService ?? throw new ArgumentNullException(nameof(xmlSignatureService));
+            _bilhetagemService = bilhetagemService ?? throw new ArgumentNullException(nameof(bilhetagemService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -131,26 +133,45 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var prestadorCnpj = SomenteDigitos(prestador.Cnpj);
 
+            var reservaBilhetagem = await _bilhetagemService.ReservarCreditoParaEmissaoAsync(prestadorId, prestador.AtualizadoPorUsuarioId ?? prestador.CriadoPorUsuarioId, cancellationToken);
+
             var certificado = await ObterCertificadoPrestadorAsync(prestadorId, prestadorCnpj, request.CertificateId, cancellationToken);
 
             _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.XmlAssinado), "application/xml", "request");
 
-            var response = await _sefinHttpClient.EmitirAsync(request.XmlAssinado, request.Ambiente, certificado, cancellationToken);
+            try
+            {
+                var response = await _sefinHttpClient.EmitirAsync(request.XmlAssinado, request.Ambiente, certificado, cancellationToken);
 
-            var responseId = _storageService.SaveContent(response.Content, response.ContentType, "response");
-            RegistrarLogEstruturado(
-                acao: "emitir",
-                url: ObterUrlEmitir(request.Ambiente),
-                ambiente: request.Ambiente,
-                certificateId: request.CertificateId,
-                contentType: response.ContentType,
-                statusCode: response.StatusCode,
-                contentId: responseId);
+                var responseId = _storageService.SaveContent(response.Content, response.ContentType, "response");
+                RegistrarLogEstruturado(
+                    acao: "emitir",
+                    url: ObterUrlEmitir(request.Ambiente),
+                    ambiente: request.Ambiente,
+                    certificateId: request.CertificateId,
+                    contentType: response.ContentType,
+                    statusCode: response.StatusCode,
+                    contentId: responseId);
 
-            var parsed = _responseParser.ParseEmitirResponse(response.StatusCode, response.ContentType, response.Content);
-            _storageService.SaveEmitResponse(parsed.ChaveAcesso, parsed.Numero, parsed.XmlNfse, parsed.NfseBase64Gzip);
+                var parsed = _responseParser.ParseEmitirResponse(response.StatusCode, response.ContentType, response.Content);
+                _storageService.SaveEmitResponse(parsed.ChaveAcesso, parsed.Numero, parsed.XmlNfse, parsed.NfseBase64Gzip);
 
-            return parsed;
+                if (parsed.StatusCode == 200 && !string.IsNullOrWhiteSpace(parsed.ChaveAcesso))
+                {
+                    await _bilhetagemService.ConfirmarEmissaoAutorizadaAsync(reservaBilhetagem, parsed.ChaveAcesso, usuarioReferencia, cancellationToken);
+                }
+                else
+                {
+                    await _bilhetagemService.CancelarReservaAsync(reservaBilhetagem, cancellationToken);
+                }
+
+                return parsed;
+            }
+            catch
+            {
+                await _bilhetagemService.CancelarReservaAsync(reservaBilhetagem, cancellationToken);
+                throw;
+            }
         }
 
         public async Task<CancelarNfseResponseDto> CancelarAsync(string usuarioReferencia, Guid prestadorId, CancelarNfseRequestDto request, CancellationToken cancellationToken)

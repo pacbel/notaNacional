@@ -15,6 +15,7 @@ namespace API_NFSe.Infra.Data.Context
         public DbSet<PrestadorCertificado> PrestadorCertificados { get; set; }
         public DbSet<Dps> Dps { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<BilhetagemLancamento> BilhetagemLancamentos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -28,6 +29,7 @@ namespace API_NFSe.Infra.Data.Context
             modelBuilder.ApplyConfiguration(new DpsConfiguration());
             modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
             modelBuilder.ApplyConfiguration(new RobotClientConfiguration());
+            modelBuilder.ApplyConfiguration(new BilhetagemLancamentoConfiguration());
 
             // Desabilita o delete em cascata
             foreach (var relationship in modelBuilder.Model

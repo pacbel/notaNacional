@@ -88,11 +88,14 @@ A documentação da API está disponível através do Swagger em:
 
 ### Principais Endpoints
 
-- `GET /api/notasfiscais` - Lista todas as notas fiscais
-- `GET /api/notasfiscais/{id}` - Obtém uma nota fiscal por ID
-- `GET /api/notasfiscais/chave-acesso/{chaveAcesso}` - Obtém uma nota fiscal pela chave de acesso
-- `POST /api/notasfiscais` - Cria uma nova nota fiscal
-- `PUT /api/notasfiscais/{id}/status` - Atualiza o status de uma nota fiscal
+- `GET /api/prestadores/{prestadorId}/bilhetagem/saldo` – Retorna o saldo de créditos disponível para emissão (200). Possíveis erros:
+  - 400 com `{ mensagem: "Prestador inválido." }` quando o identificador for malformado;
+  - 403 quando o usuário não tiver permissão para o prestador informado.
+- `GET /api/prestadores/{prestadorId}/bilhetagem/lancamentos?limite=50` – Lista os créditos/débitos aplicados (200) com as mesmas regras de erro acima.
+- `POST /api/prestadores/{prestadorId}/bilhetagem/creditos` – Adiciona créditos manuais (200). Retorna 400 com `{ mensagem: "A quantidade de créditos deve ser maior que zero." }` quando aplicável, além dos cenários de 403 descritos acima.
+- `POST /api/nfse/emitir` – Inicia o processo de emissão de NFSe, abatendo um crédito quando houver bilhetagem ativa.
+
+> **Mensagem de negócio padrão:** quando o saldo é consumido totalmente, os endpoints de emissão retornam erro com `"Saldo de emissões insuficiente para gerar uma nova NFSe."`.
 
 ## 🧪 Executando os Testes
 

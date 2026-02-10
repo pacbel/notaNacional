@@ -195,7 +195,10 @@ namespace API_NFSe.Application.Services
                             string.IsNullOrWhiteSpace(dto.SmtpPassword) ? null : CriptografarSenha(dto.SmtpPassword),
                             dto.SmtpFrom,
                             dto.SmtpFromName,
-                            dto.SmtpResetPasswordUrl
+                            dto.SmtpResetPasswordUrl,
+                            dto.CreditoMensalPadrao,
+                            dto.SaldoNotasDisponiveis,
+                            competenciaSaldo: null
                         );
 
                         configuracao.AtribuirPrestador(prestador);
@@ -243,7 +246,10 @@ namespace API_NFSe.Application.Services
                             string.IsNullOrWhiteSpace(dto.SmtpPassword) ? null : CriptografarSenha(dto.SmtpPassword),
                             smtpFrom,
                             smtpFromName,
-                            smtpResetPasswordUrl
+                            smtpResetPasswordUrl,
+                            dto.CreditoMensalPadrao,
+                            dto.SaldoNotasDisponiveis,
+                            competenciaSaldo: prestador.Configuracao.CompetenciaSaldo
                         );
                     }
                 }

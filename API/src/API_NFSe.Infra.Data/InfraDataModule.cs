@@ -40,6 +40,7 @@ namespace API_NFSe.Infra.Data
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
             services.AddScoped<IAuditLogRepository, AuditLogRepository>();
             services.AddScoped<IRobotClientRepository, RobotClientRepository>();
+            services.AddScoped<IBilhetagemLancamentoRepository, BilhetagemLancamentoRepository>();
 
             services.AddSingleton<ICertificateFileStorage, FileSystemCertificateFileStorage>();
 

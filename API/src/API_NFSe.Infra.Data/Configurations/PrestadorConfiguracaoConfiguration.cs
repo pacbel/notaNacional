@@ -39,6 +39,16 @@ namespace API_NFSe.Infra.Data.Configurations
             builder.Property(pc => pc.SmtpResetPasswordUrl)
                 .HasMaxLength(255);
 
+            builder.Property(pc => pc.CreditoMensalPadrao)
+                .HasColumnType("int");
+
+            builder.Property(pc => pc.SaldoNotasDisponiveis)
+                .HasColumnType("int")
+                .HasDefaultValue(0);
+
+            builder.Property(pc => pc.CompetenciaSaldo)
+                .HasColumnType("datetime(6)");
+
             builder.HasIndex(pc => pc.PrestadorId)
                 .IsUnique();
 
