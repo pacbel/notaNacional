@@ -157,7 +157,7 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 var parsed = _responseParser.ParseEmitirResponse(response.StatusCode, response.ContentType, response.Content);
                 _storageService.SaveEmitResponse(parsed.ChaveAcesso, parsed.Numero, parsed.XmlNfse, parsed.NfseBase64Gzip);
 
-                if (parsed.StatusCode == 200 && !string.IsNullOrWhiteSpace(parsed.ChaveAcesso))
+                if (parsed.StatusCode == 200 && !string.IsNullOrWhiteSpace(parsed.ChaveAcesso) || (parsed.StatusCode == 201 && !string.IsNullOrWhiteSpace(parsed.ChaveAcesso)))
                 {
                     await _bilhetagemService.ConfirmarEmissaoAutorizadaAsync(reservaBilhetagem, parsed.ChaveAcesso, usuarioReferencia, cancellationToken);
                 }

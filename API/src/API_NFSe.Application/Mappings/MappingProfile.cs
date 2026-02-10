@@ -1,3 +1,4 @@
+using API_NFSe.Application.DTOs.Bilhetagem;
 using API_NFSe.Application.DTOs.Dps;
 using API_NFSe.Application.DTOs.Prestadores;
 using API_NFSe.Application.DTOs.Usuarios;
@@ -27,6 +28,8 @@ namespace API_NFSe.Application.Mappings
             CreateMap<DpsTributos, TributosDto>();
             CreateMap<DpsValores, ValoresDto>();
             CreateMap<Dps, DpsDto>();
+
+            CreateMap<BilhetagemLancamento, BilhetagemLancamentoDto>();
         }
     }
 }

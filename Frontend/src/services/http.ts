@@ -89,7 +89,26 @@ export async function apiFetch<T = unknown>(
     }
   }
 
+  const logRequest = () => {
+    const sanitizedHeaders: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      if (key.toLowerCase() === "authorization") {
+        sanitizedHeaders[key] = value ? "***" : "";
+      } else {
+        sanitizedHeaders[key] = value;
+      }
+    });
+
+    console.info("[HTTP] Enviando requisição", {
+      url,
+      method: init.method ?? "GET",
+      hasAuthorization: headers.has("Authorization"),
+      headers: sanitizedHeaders,
+    });
+  };
+
   try {
+    logRequest();
     const response = await fetch(url, {
       ...init,
       headers,
@@ -112,10 +131,48 @@ export async function apiFetch<T = unknown>(
         errorPayload = await response.text();
       }
 
+      console.error("[HTTP] Resposta não OK", {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        payload: errorPayload,
+      });
+
       throw new ApiError(response, errorPayload);
     }
 
     return (await parseResponse(response, parse)) as T;
+  } catch (error) {
+    const isNetworkError =
+      error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "AbortError");
+
+    if (isNetworkError) {
+      const networkResponse = new Response(null, {
+        status: 503,
+        statusText: "Service Unavailable",
+      });
+
+      console.error("[HTTP] Falha de rede ao consultar API", {
+        url,
+        method: init.method ?? "GET",
+        hasAuthorization: headers.has("Authorization"),
+        motivo: error instanceof Error ? error.message : error,
+      });
+
+      throw new ApiError(networkResponse, {
+        mensagem: "Não foi possível conectar ao servidor. Verifique sua conexão ou se a API está disponível.",
+      });
+    }
+
+    console.error("[HTTP] Erro inesperado ao consultar API", {
+      url,
+      method: init.method ?? "GET",
+      hasAuthorization: headers.has("Authorization"),
+      erro: error,
+    });
+
+    throw error;
   } finally {
     loadingHandlers?.onEnd();
   }

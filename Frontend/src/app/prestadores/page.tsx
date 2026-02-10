@@ -185,6 +185,10 @@ function formatInteger(value?: number | null) {
   return integerFormatter.format(value);
 }
 
+function isApiError(error: unknown): error is ApiError<{ mensagem?: string }> {
+  return error instanceof ApiError;
+}
+
 function isCertificadoVigente(validadeInicio?: string | null, validadeFim?: string | null) {
   if (!validadeInicio || !validadeFim) {
     return false;
@@ -301,6 +305,20 @@ export default function PrestadoresPage() {
     name: "competenciaSaldo",
   });
 
+  useEffect(() => {
+    const derivedBilhetagemHabilitada =
+      typeof creditoMensalPadraoWatch === "number" &&
+      !Number.isNaN(creditoMensalPadraoWatch) &&
+      creditoMensalPadraoWatch > 0;
+
+    if ((bilhetagemHabilitadaWatch ?? false) !== derivedBilhetagemHabilitada) {
+      configForm.setValue("bilhetagemHabilitada", derivedBilhetagemHabilitada, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+  }, [bilhetagemHabilitadaWatch, creditoMensalPadraoWatch, configForm]);
+
   const resumoBilhetagemHabilitada =
     bilhetagemHabilitadaWatch ?? bilhetagemSaldo?.bilhetagemHabilitada ?? false;
   const resumoCreditoMensal =
@@ -415,12 +433,19 @@ export default function PrestadoresPage() {
 
   const loadBilhetagem = useCallback(
     async (prestadorId: string) => {
+      console.info("[Bilhetagem] Iniciando carregamento", { prestadorId });
       setIsBilhetagemLoading(true);
       try {
         const [saldo, lancamentos] = await Promise.all([
           obterBilhetagemSaldo(prestadorId),
           listarLancamentosBilhetagem(prestadorId, 10),
         ]);
+
+        console.info("[Bilhetagem] Dados carregados com sucesso", {
+          prestadorId,
+          saldo,
+          quantidadeLancamentos: lancamentos.length,
+        });
 
         setBilhetagemSaldo(saldo);
         setBilhetagemLancamentos(lancamentos);
@@ -443,8 +468,14 @@ export default function PrestadoresPage() {
             shouldValidate: false,
           });
         }
-      } catch (error) {
-        console.error(error);
+      } catch (error: unknown) {
+        const detalhesErro = isApiError(error)
+          ? { status: error.status, payload: error.payload }
+          : { tipo: error instanceof Error ? error.name : typeof error };
+        console.error("[Bilhetagem] Falha ao carregar dados", {
+          prestadorId,
+          erro: detalhesErro,
+        });
         toast.error("Não foi possível carregar os dados de bilhetagem do prestador.");
       } finally {
         setIsBilhetagemLoading(false);
@@ -1141,8 +1172,18 @@ export default function PrestadoresPage() {
         saldoNotasDisponiveis: data.saldoNotasDisponiveis ?? null,
         competenciaSaldo: formatDateLocalInput(data.competenciaSaldo),
       });
-    } catch (error) {
-      console.error(error);
+    } catch (error: unknown) {
+      console.error("[Configuração] Falha ao carregar configuração do prestador", {
+        prestadorId: prestador.id,
+        erro: isApiError(error)
+          ? { status: error.status, payload: error.payload }
+          : { tipo: error instanceof Error ? error.name : typeof error },
+      });
+      const mensagem = isApiError(error)
+        ? error.payload?.mensagem ?? error.message
+        : "Não foi possível carregar a configuração do prestador.";
+      toast.error(mensagem);
+
       configForm.reset({
         versaoAplicacao: "",
         enviaEmailAutomatico: true,
@@ -1214,6 +1255,17 @@ export default function PrestadoresPage() {
       competenciaSaldoIso = date.toISOString();
     }
 
+    const creditoMensalPadraoSanitized =
+      values.creditoMensalPadrao === null || Number.isNaN(values.creditoMensalPadrao)
+        ? null
+        : values.creditoMensalPadrao;
+    const saldoNotasDisponiveisSanitized =
+      values.saldoNotasDisponiveis === null || Number.isNaN(values.saldoNotasDisponiveis)
+        ? null
+        : values.saldoNotasDisponiveis;
+    const bilhetagemHabilitada =
+      typeof creditoMensalPadraoSanitized === "number" && creditoMensalPadraoSanitized > 0;
+
     const payload: UpsertPrestadorConfiguracaoDto = {
       versaoAplicacao: values.versaoAplicacao,
       enviaEmailAutomatico: values.enviaEmailAutomatico,
@@ -1224,15 +1276,9 @@ export default function PrestadoresPage() {
       smtpPassword: values.smtpPassword || undefined,
       smtpFrom: values.smtpFrom,
       smtpFromName: values.smtpFromName,
-      bilhetagemHabilitada: values.bilhetagemHabilitada,
-      creditoMensalPadrao:
-        values.creditoMensalPadrao === null || Number.isNaN(values.creditoMensalPadrao)
-          ? null
-          : values.creditoMensalPadrao,
-      saldoNotasDisponiveis:
-        values.saldoNotasDisponiveis === null || Number.isNaN(values.saldoNotasDisponiveis)
-          ? null
-          : values.saldoNotasDisponiveis,
+      bilhetagemHabilitada,
+      creditoMensalPadrao: creditoMensalPadraoSanitized,
+      saldoNotasDisponiveis: saldoNotasDisponiveisSanitized,
       competenciaSaldo: competenciaSaldoIso,
     };
 
@@ -1900,29 +1946,6 @@ export default function PrestadoresPage() {
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <label
-                          className="text-sm font-medium text-slate-600"
-                          htmlFor="bilhetagemHabilitada"
-                        >
-                          Bilhetagem habilitada
-                        </label>
-                        <Controller
-                          control={configForm.control}
-                          name="bilhetagemHabilitada"
-                          render={({ field }) => (
-                            <Select
-                              id="bilhetagemHabilitada"
-                              value={field.value ? "true" : "false"}
-                              onChange={(event) => field.onChange(event.target.value === "true")}
-                            >
-                              <option value="true">Sim</option>
-                              <option value="false">Não</option>
-                            </Select>
-                          )}
-                        />
-                      </div>
-
                       <div className="space-y-1">
                         <label
                           className="text-sm font-medium text-slate-600"
