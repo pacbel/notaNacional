@@ -136,12 +136,13 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             var reservaBilhetagem = await _bilhetagemService.ReservarCreditoParaEmissaoAsync(prestadorId, prestador.AtualizadoPorUsuarioId ?? prestador.CriadoPorUsuarioId, cancellationToken);
 
             var certificado = await ObterCertificadoPrestadorAsync(prestadorId, prestadorCnpj, request.CertificateId, cancellationToken);
+            var xmlAssinado = request.XmlAssinado!;
 
-            _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.XmlAssinado), "application/xml", "request");
+            _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(xmlAssinado), "application/xml", "request");
 
             try
             {
-                var response = await _sefinHttpClient.EmitirAsync(request.XmlAssinado, request.Ambiente, certificado, cancellationToken);
+                var response = await _sefinHttpClient.EmitirAsync(xmlAssinado, request.Ambiente, certificado, cancellationToken);
 
                 var responseId = _storageService.SaveContent(response.Content, response.ContentType, "response");
                 RegistrarLogEstruturado(
@@ -211,7 +212,8 @@ namespace API_NFSe.Infra.Data.Services.Nfse
                 throw new ArgumentException("Chave de acesso é obrigatória.", nameof(request.ChaveAcesso));
             }
 
-            _ = Convert.FromBase64String(request.EventoXmlGZipBase64); // lança exceção caso inválido
+            var eventoBase64 = request.EventoXmlGZipBase64!;
+            _ = Convert.FromBase64String(eventoBase64); // lança exceção caso inválido
 
             var prestador = await ObterPrestadorAtivoAsync(prestadorId);
             var certificado = await ObterCertificadoPrestadorAsync(prestadorId, SomenteDigitos(prestador.Cnpj), request.CertificateId, cancellationToken);
@@ -229,11 +231,11 @@ namespace API_NFSe.Infra.Data.Services.Nfse
             _logger.LogDebug(
                 "Payload cancelamento enviado à Sefin. Url: {Url}. PayloadBase64: {PayloadBase64}",
                 urlCancelar,
-                request.EventoXmlGZipBase64);
+                eventoBase64);
 
-            _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(request.EventoXmlGZipBase64), "application/json", "request");
+            _ = _storageService.SaveContent(Encoding.UTF8.GetBytes(eventoBase64), "application/json", "request");
 
-            var response = await _sefinHttpClient.CancelarAsync(request.ChaveAcesso, request.EventoXmlGZipBase64, request.Ambiente, certificado, cancellationToken);
+            var response = await _sefinHttpClient.CancelarAsync(request.ChaveAcesso, eventoBase64, request.Ambiente, certificado, cancellationToken);
 
             _logger.LogInformation(
                 "Resposta recebida do cancelamento de NFSe. Url: {Url}. StatusCode: {StatusCode}. ContentType: {ContentType}",

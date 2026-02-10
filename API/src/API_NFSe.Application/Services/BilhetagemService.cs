@@ -92,10 +92,13 @@ namespace API_NFSe.Application.Services
                 return null;
             }
 
+            var saldoAnterior = prestador.Configuracao.SaldoNotasDisponiveis;
+
             try
             {
                 prestador.Configuracao.ReservarCredito();
-                return new BilhetagemReservaToken(prestadorId, usuarioId, prestador.Configuracao.SaldoNotasDisponiveis + 1);
+                await _prestadorRepository.SaveChangesAsync();
+                return new BilhetagemReservaToken(prestadorId, usuarioId, saldoAnterior);
             }
             catch (InvalidOperationException ex)
             {
@@ -104,7 +107,7 @@ namespace API_NFSe.Application.Services
             }
         }
 
-        public async Task ConfirmarEmissaoAutorizadaAsync(BilhetagemReservaToken reserva, string? chaveAcesso, string? usuarioReferencia, CancellationToken cancellationToken = default)
+        public async Task ConfirmarEmissaoAutorizadaAsync(BilhetagemReservaToken? reserva, string? chaveAcesso, string? usuarioReferencia, CancellationToken cancellationToken = default)
         {
             if (reserva == null)
             {

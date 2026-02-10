@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useMemo, useId } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, LayoutDashboard, FileText, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
@@ -26,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { canAccessUsuarios, canAccessConfiguracoes } from "@/lib/permissions";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
+import { getSaldoBilhetagem } from "@/services/bilhetagem";
 
 interface AppShellProps {
   user: {
@@ -33,6 +35,7 @@ interface AppShellProps {
     nome: string;
     email: string;
     role: string;
+    prestadorId: string;
   };
   children: ReactNode;
 }
@@ -53,6 +56,26 @@ export default function AppShell({ user, children }: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const sheetContentId = useId();
+
+  const saldoQuery = useQuery({
+    queryKey: ["bilhetagem", "saldo", user.prestadorId],
+    queryFn: () => getSaldoBilhetagem(user.prestadorId),
+    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(user.prestadorId),
+  });
+
+  const saldoNotasLabel = useMemo(() => {
+    if (saldoQuery.isLoading) {
+      return "Carregando...";
+    }
+
+    if (saldoQuery.isError) {
+      return "Indisponível";
+    }
+
+    const saldo = saldoQuery.data?.saldoNotasDisponiveis ?? 0;
+    return new Intl.NumberFormat("pt-BR").format(saldo);
+  }, [saldoQuery.isError, saldoQuery.isLoading, saldoQuery.data?.saldoNotasDisponiveis]);
 
   // Filtrar navegação baseado nas permissões do usuário
   const filteredNavigation = useMemo(() => {
@@ -230,31 +253,38 @@ export default function AppShell({ user, children }: AppShellProps) {
               </p>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                  <span className="hidden text-sm text-left lg:flex lg:flex-col">
-                    <span className="font-medium">{user.nome}</span>
-                    <span className="text-xs text-muted-foreground">{user.email}</span>
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    handleLogout();
-                  }}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-4">
+              <div className="hidden text-sm text-muted-foreground sm:flex">
+                <span className="font-medium text-foreground">Saldo Notas:&nbsp;</span>
+                <span>{saldoNotasLabel}</span>
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                    <span className="hidden text-sm text-left lg:flex lg:flex-col">
+                      <span className="font-medium">{user.nome}</span>
+                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      handleLogout();
+                    }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
 
           <main className="flex-1 p-6">{children}</main>

@@ -15,11 +15,6 @@ public class PrestadorCertificadoRepository : RepositoryBase<PrestadorCertificad
     {
     }
 
-    public new async Task<PrestadorCertificado?> ObterPorIdAsync(Guid id)
-    {
-        return await _dbSet.FirstOrDefaultAsync(c => c.Id == id && c.Ativo);
-    }
-
     public async Task<PrestadorCertificado?> ObterPorThumbprintAsync(string thumbprint)
     {
         if (string.IsNullOrWhiteSpace(thumbprint))

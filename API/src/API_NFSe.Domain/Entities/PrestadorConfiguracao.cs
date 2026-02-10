@@ -262,10 +262,11 @@ namespace API_NFSe.Domain.Entities
             }
             else
             {
-                CreditoMensalPadrao = creditoMensalPadrao;
+                var creditoPadrao = creditoMensalPadrao!.Value;
+                CreditoMensalPadrao = creditoPadrao;
                 if (!saldoNotasDisponiveis.HasValue)
                 {
-                    saldoNotasDisponiveis = CreditoMensalPadrao.Value;
+                    saldoNotasDisponiveis = creditoPadrao;
                 }
                 if (saldoNotasDisponiveis.HasValue)
                 {
@@ -274,13 +275,12 @@ namespace API_NFSe.Domain.Entities
 
                 if (!preservarCompetencia)
                 {
-                    CompetenciaSaldo = competenciaSaldo?.Kind switch
+                    CompetenciaSaldo = competenciaSaldo switch
                     {
-                        DateTimeKind.Utc => competenciaSaldo,
-                        DateTimeKind.Local => competenciaSaldo?.ToUniversalTime(),
-                        _ => competenciaSaldo.HasValue
-                            ? DateTime.SpecifyKind(competenciaSaldo.Value, DateTimeKind.Utc)
-                            : competenciaSaldo
+                        null => null,
+                        { Kind: DateTimeKind.Utc } valorUtc => valorUtc,
+                        { Kind: DateTimeKind.Local } valorLocal => valorLocal.ToUniversalTime(),
+                        var valor => DateTime.SpecifyKind(valor.Value, DateTimeKind.Utc)
                     };
                 }
             }
