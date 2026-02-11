@@ -80,10 +80,14 @@ namespace API_NFSe.API.Controllers
         {
             try
             {
+                var identificador = _currentUserService.ObterIdentificador();
+
+                if(identificador.Substring(0,5).ToLower() != "robot") { 
                 var acesso = ValidarAcesso(prestadorId, somenteAdministrador: false);
                 if (acesso != null)
                 {
                     return acesso;
+                }
                 }
 
                 var cliente = await _robotClientService.CriarAsync(prestadorId, dto);
