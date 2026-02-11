@@ -1929,23 +1929,11 @@ export default function PrestadoresPage() {
                           <Badge className={resumoBilhetagemHabilitada ? "bg-emerald-500" : "bg-slate-500"}>
                             {resumoBilhetagemHabilitada ? "Bilhetagem habilitada" : "Bilhetagem desabilitada"}
                           </Badge>
-                          <span>
-                            Saldo atual:&nbsp;
-                            <strong>{formatInteger(resumoSaldoDisponivel)}</strong>
-                          </span>
-                          <span>
-                            Crédito mensal padrão:&nbsp;
-                            <strong>{formatInteger(resumoCreditoMensal)}</strong>
-                          </span>
-                          <span>
-                            Competência:&nbsp;
-                            <strong>{resumoCompetencia}</strong>
-                          </span>
                         </>
                       )}
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <div className="space-y-1">
                         <label
                           className="text-sm font-medium text-slate-600"
@@ -2029,7 +2017,7 @@ export default function PrestadoresPage() {
                         />
                       </div>
                     </div>
-
+{/* 
                     {bilhetagemLancamentos.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium text-slate-600">Últimos lançamentos</h4>
@@ -2047,7 +2035,7 @@ export default function PrestadoresPage() {
                           ))}
                         </ul>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </Card>
 

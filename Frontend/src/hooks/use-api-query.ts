@@ -7,12 +7,17 @@ type UseApiQueryOptions<TQueryFnData, TError, TData> = UseQueryOptions<
   TData
 > & {
   onError?: (error: TError) => void;
+  suppressUnauthorizedToast?: boolean;
 };
 
 export function useApiQuery<TQueryFnData, TError = unknown, TData = TQueryFnData>(
   options: UseApiQueryOptions<TQueryFnData, TError, TData>
 ): UseQueryResult<TData, TError> {
-  const { onError, ...rest } = options;
+  const {
+    onError,
+    suppressUnauthorizedToast = true,
+    ...rest
+  } = options;
 
   return useQuery({
     ...rest,
@@ -20,7 +25,9 @@ export function useApiQuery<TQueryFnData, TError = unknown, TData = TQueryFnData
       if (onError) {
         onError(error);
       }
-      handleApiError(error);
+      handleApiError(error, undefined, {
+        suppressUnauthorizedToast,
+      });
     },
   } as UseQueryOptions<TQueryFnData, TError, TData>);
 }

@@ -1,9 +1,21 @@
 import { toast } from "sonner";
 import { ApiError } from "@/services/http";
 
-export function handleApiError(error: unknown, fallbackMessage = "Ocorreu um erro inesperado.") {
+interface HandleApiErrorOptions {
+  suppressUnauthorizedToast?: boolean;
+}
+
+export function handleApiError(
+  error: unknown,
+  fallbackMessage = "Ocorreu um erro inesperado.",
+  options?: HandleApiErrorOptions
+) {
   if (error instanceof ApiError) {
     if (error.status === 401) {
+      if (options?.suppressUnauthorizedToast) {
+        return;
+      }
+
       const message =
         typeof error.payload === "string"
           ? error.payload
