@@ -120,6 +120,7 @@ public static class Program
             options.AddRobotScopePolicy("Scopes.Nfse.Cancelar", "nfse.cancelar");
             options.AddRobotScopePolicy("Scopes.Nfse.Danfse", "nfse.danfse");
             options.AddRobotScopePolicy("Scopes.Nfse.Email", "nfse.email");
+            options.AddRobotScopePolicy("Scopes.Nfse.Robot", "nfse.robot");
         });
 
         builder.Services.AddControllers()
