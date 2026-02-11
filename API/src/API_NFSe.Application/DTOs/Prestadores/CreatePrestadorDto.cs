@@ -17,7 +17,6 @@ namespace API_NFSe.Application.DTOs.Prestadores
         [StringLength(150)]
         public string NomeFantasia { get; set; } = string.Empty;
 
-        [Required]
         [StringLength(20)]
         public string InscricaoMunicipal { get; set; } = string.Empty;
 
