@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/header";
 import { useAuth } from "@/contexts/auth-context";
 import clsx from "clsx";
 
-const PUBLIC_ROUTES = new Set(["/login", "/forgot-password", "/reset-password"]);
+const PUBLIC_ROUTES = new Set(["/login", "/forgot-password", "/reset-password", "/onboarding"]);
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

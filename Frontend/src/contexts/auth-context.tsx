@@ -43,7 +43,12 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const ROUTES_WITHOUT_GUARD = ["/login", "/forgot-password", "/reset-password"];
+const ROUTES_WITHOUT_GUARD = [
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/onboarding",
+];
 
 const hasAdministratorRole = (roles: RoleName[] | undefined) =>
   Array.isArray(roles) && roles.includes("Administrador");

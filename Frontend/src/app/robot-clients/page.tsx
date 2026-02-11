@@ -108,6 +108,11 @@ const scopeOptions = [
     label: "NFSe - DANFSe",
     description: "Permite baixar o DANFSe de notas emitidas.",
   },
+  {
+    value: "nfse.robot",
+    label: "NFSe - Manutenção de Robôs",
+    description: "Permite operar o cadastro de robô.",
+  },  
 ];
 
 const ALL_PRESTADORES_OPTION = "__all__";

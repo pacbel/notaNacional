@@ -8,7 +8,7 @@ namespace API_NFSe.Application.DTOs.Prestadores
         public string Cnpj { get; set; } = string.Empty;
         public string RazaoSocial { get; set; } = string.Empty;
         public string NomeFantasia { get; set; } = string.Empty;
-        public string InscricaoMunicipal { get; set; } = string.Empty;
+        public string? InscricaoMunicipal { get; set; } = string.Empty;
         public string? InscricaoEstadual { get; set; }
         public string? Telefone { get; set; }
         public string? Email { get; set; }
