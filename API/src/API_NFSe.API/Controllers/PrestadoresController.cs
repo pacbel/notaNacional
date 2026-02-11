@@ -226,7 +226,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = RoleNames.Administrador)]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Robot)]
         public async Task<IActionResult> Create([FromBody] CreatePrestadorDto dto)
         {
             try
