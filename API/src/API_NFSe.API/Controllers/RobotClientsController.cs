@@ -75,6 +75,7 @@ namespace API_NFSe.API.Controllers
 
         [HttpPost]
         [Authorize(Roles = RoleNames.Administrador)]
+        [Authorize(Policy = "Scopes.Nfse.Robot")]
         public async Task<IActionResult> Create(Guid prestadorId, [FromBody] CreateRobotClientDto dto)
         {
             try
