@@ -55,10 +55,6 @@ namespace API_NFSe.Domain.Entities
                 throw new ArgumentException("O nome fantasia é obrigatório", nameof(nomeFantasia));
             }
 
-            if (string.IsNullOrWhiteSpace(inscricaoMunicipal))
-            {
-                throw new ArgumentException("A inscrição municipal é obrigatória", nameof(inscricaoMunicipal));
-            }
 
             Cnpj = cnpj.Trim();
             RazaoSocial = razaoSocial.Trim();

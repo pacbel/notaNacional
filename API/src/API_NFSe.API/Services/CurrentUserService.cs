@@ -43,6 +43,7 @@ namespace API_NFSe.API.Services
 
             if (!Guid.TryParse(identificador, out var usuarioId))
             {
+                if (identificador.Substring(0,5).ToLower() != "robot")
                 throw new InvalidOperationException("Não foi possível determinar o usuário autenticado.");
             }
 
