@@ -10,7 +10,7 @@ namespace API_NFSe.API.Controllers
 {
     [ApiController]
     [Route("api/prestadores/{prestadorId:guid}/robot-clients")]
-    [Authorize(Roles = RoleNames.Administrador)]
+    [Authorize(Roles = $"{RoleNames.Robot},{RoleNames.Administrador}")]
     public class RobotClientsController : ControllerBase
     {
         private readonly IRobotClientService _robotClientService;
