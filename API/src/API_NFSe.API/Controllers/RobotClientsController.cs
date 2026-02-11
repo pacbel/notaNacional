@@ -80,7 +80,7 @@ namespace API_NFSe.API.Controllers
         {
             try
             {
-                var acesso = ValidarAcesso(prestadorId, somenteAdministrador: true);
+                var acesso = ValidarAcesso(prestadorId, somenteAdministrador: false);
                 if (acesso != null)
                 {
                     return acesso;
