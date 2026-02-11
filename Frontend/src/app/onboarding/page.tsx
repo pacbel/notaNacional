@@ -297,10 +297,6 @@ function ResumoStep() {
     setStep: state.setStep,
   }));
 
-  const voltarParaGestor = () => {
-    setStep("gestor");
-  };
-
   if (!prestador || !gestor) {
     return (
       <Card className="border-dashed">
@@ -321,18 +317,12 @@ function ResumoStep() {
     <Card>
       <CardHeader>
         <CardTitle>Onboarding concluído</CardTitle>
-        <CardDescription>
-          Prestador, usuário gestor e robô integrador foram provisionados com sucesso. Revise os dados abaixo.
-        </CardDescription>
       </CardHeader>
       <div className="space-y-6 px-6 pb-6">
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-6 text-center text-emerald-700">
           <div className="mx-auto flex max-w-md flex-col items-center gap-3">
             <CheckCircle2 className="h-10 w-10" />
             <h3 className="text-lg font-semibold">Tudo certo! Fluxo automatizado finalizado.</h3>
-            <p className="text-sm text-emerald-700/80">
-              As credenciais do robô foram geradas automaticamente e o usuário gestor já está habilitado com MFA.
-            </p>
             {robot && robot.scopes.length > 0 && (
               <p className="text-sm text-emerald-700/70">
                 Escopos atribuídos ao robô: <span className="font-medium">{robot.scopes.join(", ")}</span>.
@@ -345,11 +335,7 @@ function ResumoStep() {
           <header className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-slate-800">Prestador</h3>
-              <p className="text-sm text-slate-500">Dados cadastrais enviados na primeira etapa.</p>
             </div>
-            <Button variant="ghost" type="button" onClick={() => setStep("prestador")}>
-              Editar
-            </Button>
           </header>
           <dl className="grid gap-3 md:grid-cols-2">
             <ResumoItem rotulo="CNPJ" valor={prestador.cnpj} />
@@ -373,30 +359,21 @@ function ResumoStep() {
           <header className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-slate-800">Usuário gestor</h3>
-              <p className="text-sm text-slate-500">Resumo das credenciais validadas via MFA.</p>
             </div>
-            <Button variant="ghost" type="button" onClick={voltarParaGestor}>
-              Editar
-            </Button>
           </header>
           <dl className="grid gap-3 md:grid-cols-2">
             <ResumoItem rotulo="Nome" valor={gestor.nome} />
             <ResumoItem rotulo="E-mail" valor={gestor.email} />
-            <ResumoItem rotulo="Código MFA" valor={gestor.codigoMfa} />
           </dl>
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-700">Próximos passos</p>
             <p className="text-sm text-slate-500">
               Compartilhe as credenciais com o gestor e acompanhe a ativação do robô na central administrativa.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => setStep("gestor")}>
-              Revisar gestor
-            </Button>
             <Button type="button" onClick={reset}>
               Iniciar novo onboarding
             </Button>
@@ -463,7 +440,7 @@ const DEFAULT_GESTOR_CODIGO_VALUES: GestorCodigoFormValues = {
   codigo: "",
 };
 
-const ROBO_SCOPES = [
+const DEFAULT_ROBO_SCOPES = [
   "nfse.cancelar",
   "nfse.certificados",
   "nfse.danfse",
@@ -471,6 +448,16 @@ const ROBO_SCOPES = [
   "nfse.email",
   "nfse.robot",
 ] as const;
+
+const rawRobotScopes =
+  process.env.NEXT_PUBLIC_ONBOARDING_ROBOT_SCOPE ?? process.env.NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE;
+
+const ROBO_SCOPES: string[] = rawRobotScopes
+  ? rawRobotScopes
+      .split(/[\s,]+/)
+      .map((scope) => scope.trim())
+      .filter(Boolean)
+  : [...DEFAULT_ROBO_SCOPES];
 
 export default function OnboardingPage() {
   const step = useOnboardingStore((state) => state.step);
