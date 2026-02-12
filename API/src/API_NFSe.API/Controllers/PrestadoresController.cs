@@ -321,7 +321,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpPut("{prestadorId:guid}/configuracao")]
-        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao)]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Robot)]
         public async Task<IActionResult> DefinirConfiguracao(Guid prestadorId, [FromBody] UpsertPrestadorConfiguracaoDto dto)
         {
             try
