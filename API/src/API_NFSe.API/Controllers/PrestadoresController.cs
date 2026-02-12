@@ -368,7 +368,7 @@ namespace API_NFSe.API.Controllers
             }
 
             var prestadorUsuario = _currentUserService.ObterPrestadorId();
-            if (!prestadorUsuario.HasValue || prestadorUsuario.Value != prestadorId)
+            if ((!prestadorUsuario.HasValue || prestadorUsuario.Value != prestadorId) && !UsuarioEhRobo)
             {
                 return Forbid();
             }
