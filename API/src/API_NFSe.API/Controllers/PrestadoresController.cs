@@ -373,7 +373,7 @@ namespace API_NFSe.API.Controllers
                 return Forbid();
             }
 
-            if (requerPermissaoEdicao && !UsuarioEhGestao)
+            if (requerPermissaoEdicao && !UsuarioEhGestao && !UsuarioEhRobo)
             {
                 return Forbid();
             }
