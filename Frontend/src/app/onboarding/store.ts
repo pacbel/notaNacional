@@ -9,6 +9,7 @@ export interface GestorFormValues {
   senha: string;
   codigoMfa: string;
   mfaToken?: string;
+  usuarioId?: string;
 }
 
 export interface RobotInfoState {

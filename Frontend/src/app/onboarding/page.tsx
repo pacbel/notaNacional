@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -20,13 +20,19 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 import { onlyDigits, formatInscricaoEstadual, formatInscricaoMunicipal, formatTelefone } from "@/utils/masks";
 import { listarUfs, listarMunicipiosPorUf, IbgeUf, IbgeMunicipio } from "@/services/ibge";
-import { criarPrestadorOnboarding, criarRobotClientOnboarding } from "@/services/onboarding-prestador";
+import {
+  criarPrestadorOnboarding,
+  criarRobotClientOnboarding,
+  criarUsuarioGestorOnboarding,
+} from "@/services/onboarding-prestador";
 import type { CreatePrestadorDto } from "@/types/prestadores";
 import type { CreateRobotClientDto } from "@/types/robot-clients";
+import type { CreateUsuarioDto } from "@/types/usuarios";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { sendGestorMfa, confirmGestorMfa } from "@/services/onboarding";
 import { useAuth } from "@/contexts/auth-context";
 import { handleApiError } from "@/utils/toast";
+import { useRouter } from "next/navigation";
 
 interface ViaCepResponse {
   cep?: string;
@@ -41,11 +47,12 @@ interface ViaCepResponse {
 
 function GestorStep() {
   const { isLoading: isAuthLoading } = useAuth();
-  const { gestor, saveGestor, setStep, prestador } = useOnboardingStore((state) => ({
+  const { gestor, saveGestor, setStep, prestador, prestadorId } = useOnboardingStore((state) => ({
     gestor: state.gestor,
     saveGestor: state.saveGestor,
     setStep: state.setStep,
     prestador: state.prestador,
+    prestadorId: state.prestadorId,
   }));
 
   useEffect(() => {
@@ -110,6 +117,29 @@ function GestorStep() {
     },
   });
 
+  const criarUsuarioGestorMutation = useApiMutation(
+    ({ prestadorId: prestadorIdParam, nome, email, senha }: {
+      prestadorId: string;
+      nome: string;
+      email: string;
+      senha: string;
+    }) =>
+      criarUsuarioGestorOnboarding(
+        {
+          nome,
+          email,
+          senha,
+          prestadorId: prestadorIdParam,
+          role: "Gestao",
+        } satisfies CreateUsuarioDto
+      ),
+    {
+      onError: (error) => {
+        handleApiError(error, "Não foi possível criar o usuário gestor automaticamente.");
+      },
+    }
+  );
+
   const confirmarMfaMutation = useApiMutation(confirmGestorMfa, {
     onSuccess: (response, variables) => {
       if (!response.sucesso) {
@@ -118,15 +148,43 @@ function GestorStep() {
       }
 
       const credenciais = credenciaisForm.getValues();
-      saveGestor({
-        nome: credenciais.nome,
-        email: credenciais.email,
-        senha: credenciais.senha,
-        codigoMfa: variables.codigo,
-        mfaToken: response.token ?? mfaToken,
-      });
-      toast.success("Código validado com sucesso.");
-      setStep("resumo");
+      const resolvedToken = response.token ?? mfaToken;
+
+      if (!prestadorId) {
+        toast.error("Prestador não identificado. Retorne à etapa anterior e salve os dados novamente.");
+        return;
+      }
+
+      criarUsuarioGestorMutation
+        .mutateAsync({
+          prestadorId,
+          nome: credenciais.nome,
+          email: credenciais.email,
+          senha: credenciais.senha,
+        })
+        .then((usuario) => {
+          saveGestor({
+            nome: credenciais.nome,
+            email: credenciais.email,
+            senha: "",
+            codigoMfa: variables.codigo,
+            mfaToken: resolvedToken,
+            usuarioId: usuario.id,
+          });
+          toast.success("Código validado com sucesso.");
+          toast.success("Usuário gestor criado automaticamente.");
+          setStep("resumo");
+        })
+        .catch((error) => {
+          console.error("[Onboarding] Falha ao criar usuário gestor", error);
+          saveGestor({
+            nome: credenciais.nome,
+            email: credenciais.email,
+            senha: credenciais.senha,
+            codigoMfa: variables.codigo,
+            mfaToken: resolvedToken,
+          });
+        });
     },
     onError: (error) => {
       handleApiError(error, "Não foi possível validar o código MFA.");
@@ -134,7 +192,8 @@ function GestorStep() {
   });
 
   const estaEnviandoMfa = enviarMfaMutation.isPending || isAuthLoading;
-  const estaConfirmandoMfa = confirmarMfaMutation.isPending || isAuthLoading;
+  const estaConfirmandoMfa =
+    confirmarMfaMutation.isPending || criarUsuarioGestorMutation.isPending || isAuthLoading;
 
   const handleEnviarCodigo = credenciaisForm.handleSubmit((values) => {
     enviarMfaMutation.mutate({
@@ -289,13 +348,46 @@ function GestorStep() {
 }
 
 function ResumoStep() {
-  const { prestador, gestor, robot, reset, setStep } = useOnboardingStore((state) => ({
+  const router = useRouter();
+  const { prestador, gestor, robot, setStep } = useOnboardingStore((state) => ({
     prestador: state.prestador,
     gestor: state.gestor,
     robot: state.robot,
-    reset: state.reset,
     setStep: state.setStep,
   }));
+  const [secondsRemaining, setSecondsRemaining] = useState(30);
+  const [hasNavigated, setHasNavigated] = useState(false);
+  const redirectUrl = process.env.NEXT_PUBLIC_SYSTEM_URL;
+  const hasRedirectUrl = Boolean(redirectUrl);
+
+  const handleNavigate = useCallback(() => {
+    if (!redirectUrl || hasNavigated) {
+      return;
+    }
+
+    setHasNavigated(true);
+    router.push(redirectUrl);
+  }, [redirectUrl, hasNavigated, router]);
+
+  useEffect(() => {
+    if (!hasRedirectUrl || hasNavigated) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [hasRedirectUrl, hasNavigated]);
+
+  useEffect(() => {
+    if (!hasRedirectUrl || hasNavigated || secondsRemaining > 0) {
+      return;
+    }
+
+    handleNavigate();
+  }, [secondsRemaining, hasRedirectUrl, hasNavigated, handleNavigate]);
 
   if (!prestador || !gestor) {
     return (
@@ -367,18 +459,16 @@ function ResumoStep() {
           </dl>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
-          <div className="space-y-1">
-            <p className="text-sm text-slate-500">
-              Compartilhe as credenciais com o gestor e acompanhe a ativação do robô na central administrativa.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" onClick={reset}>
-              Iniciar novo onboarding
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
+          <p className="text-sm text-slate-500">
+            Compartilhe as credenciais com o gestor e acompanhe a ativação do robô na central administrativa.
+          </p>
+          {hasRedirectUrl && (
+            <Button type="button" onClick={handleNavigate} disabled={hasNavigated}>
+              {hasNavigated ? "Redirecionando..." : `Acessar sistema (${secondsRemaining}s)`}
             </Button>
-          </div>
-        </footer>
+          )}
+        </div>
       </div>
     </Card>
   );

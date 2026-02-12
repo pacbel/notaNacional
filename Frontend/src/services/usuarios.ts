@@ -27,6 +27,15 @@ export async function criarUsuario(payload: CreateUsuarioDto) {
   });
 }
 
+export async function criarUsuarioComToken(payload: CreateUsuarioDto, authorizationToken: string) {
+  return apiFetch<UsuarioDto>(basePath, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    authorizationToken,
+    useSessionToken: false,
+  });
+}
+
 export async function atualizarUsuario(id: string, payload: UpdateUsuarioDto) {
   return apiFetch<UsuarioDto>(`${basePath}/${id}`, {
     method: "PUT",
