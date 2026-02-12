@@ -296,6 +296,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpGet("{prestadorId:guid}/configuracao")]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Robot)]
         public async Task<IActionResult> ObterConfiguracao(Guid prestadorId)
         {
             try
