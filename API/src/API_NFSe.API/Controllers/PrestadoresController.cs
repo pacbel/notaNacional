@@ -22,6 +22,8 @@ namespace API_NFSe.API.Controllers
         private bool UsuarioEhGestao => _currentUserService.PossuiRole(RoleNames.Gestao);
         private bool UsuarioEhOperacao => _currentUserService.PossuiRole(RoleNames.Operacao);
 
+        private bool UsuarioEhRobo => _currentUserService.PossuiRole(RoleNames.Robot);
+
         public PrestadoresController(IPrestadorService prestadorService, ICurrentUserService currentUserService)
         {
             _prestadorService = prestadorService;
@@ -360,7 +362,7 @@ namespace API_NFSe.API.Controllers
                 return Forbid();
             }
 
-            if (!UsuarioEhGestao && !UsuarioEhOperacao)
+            if (!UsuarioEhGestao && !UsuarioEhOperacao && !UsuarioEhRobo)
             {
                 return Forbid();
             }
