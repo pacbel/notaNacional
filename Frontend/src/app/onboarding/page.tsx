@@ -24,6 +24,7 @@ import {
   criarPrestadorOnboarding,
   criarRobotClientOnboarding,
   criarUsuarioGestorOnboarding,
+  copiarConfiguracaoPadraoParaPrestador,
 } from "@/services/onboarding-prestador";
 import type { CreatePrestadorDto } from "@/types/prestadores";
 import type { CreateRobotClientDto } from "@/types/robot-clients";
@@ -43,6 +44,34 @@ interface ViaCepResponse {
   uf?: string;
   ibge?: string;
   erro?: boolean;
+}
+
+function mapPrestadorFormToPayload(values: PrestadorFormValues): CreatePrestadorDto {
+  return {
+    ...values,
+    inscricaoMunicipal: values.inscricaoMunicipal || "",
+    inscricaoEstadual: values.inscricaoEstadual || null,
+    telefone: values.telefone || null,
+    email: values.email || null,
+    website: values.website || null,
+    endereco: {
+      ...values.endereco,
+      complemento: values.endereco.complemento || null,
+      cidade: values.endereco.cidade || null,
+      uf: values.endereco.uf || null,
+      cep: values.endereco.cep || null,
+    },
+  } satisfies CreatePrestadorDto;
+}
+
+function buildRobotClientPayload(values: PrestadorFormValues): CreateRobotClientDto {
+  return {
+    nome: `${values.nomeFantasia} - Robô integrador`,
+    scopes: [...ROBO_SCOPES],
+    ativo: true,
+    gerarClientIdAutomatico: true,
+    gerarSecretAutomatico: true,
+  } satisfies CreateRobotClientDto;
 }
 
 function GestorStep() {
@@ -117,29 +146,6 @@ function GestorStep() {
     },
   });
 
-  const criarUsuarioGestorMutation = useApiMutation(
-    ({ prestadorId: prestadorIdParam, nome, email, senha }: {
-      prestadorId: string;
-      nome: string;
-      email: string;
-      senha: string;
-    }) =>
-      criarUsuarioGestorOnboarding(
-        {
-          nome,
-          email,
-          senha,
-          prestadorId: prestadorIdParam,
-          role: "Gestao",
-        } satisfies CreateUsuarioDto
-      ),
-    {
-      onError: (error) => {
-        handleApiError(error, "Não foi possível criar o usuário gestor automaticamente.");
-      },
-    }
-  );
-
   const confirmarMfaMutation = useApiMutation(confirmGestorMfa, {
     onSuccess: (response, variables) => {
       if (!response.sucesso) {
@@ -150,41 +156,16 @@ function GestorStep() {
       const credenciais = credenciaisForm.getValues();
       const resolvedToken = response.token ?? mfaToken;
 
-      if (!prestadorId) {
-        toast.error("Prestador não identificado. Retorne à etapa anterior e salve os dados novamente.");
-        return;
-      }
+      saveGestor({
+        nome: credenciais.nome,
+        email: credenciais.email,
+        senha: credenciais.senha,
+        codigoMfa: variables.codigo,
+        mfaToken: resolvedToken,
+      });
 
-      criarUsuarioGestorMutation
-        .mutateAsync({
-          prestadorId,
-          nome: credenciais.nome,
-          email: credenciais.email,
-          senha: credenciais.senha,
-        })
-        .then((usuario) => {
-          saveGestor({
-            nome: credenciais.nome,
-            email: credenciais.email,
-            senha: "",
-            codigoMfa: variables.codigo,
-            mfaToken: resolvedToken,
-            usuarioId: usuario.id,
-          });
-          toast.success("Código validado com sucesso.");
-          toast.success("Usuário gestor criado automaticamente.");
-          setStep("resumo");
-        })
-        .catch((error) => {
-          console.error("[Onboarding] Falha ao criar usuário gestor", error);
-          saveGestor({
-            nome: credenciais.nome,
-            email: credenciais.email,
-            senha: credenciais.senha,
-            codigoMfa: variables.codigo,
-            mfaToken: resolvedToken,
-          });
-        });
+      toast.success("Código validado com sucesso. Revise os dados antes de confirmar o onboarding.");
+      setStep("resumo");
     },
     onError: (error) => {
       handleApiError(error, "Não foi possível validar o código MFA.");
@@ -192,8 +173,7 @@ function GestorStep() {
   });
 
   const estaEnviandoMfa = enviarMfaMutation.isPending || isAuthLoading;
-  const estaConfirmandoMfa =
-    confirmarMfaMutation.isPending || criarUsuarioGestorMutation.isPending || isAuthLoading;
+  const estaConfirmandoMfa = confirmarMfaMutation.isPending || isAuthLoading;
 
   const handleEnviarCodigo = credenciaisForm.handleSubmit((values) => {
     enviarMfaMutation.mutate({
@@ -349,28 +329,222 @@ function GestorStep() {
 
 function ResumoStep() {
   const router = useRouter();
-  const { prestador, gestor, robot, setStep } = useOnboardingStore((state) => ({
+  const {
+    prestador,
+    prestadorPayload,
+    robotPayload,
+    prestadorId,
+    gestor,
+    robot,
+    setStep,
+    savePrestador,
+    saveGestor,
+    setRobot,
+  } = useOnboardingStore((state) => ({
     prestador: state.prestador,
+    prestadorPayload: state.prestadorPayload,
+    robotPayload: state.robotPayload,
+    prestadorId: state.prestadorId,
     gestor: state.gestor,
     robot: state.robot,
     setStep: state.setStep,
+    savePrestador: state.savePrestador,
+    saveGestor: state.saveGestor,
+    setRobot: state.setRobot,
   }));
   const [secondsRemaining, setSecondsRemaining] = useState(30);
   const [hasNavigated, setHasNavigated] = useState(false);
-  const redirectUrl = process.env.NEXT_PUBLIC_SYSTEM_URL;
-  const hasRedirectUrl = Boolean(redirectUrl);
+  const systemUrl = process.env.NEXT_PUBLIC_SYSTEM_URL;
+  const redirectUrl = systemUrl && systemUrl.trim().length > 0 ? systemUrl.trim() : "/dashboard";
+  const hasRedirectUrl = true;
+
+  const criarPrestadorMutation = useApiMutation(
+    ({ data, token }: { data: CreatePrestadorDto; token?: string }) => criarPrestadorOnboarding(data, token),
+    {
+      successMessage: "Prestador cadastrado com sucesso.",
+    }
+  );
+
+  const copiarConfiguracaoMutation = useApiMutation(
+    (id: string) => copiarConfiguracaoPadraoParaPrestador(id),
+    {
+      successMessage: "Configuração inicial aplicada automaticamente.",
+    }
+  );
+
+  const criarRobotMutation = useApiMutation(
+    ({ prestadorId: id, dados, token }: { prestadorId: string; dados: CreateRobotClientDto; token?: string }) =>
+      criarRobotClientOnboarding(id, dados, token),
+    {
+      successMessage: "Robô integrador provisionado automaticamente.",
+      onSuccess: (robotData) => {
+        setRobot({
+          id: robotData.id,
+          nome: robotData.nome,
+          clientId: robotData.clientId,
+          secret: robotData.clientSecret ?? robotData.secretGerado ?? null,
+          scopes: robotData.scopes,
+        });
+      },
+      onError: () => {
+        setRobot(undefined);
+      },
+    }
+  );
+
+  const criarUsuarioGestorMutation = useApiMutation(
+    (payload: CreateUsuarioDto) => criarUsuarioGestorOnboarding(payload),
+    {
+      successMessage: "Usuário gestor criado automaticamente.",
+    }
+  );
+
+  const isProvisioning =
+    criarPrestadorMutation.isPending ||
+    copiarConfiguracaoMutation.isPending ||
+    criarRobotMutation.isPending ||
+    criarUsuarioGestorMutation.isPending;
 
   const handleNavigate = useCallback(() => {
-    if (!redirectUrl || hasNavigated) {
+    if (hasNavigated) {
       return;
     }
 
     setHasNavigated(true);
+    console.info("[Onboarding][Resumo] Redirecionando usuário após onboarding", {
+      timestamp: new Date().toISOString(),
+      redirectUrl,
+    });
+
     router.push(redirectUrl);
-  }, [redirectUrl, hasNavigated, router]);
+  }, [router, redirectUrl, hasNavigated]);
+
+  const handleConfirmarOnboarding = useCallback(async () => {
+    console.info("[Onboarding][Resumo] Iniciando confirmação do onboarding", {
+      prestadorIdSalvo: prestadorId,
+      possuiPrestador: Boolean(prestador),
+      possuiGestor: Boolean(gestor),
+      possuiPayload: Boolean(prestadorPayload),
+      possuiRobotPayload: Boolean(robotPayload),
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!prestador || !prestadorPayload) {
+      toast.error("Dados do prestador não encontrados. Volte e preencha novamente.");
+      console.warn("[Onboarding][Resumo] Dados do prestador ausentes ao confirmar", {
+        possuiPrestador: Boolean(prestador),
+        possuiPayload: Boolean(prestadorPayload),
+        timestamp: new Date().toISOString(),
+      });
+      setStep("prestador");
+      return;
+    }
+
+    if (!gestor) {
+      toast.error("Dados do gestor não encontrados. Volte e preencha novamente.");
+      console.warn("[Onboarding][Resumo] Dados do gestor ausentes ao confirmar", {
+        possuiGestor: Boolean(gestor),
+        timestamp: new Date().toISOString(),
+      });
+      setStep("gestor");
+      return;
+    }
+
+    try {
+      console.info("[Onboarding][Resumo] Criando prestador", {
+        timestamp: new Date().toISOString(),
+        payload: prestadorPayload,
+      });
+      const prestadorCriado = await criarPrestadorMutation.mutateAsync({ data: prestadorPayload });
+
+      savePrestador(prestador, { id: prestadorCriado.id, payload: prestadorPayload, robotPayload });
+      console.info("[Onboarding][Resumo] Prestador criado e salvo na store", {
+        timestamp: new Date().toISOString(),
+        prestadorId: prestadorCriado.id,
+      });
+
+      console.info("[Onboarding][Resumo] Aplicando configuração padrão", {
+        timestamp: new Date().toISOString(),
+        prestadorId: prestadorCriado.id,
+      });
+      await copiarConfiguracaoMutation.mutateAsync(prestadorCriado.id);
+
+      if (robotPayload) {
+        console.info("[Onboarding][Resumo] Provisionando robô", {
+          timestamp: new Date().toISOString(),
+          prestadorId: prestadorCriado.id,
+          payload: robotPayload,
+        });
+        await criarRobotMutation.mutateAsync({ prestadorId: prestadorCriado.id, dados: robotPayload });
+      } else {
+        console.info("[Onboarding][Resumo] Robô não será provisionado (payload ausente)", {
+          timestamp: new Date().toISOString(),
+          prestadorId: prestadorCriado.id,
+        });
+        setRobot(undefined);
+      }
+
+      console.info("[Onboarding][Resumo] Criando usuário gestor", {
+        timestamp: new Date().toISOString(),
+        prestadorId: prestadorCriado.id,
+        email: gestor.email,
+        payload: {
+          nome: gestor.nome,
+          email: gestor.email,
+          possuiSenha: Boolean(gestor.senha),
+        },
+      });
+      const usuario = await criarUsuarioGestorMutation.mutateAsync({
+        nome: gestor.nome,
+        email: gestor.email,
+        senha: gestor.senha,
+        prestadorId: prestadorCriado.id,
+        role: "Gestao",
+      } satisfies CreateUsuarioDto);
+
+      saveGestor({
+        nome: gestor.nome,
+        email: gestor.email,
+        senha: "",
+        codigoMfa: gestor.codigoMfa,
+        mfaToken: gestor.mfaToken,
+        usuarioId: usuario.id,
+      });
+
+      toast.success("Onboarding provisionado com sucesso.");
+      console.info("[Onboarding][Resumo] Onboarding provisionado com sucesso", {
+        timestamp: new Date().toISOString(),
+        prestadorId: prestadorCriado.id,
+        usuarioId: usuario.id,
+        possuiRobot: Boolean(robotPayload),
+      });
+    } catch (error) {
+      console.error("[Onboarding] Falha ao provisionar onboarding completo", error);
+      if (!(error instanceof Error)) {
+        toast.error("Falha ao concluir o onboarding. Revise os dados e tente novamente.");
+      }
+      console.error("[Onboarding][Resumo] Erro durante confirmação", {
+        timestamp: new Date().toISOString(),
+        erro: error,
+      });
+    }
+  }, [
+    prestador,
+    prestadorPayload,
+    gestor,
+    robotPayload,
+    setStep,
+    setRobot,
+    savePrestador,
+    saveGestor,
+    criarPrestadorMutation,
+    copiarConfiguracaoMutation,
+    criarRobotMutation,
+    criarUsuarioGestorMutation,
+  ]);
 
   useEffect(() => {
-    if (!hasRedirectUrl || hasNavigated) {
+    if (!prestadorId || !hasRedirectUrl || hasNavigated) {
       return;
     }
 
@@ -379,15 +553,15 @@ function ResumoStep() {
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [hasRedirectUrl, hasNavigated]);
+  }, [prestadorId, hasRedirectUrl, hasNavigated]);
 
   useEffect(() => {
-    if (!hasRedirectUrl || hasNavigated || secondsRemaining > 0) {
+    if (!prestadorId || !hasRedirectUrl || hasNavigated || secondsRemaining > 0) {
       return;
     }
 
     handleNavigate();
-  }, [secondsRemaining, hasRedirectUrl, hasNavigated, handleNavigate]);
+  }, [secondsRemaining, prestadorId, hasRedirectUrl, hasNavigated, handleNavigate]);
 
   if (!prestador || !gestor) {
     return (
@@ -400,6 +574,64 @@ function ResumoStep() {
           <Button type="button" onClick={() => setStep(prestador ? "gestor" : "prestador")}>
             Voltar para {prestador ? "Usuário gestor" : "Prestador"}
           </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!prestadorId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Revise os dados antes de confirmar</CardTitle>
+          <CardDescription>Confira os dados cadastrados. Você poderá voltar para ajustar caso necessário.</CardDescription>
+        </CardHeader>
+        <div className="space-y-6 px-6 pb-6">
+          <section className="space-y-3">
+            <header>
+              <h3 className="text-base font-semibold text-slate-800">Prestador</h3>
+            </header>
+            <dl className="grid gap-3 md:grid-cols-2">
+              <ResumoItem rotulo="CNPJ" valor={prestador.cnpj} />
+              <ResumoItem rotulo="Razão social" valor={prestador.razaoSocial} />
+              <ResumoItem rotulo="Nome fantasia" valor={prestador.nomeFantasia} />
+              <ResumoItem rotulo="Inscrição municipal" valor={prestador.inscricaoMunicipal} />
+              <ResumoItem rotulo="Inscrição estadual" valor={prestador.inscricaoEstadual} />
+              <ResumoItem rotulo="Telefone" valor={prestador.telefone} />
+              <ResumoItem rotulo="E-mail" valor={prestador.email} />
+              <ResumoItem rotulo="Endereço" valor={`${prestador.endereco.logradouro}, ${prestador.endereco.numero}`} />
+              <ResumoItem rotulo="Bairro" valor={prestador.endereco.bairro} />
+              <ResumoItem
+                rotulo="Cidade/UF"
+                valor={`${prestador.endereco.cidade} - ${prestador.endereco.uf}`}
+              />
+              <ResumoItem rotulo="CEP" valor={prestador.endereco.cep} />
+            </dl>
+          </section>
+
+          <section className="space-y-3">
+            <header>
+              <h3 className="text-base font-semibold text-slate-800">Usuário gestor</h3>
+            </header>
+            <dl className="grid gap-3 md:grid-cols-2">
+              <ResumoItem rotulo="Nome" valor={gestor.nome} />
+              <ResumoItem rotulo="E-mail" valor={gestor.email} />
+            </dl>
+          </section>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setStep("gestor")} disabled={isProvisioning}>
+                Voltar para usuário gestor
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setStep("prestador")} disabled={isProvisioning}>
+                Revisar dados do prestador
+              </Button>
+            </div>
+            <Button type="button" onClick={handleConfirmarOnboarding} disabled={isProvisioning}>
+              {isProvisioning ? "Provisionando..." : "Confirmar e provisionar"}
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -448,7 +680,7 @@ function ResumoStep() {
         </section>
 
         <section className="space-y-3">
-          <header className="flex items-center justify-between">
+          <header className="flex items-center justify_between">
             <div>
               <h3 className="text-base font-semibold text-slate-800">Usuário gestor</h3>
             </div>
@@ -459,7 +691,7 @@ function ResumoStep() {
           </dl>
         </section>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
+        <div className="flex flex_wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
           <p className="text-sm text-slate-500">
             Compartilhe as credenciais com o gestor e acompanhe a ativação do robô na central administrativa.
           </p>
@@ -539,15 +771,25 @@ const DEFAULT_ROBO_SCOPES = [
   "nfse.robot",
 ] as const;
 
-const rawRobotScopes =
-  process.env.NEXT_PUBLIC_ONBOARDING_ROBOT_SCOPE ?? process.env.NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE;
+function extractScopesFromEnv(value?: string | null): string[] {
+  if (!value) {
+    return [];
+  }
 
-const ROBO_SCOPES: string[] = rawRobotScopes
-  ? rawRobotScopes
-      .split(/[\s,]+/)
-      .map((scope) => scope.trim())
-      .filter(Boolean)
-  : [...DEFAULT_ROBO_SCOPES];
+  return value
+    .split(/[\s,]+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
+const primaryEnvScopes = extractScopesFromEnv(process.env.NEXT_PUBLIC_ONBOARDING_ROBOT_SCOPE);
+const fallbackEnvScopes = primaryEnvScopes.length > 0
+  ? []
+  : extractScopesFromEnv(process.env.NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE);
+
+const ROBO_SCOPES: string[] = Array.from(
+  new Set<string>([...DEFAULT_ROBO_SCOPES, ...primaryEnvScopes, ...fallbackEnvScopes])
+);
 
 export default function OnboardingPage() {
   const step = useOnboardingStore((state) => state.step);
@@ -584,33 +826,6 @@ function PrestadorStep() {
     setRobot: state.setRobot,
     setStep: state.setStep,
   }));
-  const criarPrestadorMutation = useApiMutation(
-    ({ data, token }: { data: CreatePrestadorDto; token?: string }) => criarPrestadorOnboarding(data, token),
-    {
-      successMessage: "Prestador cadastrado com sucesso.",
-    }
-  );
-  const criarRobotMutation = useApiMutation(
-    ({ prestadorId, dados, token }: { prestadorId: string; dados: CreateRobotClientDto; token?: string }) =>
-      criarRobotClientOnboarding(prestadorId, dados, token),
-    {
-      onSuccess: (robot) => {
-        setRobot({
-          id: robot.id,
-          nome: robot.nome,
-          clientId: robot.clientId,
-          secret: robot.clientSecret ?? robot.secretGerado ?? null,
-          scopes: robot.scopes,
-        });
-      },
-      onError: (error) => {
-        console.error("[Onboarding] Falha ao criar robô automático", error);
-        toast.error(
-          "Prestador cadastrado, mas não foi possível provisionar o robô integrador. Ajuste manualmente no menu Robôs."
-        );
-      },
-    }
-  );
   const form = useForm<PrestadorFormValues>({
     resolver: zodResolver(prestadorSchema),
     defaultValues: prestador ?? DEFAULT_VALUES,
@@ -753,54 +968,14 @@ function PrestadorStep() {
     }
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    try {
-      const payload = {
-        ...values,
-        inscricaoMunicipal: values.inscricaoMunicipal || "",
-        inscricaoEstadual: values.inscricaoEstadual || null,
-        telefone: values.telefone || null,
-        email: values.email || null,
-        website: values.website || null,
-        endereco: {
-          ...values.endereco,
-          complemento: values.endereco.complemento || null,
-          cidade: values.endereco.cidade || null,
-          uf: values.endereco.uf || null,
-          cep: values.endereco.cep || null,
-        },
-      } satisfies CreatePrestadorDto;
+  const onSubmit = form.handleSubmit((values) => {
+    const prestadorPayload = mapPrestadorFormToPayload(values);
+    const robotPayload = buildRobotClientPayload(values);
 
-      const prestadorSalvo = await criarPrestadorMutation.mutateAsync({ data: payload });
-      await savePrestador(values, { id: prestadorSalvo.id });
-
-      const robotPayload: CreateRobotClientDto = {
-        nome: `${values.nomeFantasia} - Robô integrador`,
-        scopes: [...ROBO_SCOPES],
-        ativo: true,
-        gerarClientIdAutomatico: true,
-        gerarSecretAutomatico: true,
-      };
-
-      try {
-        await criarRobotMutation.mutateAsync({
-          prestadorId: prestadorSalvo.id,
-          dados: robotPayload,
-        });
-        toast.success("Robô integrador provisionado automaticamente.");
-      } catch (error) {
-        console.error("[Onboarding] Erro ao provisionar robô integrador", error);
-        toast.error(
-          "Não foi possível criar o robô automaticamente. Ajuste manualmente após concluir o onboarding."
-        );
-      }
-
-      toast.success("Dados do prestador salvos. Continue para o usuário gestor.");
-      setStep("gestor");
-    } catch (error) {
-      console.error("[Onboarding] Falha ao salvar dados do prestador", error);
-      toast.error("Não foi possível avançar. Verifique os campos e tente novamente.");
-    }
+    savePrestador(values, { payload: prestadorPayload, robotPayload });
+    setRobot(undefined);
+    toast.success("Dados do prestador armazenados. Continue para o usuário gestor.");
+    setStep("gestor");
   });
 
   const formErrors = form.formState.errors;
@@ -1082,15 +1257,9 @@ function PrestadorStep() {
           <div className="flex items-center gap-2">
             <Button
               type="submit"
-              disabled={
-                !form.formState.isValid ||
-                criarPrestadorMutation.isPending ||
-                criarRobotMutation.isPending
-              }
+              disabled={!form.formState.isValid || form.formState.isSubmitting}
             >
-              {criarPrestadorMutation.isPending || criarRobotMutation.isPending
-                ? "Salvando..."
-                : "Avançar para usuário gestor"}
+              {form.formState.isSubmitting ? "Salvando..." : "Avançar para usuário gestor"}
             </Button>
           </div>
         </div>

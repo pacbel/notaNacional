@@ -8,9 +8,7 @@ export async function getCurrentUser() {
     throw new Error("getCurrentUser só pode ser chamado no servidor");
   }
 
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const sessionToken = await getSessionToken();
 
   if (!sessionToken) {
     return null;
@@ -86,4 +84,14 @@ export async function collectRequestMeta() {
   const userAgent = requestHeaders.get("user-agent");
 
   return { ip, userAgent };
+}
+
+export async function getSessionToken(): Promise<string | null> {
+  if (typeof window !== "undefined") {
+    return null;
+  }
+
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
 }

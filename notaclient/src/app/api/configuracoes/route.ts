@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Ambiente, Prisma } from "@prisma/client";
 import { configuracaoUpdateSchema, type ConfiguracaoDto } from "@/lib/validators/configuracao";
 import { canAccessConfiguracoes } from "@/lib/permissions";
-import { clearRobotCredentialsCache } from "@/lib/notanacional-api";
+import { clearRobotCredentialsCache, ensureRobotCredentials } from "@/lib/notanacional-api";
 
 function mapConfiguracaoToDto(configuracao: Prisma.ConfiguracaoDpsGetPayload<{}>) {
   const numeroInicialDps = (configuracao as typeof configuracao & { numeroInicialDps?: number }).numeroInicialDps ?? 1;
@@ -91,6 +91,27 @@ export async function GET() {
       });
       
       console.log("[Configuracoes] Configuração criada com sucesso!");
+    }
+
+    if (!configuracao.robotClientId || !configuracao.robotClientSecret) {
+      try {
+        await ensureRobotCredentials(currentUser.prestadorId);
+        configuracao = await prisma.configuracaoDps.findUnique({
+          where: { prestadorId: currentUser.prestadorId },
+        });
+      } catch (credentialsError) {
+        console.warn(
+          "[Configuracoes] Não foi possível gerar credenciais do robô automaticamente",
+          credentialsError
+        );
+      }
+    }
+
+    if (!configuracao) {
+      return NextResponse.json(
+        { message: "Configuração do prestador não encontrada" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(mapConfiguracaoToDto(configuracao));

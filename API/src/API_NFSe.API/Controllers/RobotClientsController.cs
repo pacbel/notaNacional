@@ -10,7 +10,7 @@ namespace API_NFSe.API.Controllers
 {
     [ApiController]
     [Route("api/prestadores/{prestadorId:guid}/robot-clients")]
-    [Authorize(Roles = $"{RoleNames.Robot},{RoleNames.Administrador}")]
+    [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Robot)]
     public class RobotClientsController : ControllerBase
     {
         private readonly IRobotClientService _robotClientService;
@@ -26,6 +26,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Robot)]
         public async Task<IActionResult> GetAll(
             Guid prestadorId,
             [FromQuery] bool incluirInativos = false
@@ -182,7 +183,7 @@ namespace API_NFSe.API.Controllers
         }
 
         [HttpPost("{id:guid}/rotate-secret")]
-        [Authorize(Roles = RoleNames.Administrador)]
+        [Authorize(Roles = RoleNames.Administrador + "," + RoleNames.Gestao + "," + RoleNames.Robot)]
         public async Task<IActionResult> RotateSecret(
             Guid prestadorId,
             Guid id,
@@ -191,7 +192,7 @@ namespace API_NFSe.API.Controllers
         {
             try
             {
-                var acesso = ValidarAcesso(prestadorId, somenteAdministrador: true);
+                var acesso = ValidarAcesso(prestadorId, somenteAdministrador: false);
                 if (acesso != null)
                 {
                     return acesso;

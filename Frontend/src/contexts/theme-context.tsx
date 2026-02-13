@@ -34,17 +34,18 @@ function applyThemeClass(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
+  const [theme, setThemeState] = useState<Theme>("light");
+
+  useEffect(() => {
     if (typeof window === "undefined") {
-      return "light";
+      return;
     }
 
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    const initialTheme = stored === "light" || stored === "dark" ? stored : getSystemTheme();
-    applyThemeClass(initialTheme);
-    console.log("[Theme] Tema inicial carregado", initialTheme, { stored });
-    return initialTheme;
-  });
+    const preferred = stored === "light" || stored === "dark" ? stored : getSystemTheme();
+    console.log("[Theme] Tema preferido identificado", preferred, { stored });
+    setThemeState(preferred);
+  }, []);
 
   useEffect(() => {
     applyThemeClass(theme);

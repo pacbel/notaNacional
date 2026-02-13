@@ -50,6 +50,8 @@ export interface PrestadorConfiguracaoDto {
   smtpPort?: number | null;
   smtpSecure: boolean;
   smtpUser?: string | null;
+  smtpPassword?: string | null;
+  smtpPasswordEncrypted?: string | null;
   smtpFrom?: string | null;
   smtpFromName?: string | null;
   creditoMensalPadrao?: number | null;
@@ -68,6 +70,7 @@ export interface UpsertPrestadorConfiguracaoDto {
   smtpSecure: boolean;
   smtpUser: string;
   smtpPassword?: string;
+  smtpPasswordEncrypted?: string | null;
   smtpFrom: string;
   smtpFromName: string;
   bilhetagemHabilitada: boolean;

@@ -1,7 +1,8 @@
+import { randomBytes } from "node:crypto";
+
 import axios from "axios";
 
 import { getEnv } from "@/lib/env";
-import { RobotCredentialsMissingError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { decodeTokenPayload, getPrestadorIdFromToken } from "@/lib/token-utils";
 import { getRobotContextPrestadorId } from "@/lib/robot-context";
@@ -16,6 +17,16 @@ interface RobotTokenResponse {
   expiraEm?: string;
 }
 
+interface RobotClientDto {
+  id: string;
+  clientId: string;
+  ativo: boolean;
+}
+
+interface RotateRobotClientSecretDto {
+  novoSecret: string;
+}
+
 const env = getEnv();
 
 export const notaApi = axios.create({
@@ -27,6 +38,7 @@ export const notaApi = axios.create({
 });
 
 const SAFETY_WINDOW_SECONDS = 60;
+const ROBOT_SECRET_BYTES = 48;
 
 interface RobotCredentialsCacheEntry {
   clientId: string;
@@ -76,6 +88,146 @@ async function persistToken(prestadorId: string, token: string, expiresAt: Date)
       throw error;
     }
   }
+}
+
+function generateRobotSecret(): string {
+  return randomBytes(ROBOT_SECRET_BYTES).toString("base64url");
+}
+
+async function fetchRobotClients(
+  prestadorId: string,
+  sessionToken: string,
+  includeInactive = false
+): Promise<RobotClientDto[]> {
+  const query = includeInactive ? "?incluirInativos=true" : "";
+  const response = await fetch(
+    `${env.API_BASE_URL}/api/prestadores/${prestadorId}/robot-clients${query}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      errorText.trim() || `Falha ao obter robot-clients (status ${response.status})`
+    );
+  }
+
+  const data = await response.json().catch(() => []);
+
+  if (Array.isArray(data)) {
+    return data as RobotClientDto[];
+  }
+
+  return data ? [data as RobotClientDto] : [];
+}
+
+async function rotateRobotClientSecret(
+  prestadorId: string,
+  robotId: string,
+  secret: string,
+  sessionToken: string
+): Promise<void> {
+  const payload: RotateRobotClientSecretDto = {
+    novoSecret: secret,
+  };
+
+  const response = await fetch(
+    `${env.API_BASE_URL}/api/prestadores/${prestadorId}/robot-clients/${robotId}/rotate-secret`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      errorText.trim() || `Falha ao rotacionar secret do robot-client (status ${response.status})`
+    );
+  }
+}
+
+export async function ensureRobotCredentials(prestadorId: string): Promise<RobotCredentialsCacheEntry> {
+  const configuracao = await prisma.configuracaoDps.findUnique({
+    where: { prestadorId },
+    select: {
+      robotClientId: true,
+      robotClientSecret: true,
+      robotTokenCacheMinutos: true,
+    },
+  });
+
+  if (configuracao?.robotClientId && configuracao.robotClientSecret) {
+    const entry: RobotCredentialsCacheEntry = {
+      clientId: configuracao.robotClientId,
+      clientSecret: configuracao.robotClientSecret,
+      tokenCacheMinutes: configuracao.robotTokenCacheMinutos ?? null,
+      updatedAt: Date.now(),
+    };
+    credentialsCache.set(prestadorId, entry);
+    return entry;
+  }
+
+  const { getSessionToken } = await import("@/lib/auth");
+  const sessionToken = await getSessionToken();
+
+  if (!sessionToken) {
+    throw new Error("Sessão do usuário não encontrada para recuperar robot-clients.");
+  }
+
+  let clients = await fetchRobotClients(prestadorId, sessionToken, false);
+
+  if (!clients.length) {
+    clients = await fetchRobotClients(prestadorId, sessionToken, true);
+  }
+
+  const targetClient = clients.find((client) => client.ativo) ?? clients[0];
+
+  if (!targetClient) {
+    throw new Error("Nenhum robot-client disponível para o prestador informado.");
+  }
+
+  const novoSecret = generateRobotSecret();
+  await rotateRobotClientSecret(prestadorId, targetClient.id, novoSecret, sessionToken);
+
+  const updated = await prisma.configuracaoDps.update({
+    where: { prestadorId },
+    data: {
+      robotClientId: targetClient.clientId,
+      robotClientSecret: novoSecret,
+    },
+    select: {
+      robotClientId: true,
+      robotClientSecret: true,
+      robotTokenCacheMinutos: true,
+    },
+  });
+
+  const persistedClientId = (updated.robotClientId ?? targetClient.clientId) as string;
+  const persistedSecret = (updated.robotClientSecret ?? novoSecret) as string;
+
+  const entry: RobotCredentialsCacheEntry = {
+    clientId: persistedClientId,
+    clientSecret: persistedSecret,
+    tokenCacheMinutes: updated.robotTokenCacheMinutos ?? null,
+    updatedAt: Date.now(),
+  };
+
+  credentialsCache.set(prestadorId, entry);
+
+  return entry;
 }
 
 async function fetchStoredToken(prestadorId: string): Promise<string | null> {
@@ -158,33 +310,11 @@ async function requestRobotToken(prestadorId?: string): Promise<string> {
   const resolvedPrestadorId = await resolvePrestadorId(prestadorId);
 
   const now = Date.now();
-  const cached = credentialsCache.get(resolvedPrestadorId);
+  let entry = credentialsCache.get(resolvedPrestadorId);
 
-  if (cached && now - cached.updatedAt < CREDENTIALS_TTL_MS) {
-    return requestTokenWithCredentials(resolvedPrestadorId, cached);
+  if (!entry || now - entry.updatedAt >= CREDENTIALS_TTL_MS) {
+    entry = await ensureRobotCredentials(resolvedPrestadorId);
   }
-
-  const configuracao = await prisma.configuracaoDps.findUnique({
-    where: { prestadorId: resolvedPrestadorId },
-    select: {
-      robotClientId: true,
-      robotClientSecret: true,
-      robotTokenCacheMinutos: true,
-    },
-  });
-
-  if (!configuracao?.robotClientId || !configuracao.robotClientSecret) {
-    throw new RobotCredentialsMissingError();
-  }
-
-  const entry: RobotCredentialsCacheEntry = {
-    clientId: configuracao.robotClientId,
-    clientSecret: configuracao.robotClientSecret,
-    tokenCacheMinutes: configuracao.robotTokenCacheMinutos ?? null,
-    updatedAt: now,
-  };
-
-  credentialsCache.set(resolvedPrestadorId, entry);
 
   return requestTokenWithCredentials(resolvedPrestadorId, entry);
 }
