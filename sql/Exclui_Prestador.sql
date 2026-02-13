@@ -1,4 +1,5 @@
-SET @prestadorId = 'aba9ece5-97af-4480-b46a-da0a3c9f87cf';
+
+SET @prestadorId = (Select Id from Prestadores p Where p.Cnpj = '29583857000163');
 
 DELETE FROM PrestadorConfiguracoes WHERE prestadorId = @prestadorId;
 DELETE FROM RobotClients WHERE prestadorId = @prestadorId;
