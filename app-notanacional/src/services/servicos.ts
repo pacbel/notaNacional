@@ -115,14 +115,22 @@ export async function inactivateServico(id: string): Promise<ServicoDto> {
   return handleResponse<ServicoDto>(response);
 }
 
-export async function reactivateServico(id: string): Promise<ServicoDto> {
-  const response = await fetchWithAuth(`/api/servicos/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ativo: true }),
-  });
+export interface ServicoAutocompleteDto {
+  id: string;
+  descricao: string;
+  valorUnitario: number;
+  pTotTribFed: number | null;
+  pTotTribEst: number | null;
+  pTotTribMun: number | null;
+}
 
-  return handleResponse<ServicoDto>(response);
+export async function fetchServicosAutocomplete(search?: string): Promise<ServicoAutocompleteDto[]> {
+  const params = new URLSearchParams();
+  params.set("autocomplete", "true");
+  if (search) {
+    params.set("search", search);
+  }
+
+  const response = await fetchWithAuth(`/api/servicos?${params.toString()}`);
+  return handleResponse<ServicoAutocompleteDto[]>(response);
 }

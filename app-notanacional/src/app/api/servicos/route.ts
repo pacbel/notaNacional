@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get("status") ?? "ativos";
     const pageParam = Number(searchParams.get("page") ?? "1");
     const perPageParam = Number(searchParams.get("perPage") ?? String(DEFAULT_PER_PAGE));
+    const isAutocomplete = searchParams.get("autocomplete") === "true";
 
     const page = Number.isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
     const perPage = Number.isNaN(perPageParam)
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
 
     const where: Prisma.ServicoWhereInput = {
       prestadorId: currentUser.prestadorId,
+      ativo: true, // autocomplete sempre retorna apenas ativos
     };
 
     if (search) {
@@ -46,10 +48,42 @@ export async function GET(request: Request) {
       ].filter(Boolean) as Prisma.ServicoWhereInput["OR"];
     }
 
-    if (statusParam === "ativos") {
-      where.ativo = true;
-    } else if (statusParam === "inativos") {
-      where.ativo = false;
+    if (!isAutocomplete) {
+      // Para autocomplete, sempre retorna ativos
+      if (statusParam === "ativos") {
+        where.ativo = true;
+      } else if (statusParam === "inativos") {
+        where.ativo = false;
+      }
+    }
+
+    if (isAutocomplete) {
+      // Autocomplete retorna apenas campos essenciais e até 20 resultados
+      const servicos = await prisma.servico.findMany({
+        where,
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 20,
+        select: {
+          id: true,
+          descricao: true,
+          valorUnitario: true,
+          pTotTribFed: true,
+          pTotTribEst: true,
+          pTotTribMun: true,
+        },
+      });
+
+      return NextResponse.json(
+        servicos.map((servico) => ({
+          ...servico,
+          valorUnitario: servico.valorUnitario.toNumber(),
+          pTotTribFed: servico.pTotTribFed?.toNumber() ?? null,
+          pTotTribEst: servico.pTotTribEst?.toNumber() ?? null,
+          pTotTribMun: servico.pTotTribMun?.toNumber() ?? null,
+        }))
+      );
     }
 
     const [total, servicos] = await Promise.all([

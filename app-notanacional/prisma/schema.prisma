@@ -74,6 +74,7 @@ model Tomador {
   prestadorId           String        @db.Char(36)
   dps                   Dps[]
   notas                 NotaFiscal[]
+  assinaturas           Assinatura[]
 
   @@unique([prestadorId, documento])
   @@index([prestadorId])
@@ -99,9 +100,32 @@ model Servico {
   updatedAt                 DateTime @updatedAt
   prestadorId               String   @db.Char(36)
   dps                       Dps[]
+  assinaturas               Assinatura[]
 
   @@index([prestadorId])
   @@index([ativo])
+}
+
+model Assinatura {
+  id                String             @id @default(uuid()) @db.Char(36)
+  clienteId         String             @db.Char(36)
+  prestadorId       String             @db.Char(36)
+  servicoId         String             @db.Char(36)
+  intervalo         IntervaloAssinatura
+  descricao         String
+  valor             Decimal            @db.Decimal(12, 2)
+  vencimentoInicial DateTime
+  dataFim           DateTime?
+  ativo             Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cliente           Tomador            @relation(fields: [clienteId], references: [id])
+  servico           Servico            @relation(fields: [servicoId], references: [id])
+
+  @@index([clienteId])
+  @@index([prestadorId])
+  @@index([ativo])
+  @@index([servicoId])
 }
 
 model Dps {
@@ -263,4 +287,14 @@ enum TomadorTipo {
 enum TipoDocumento {
   CPF
   CNPJ
+}
+
+enum IntervaloAssinatura {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+  BIMESTRAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
 }
