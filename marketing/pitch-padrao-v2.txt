@@ -1,0 +1,304 @@
+================================================================================
+PITCH PADRÃO — WHATSAPP
+NOTA FISCAL NACIONAL — Sistema Virtual Ltda.
+Baseado nas conversas reais de prospecção
+================================================================================
+
+
+REGRAS QUE NUNCA MUDAM
+-----------------------
+- Uma mensagem por vez. Espere a resposta antes de avançar.
+- Se o lead mandar algo que você não entendeu, pergunte. Nunca ignore.
+- Mensagens longas no WhatsApp afastam. Quebre em blocos curtos.
+- Nunca diga "mensalidade mínima". Ancore valor antes de falar preço.
+- Sempre termine com próximo passo claro. Nunca deixe em aberto.
+
+
+================================================================================
+BLOCO 1 — ABERTURA
+================================================================================
+
+GATILHO: Lead chegou pelo e-mail (mensagem automática do botão)
+--------
+Ele vai chegar com: "Olá, vim pelo e-mail e quero saber mais sobre o
+Nota Fiscal Nacional"
+
+SUA RESPOSTA:
+"Boa tarde, [Nome]! Que ótimo que entrou em contato 😊
+Me conta uma coisa: hoje vocês emitem as notas pelo portal da
+Prefeitura mesmo ou usam algum sistema?"
+
+⏸ Espere a resposta.
+
+------------------------------------------------------------------------
+
+GATILHO: Lead chegou sem contexto ("quero saber mais", "?" ou palavra solta)
+--------
+SUA RESPOSTA:
+"Boa tarde, [Nome]! Tudo bem?
+Vocês já emitem notas de serviço hoje?"
+
+⏸ Espere a resposta.
+
+
+================================================================================
+BLOCO 2 — DIAGNÓSTICO
+================================================================================
+
+CAMINHO A — Usa o Portal Nacional NFS-e
+---------------------------------------
+SUA RESPOSTA:
+"Então você já conhece bem como ele é né?
+Lento, trava, configuração complicada...
+
+Quantas notas vocês emitem por mês, mais ou menos?"
+
+⏸ Espere a resposta. Vá para o BLOCO 3.
+
+------------------------------------------------------------------------
+
+CAMINHO B — Usa outro sistema
+-------------------------------
+SUA RESPOSTA:
+"Ah entendi! E ele emite automático ou você ainda
+precisa entrar em algum portal para confirmar?"
+
+⏸ Espere a resposta.
+
+  SE AINDA DEPENDE DE PORTAL:
+  → Vá para o BLOCO 3 — ele tem dor clara.
+
+  SE JÁ É AUTOMÁTICO:
+  → "Entendi! E como é o controle do RPS — ele gerencia
+     a numeração automático? Porque pulo ou repetição de
+     número pode gerar multa da Prefeitura e muita gente
+     não sabe que o sistema causa isso."
+  → Se tiver problema com RPS: vá para o BLOCO 3.
+  → Se não tiver problema nenhum: qualifique volume e
+    apresente como upgrade mais simples e seguro.
+
+------------------------------------------------------------------------
+
+CAMINHO C — Não emite ainda
+-----------------------------
+SUA RESPOSTA:
+"Então tô chegando na hora certa! 😊
+Quando começar, vai querer fazer do jeito mais simples.
+
+Vocês pretendem emitir quantas notas por mês, mais ou menos?"
+
+⏸ Espere a resposta. Vá para o BLOCO 3.
+
+------------------------------------------------------------------------
+
+ATENÇÃO — SE O LEAD MANDAR ALGO QUE VOCÊ NÃO ENTENDEU:
+Exemplo real: ele mandou "Caveo" — pode ser erro de digitação.
+
+SUA RESPOSTA:
+"Desculpa, não entendi bem — pode repetir? 😊"
+
+Nunca ignore. Nunca chute o que ele quis dizer.
+
+
+================================================================================
+BLOCO 3 — APRESENTAÇÃO
+================================================================================
+
+Só entre aqui depois de saber o volume mensal.
+
+MENSAGEM 1:
+"O Nota Fiscal Nacional foi feito exatamente pra isso.
+Em vez de entrar em qualquer portal — que trava, é lento
+e cheio de configuração — você emite a nota direto pelo
+nosso sistema em menos de 1 segundo, de forma automática."
+
+⏸ Pause. Mande a próxima em seguida (2 mensagens separadas):
+
+MENSAGEM 2:
+"Cadastra o cliente uma vez, depois é só um clique.
+A nota vai direto pro governo e pro cliente ao mesmo tempo.
+RPS controlado automaticamente — zero risco de multa.
+
+Aqui tá o site pra você dar uma olhada 👇
+notanacional.virtual.app.br"
+
+⏸ Espere a reação dele antes de falar de preço.
+
+
+================================================================================
+BLOCO 4 — PREÇO
+================================================================================
+
+GATILHO: Lead perguntou "quanto custa?" ou "quanto paga por mês?"
+--------
+
+PASSO 1 — Se você ainda não sabe o volume, pergunte antes:
+"Temos planos por quantidade de notas emitidas e também
+plano ilimitado. Quantas notas você emite por mês em média?"
+
+⏸ Espere a resposta.
+
+PASSO 2 — Com o volume em mãos, ancore valor antes do número:
+
+  ATÉ 5 NOTAS/MÊS:
+  "Para esse volume, você já resolve tudo por [R$ XXX]/mês —
+  sem depender do portal, sem risco de multa por RPS,
+  nota emitida em 1 segundo.
+
+  Se quiser, posso te mostrar funcionando ao vivo —
+  uns 15 minutinhos online. O que acha?"
+
+  DE 6 A 20 NOTAS/MÊS:
+  "Para esse volume, o plano fica em [R$ XXX]/mês.
+  Considerando o tempo que você economiza por nota,
+  se paga rápido.
+
+  Posso te fazer uma demo rápida pra você ver na prática?"
+
+  ACIMA DE 20 NOTAS/MÊS:
+  "Com esse volume, o tempo que você economiza por nota
+  multiplica muito. O plano fica em [R$ XXX]/mês —
+  e o retorno aparece já no primeiro mês.
+
+  Vale muito você ver ao vivo. Quando temos 15 minutos?"
+
+IMPORTANTE: nunca use a palavra "mínima" para descrever preço.
+Ancore sempre no valor antes de revelar o número.
+
+
+================================================================================
+BLOCO 5 — OFERTA DE DEMO E FECHAMENTO
+================================================================================
+
+OFERTA PADRÃO DE DEMO:
+"Se quiser, posso te fazer uma demonstração rápida —
+uns 15 minutinhos online mesmo, compartilho a tela e
+você vê funcionando ao vivo.
+
+Amanhã fica melhor — de manhã ou à tarde?"
+
+------------------------------------------------------------------------
+
+RESPOSTAS PARA CADA SITUAÇÃO:
+
+LEAD ACEITOU A DEMO:
+"Ótimo! Então amanhã [período confirmado].
+Te mando um lembrete aqui antes. Combinado! 😊"
+
+LEAD DISSE "ESTOU OCUPADO HOJE":
+"Sem problema! 😊
+Amanhã fica melhor pra você — de manhã ou à tarde?"
+
+LEAD DISSE "DURANTE O DIA EU TE CHAMO":
+"Pode ser! 😊
+Se não conseguir hoje, sem problema — me chama amanhã
+que a gente agenda rapidinho."
+
+LEAD DISSE "VOU OLHAR O SITE":
+"Ótimo! 😊
+Se tiver dúvida olhando, me chama aqui.
+O que mais impressiona é ver a nota sair em 1 segundo
+na prática — a demo de 15 minutos vale muito."
+
+LEAD DISSE "VOU PENSAR":
+"Claro, sem pressão!
+O que ficou de dúvida? Às vezes resolve aqui mesmo
+numa mensagem 😊"
+
+LEAD DISSE "ME MANDA POR E-MAIL":
+"Mando sim! Mas te falo uma coisa:
+o que mais impressiona é ver ao vivo — por e-mail
+não passa a mesma sensação.
+Que tal 15 minutos de demo antes de decidir?"
+
+LEAD DISSE "PRECISO FALAR COM MEU CONTADOR":
+"Faz todo sentido!
+Contadores adoram o sistema — reduz muito os erros
+e facilita o trabalho deles.
+Posso fazer a demo pra você e pro seu contador juntos
+se quiser. Como prefere?"
+
+
+================================================================================
+BLOCO 6 — REATIVAÇÃO (lead parou de responder)
+================================================================================
+
+D+1 — Novo gatilho (não repita a última mensagem):
+
+  OPÇÃO A — Gatilho técnico:
+  "[Nome], só passando pra deixar uma informação rápida:
+  um erro comum que gera multa da Prefeitura é a numeração
+  do RPS fora de sequência. Se quiser saber se isso afeta
+  vocês, é só me falar — leva 5 minutos pra verificar."
+
+  OPÇÃO B — Depoimento:
+  "[Nome], lembrei de você quando vi um depoimento aqui:
+  'Antes eu gastava horas emitindo notas. Agora faço tudo
+  em minutos.' Faz sentido pra vocês também?"
+
+------------------------------------------------------------------------
+
+D+3 — Mensagem de saída (força resposta sim ou não):
+
+  "[Nome], só pra não ficar te incomodando à toa:
+  ainda faz sentido a gente conversar sobre o
+  Nota Fiscal Nacional, ou o momento não é esse agora?
+  Pode ser direto — não tem problema nenhum 😊"
+
+------------------------------------------------------------------------
+
+D+7 — Encerramento (gatilho de perda):
+
+  "[Nome], vou encerrar nosso contato por aqui pra
+  não te incomodar.
+  Se um dia precisar emitir NFS-e mais rápido — sem
+  Portal Nacional NFS-e, em 1 segundo — é só me chamar.
+  Abraço e sucesso! 👊"
+
+Após o encerramento: não mande mais nada.
+Se ele responder depois: retome normalmente de onde parou.
+
+
+================================================================================
+SINAIS DE ALERTA — FIQUE ATENTO
+================================================================================
+
+  Resposta curta e estranha (ex: "Caveo", "?", uma letra)
+  → Pergunte o que ele quis dizer. Nunca ignore.
+
+  Demorou mais de 12h para responder
+  → Não cobre. Retome com leveza: "Bom dia! [pergunta simples]"
+
+  Perguntou preço muito cedo (antes da apresentação)
+  → Pergunte o volume primeiro. Fale o preço só com o volume em mãos.
+
+  Disse que vai chamar ele mesmo
+  → Aceite. Plante o amanhã como prazo natural.
+  → Se não chamar: mande lembrete leve no dia seguinte.
+
+  Mencionou contador
+  → Ofereça demo conjunta. Não trate como obstáculo.
+
+
+================================================================================
+CONTROLE DO FUNIL — ONDE ESTE LEAD ESTAVA
+================================================================================
+
+  ETAPA 1 — Prospectado       Recebeu o e-mail, ainda não respondeu
+  ETAPA 2 — Conectado         Respondeu — diagnóstico em andamento
+  ETAPA 3 — Qualificado       Volume e dor identificados — apresentação feita
+  ETAPA 4 — Em negociação     Perguntou preço ou aceitou demo
+  ETAPA 5 — Fechado           Assinou e recebeu acesso
+  ETAPA 6 — Perdido           Sem resposta após cadência completa
+
+  ESTE LEAD (Ashley):
+  Etapa atual → 4 — Em negociação
+  Última ação → Aceitou possibilidade de demo, disse que chama se puder
+  Próxima ação → Se não chamar hoje: lembrete amanhã cedo
+  Mensagem de lembrete → "Bom dia! Conseguiu uma janelinha hoje
+                          pra gente bater um papo rápido? 😊"
+
+
+================================================================================
+FIM DO PITCH PADRÃO
+================================================================================
