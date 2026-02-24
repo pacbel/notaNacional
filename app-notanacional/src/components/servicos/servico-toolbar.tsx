@@ -105,7 +105,7 @@ export function ServicoToolbar({ filters, onChangeFilters, disabled = false }: S
         <SelectContent>
           {perPageOptions.map((option) => (
             <SelectItem key={option} value={String(option)}>
-              {option} / página
+              {option} / pág
             </SelectItem>
           ))}
         </SelectContent>

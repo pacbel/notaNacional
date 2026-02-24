@@ -185,28 +185,33 @@ export default function ServicosPage() {
       </header>
 
       <Card>
-        <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Lista de serviços</CardTitle>
-            <CardDescription>
-              {total} serviço{total === 1 ? "" : "s"} cadastrados
-            </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+            <div>
+              <CardTitle>Lista de serviços</CardTitle>
+              <CardDescription>
+                {total} serviço{total === 1 ? "" : "s"} cadastrados
+              </CardDescription>
+            </div>
+            {isLoading && (
+              <Badge variant="outline" className="gap-2 w-fit">
+                <RefreshCw className="h-3 w-3 animate-spin" /> Carregando
+              </Badge>
+            )}
           </div>
-          {isLoading && (
-            <Badge variant="outline" className="gap-2">
-              <RefreshCw className="h-3 w-3 animate-spin" /> Carregando
-            </Badge>
-          )}
+          <Button variant="ghost" size="icon" onClick={() => invalidate()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-md border px-4 py-3 text-sm text-muted-foreground">
+          {/* <div className="flex items-center justify-between rounded-md border px-4 py-3 text-sm text-muted-foreground">
             <span>
               Página {filters.page} · {currentData.length} exibidos · {total} no total
             </span>
             <Button variant="ghost" size="icon" onClick={() => invalidate()} disabled={isFetching}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </Button>
-          </div>
+          </div> */}
 
           <ServicoTable
             data={currentData}

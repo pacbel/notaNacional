@@ -1429,7 +1429,7 @@ export default function NfsePageContent() {
                 <SelectContent>
                   {PER_PAGE_OPTIONS.map((option) => (
                     <SelectItem key={option} value={String(option)}>
-                      {option} / página
+                      {option} / pág
                     </SelectItem>
                   ))}
                 </SelectContent>

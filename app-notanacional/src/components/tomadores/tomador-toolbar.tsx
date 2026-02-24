@@ -129,7 +129,7 @@ export function TomadorToolbar({ filters, onChangeFilters, disabled = false }: T
         <SelectContent>
           {perPageOptions.map((option) => (
             <SelectItem key={option} value={String(option)}>
-              {option} / página
+              {option} / pág
             </SelectItem>
           ))}
         </SelectContent>
