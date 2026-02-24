@@ -121,21 +121,21 @@ export default function AppShell({ user, children }: AppShellProps) {
       <div className="flex h-full flex-col bg-background">
         {/* Header com Ícone e Nome */}
         <div className={cn(
-          "flex h-16 items-center border-b",
+          "flex h-16 items-center border-b bg-[#1351b4] ",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}>
           {collapsed ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1351b4]">
+              <Building2 className="h-5 w-5 text-white" />
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                <Building2 className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1351b4]">
+                <Building2 className="h-5 w-5 text-white" />
               </div>
-              <div>
+              <div className="text-white">
                 <p className="text-sm font-semibold">Nota Client</p>
-                <p className="text-xs text-muted-foreground">Gestão NFSe</p>
+                <p className="text-xs text-white">Gestão NFSe</p>
               </div>
             </div>
           )}
@@ -197,7 +197,7 @@ export default function AppShell({ user, children }: AppShellProps) {
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start gap-3"
+              className="w-full justify-start gap-3 text-red-500"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
@@ -255,17 +255,17 @@ export default function AppShell({ user, children }: AppShellProps) {
         </Sheet>
 
         <div className="flex flex-1 flex-col">
-          <header className="flex h-16 items-center justify-between border-b bg-background px-4">
-            <div className="hidden lg:flex lg:items-center lg:gap-3">
+          <header className="flex h-16 items-center justify-between border-b bg-[#1351b4] px-4 text-white">
+            <div className="hidden lg:flex lg:items-center lg:gap-3 text-white">
               <Separator orientation="vertical" className="h-6" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white">
                 Portal operacional de emissão de NFSe
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="hidden text-sm text-muted-foreground sm:flex">
-                <span className="font-medium text-foreground">Saldo Notas:&nbsp;</span>
+            <div className="flex items-center gap-4 text-white">
+              <div className="hidden text-sm text-white sm:flex">
+                <span className="font-medium text-white">Saldo Notas:&nbsp;</span>
                 <span>{saldoNotasLabel}</span>
               </div>
 
@@ -273,18 +273,19 @@ export default function AppShell({ user, children }: AppShellProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback>{initials}</AvatarFallback>
+                      <AvatarFallback className="bg-black text-white">{initials}</AvatarFallback>
                     </Avatar>
-                    <span className="hidden text-sm text-left lg:flex lg:flex-col">
+                    <span className="hidden text-sm text-left lg:flex lg:flex-col text-white">
                       <span className="font-medium">{user.nome}</span>
-                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                      <span className="text-xs text-white">{user.email}</span>
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 cursor-pointer bg-white hover:bg-[#1351b4] hover:text-white">
                   <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    className="text-red-500"
                     onClick={() => {
                       handleLogout();
                     }}
