@@ -134,8 +134,8 @@ export default function AppShell({ user, children }: AppShellProps) {
                 <Building2 className="h-5 w-5 text-white" />
               </div>
               <div className="text-white">
-                <p className="text-sm font-semibold">Nota Client</p>
-                <p className="text-xs text-white">Gestão NFSe</p>
+                <p className="text-sm font-semibold">Nota Fiscal Nacional</p>
+                <p className="text-xs text-white">Gestão NFSe {process.env.NEXT_PUBLIC_APPLICATION_VERSION}</p>
               </div>
             </div>
           )}
@@ -271,7 +271,7 @@ export default function AppShell({ user, children }: AppShellProps) {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2">
+                  <Button className="flex items-center gap-2 bg-[#1351b4] hover:bg-[#1351b4] cursor-pointer">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-black text-white">{initials}</AvatarFallback>
                     </Avatar>
@@ -281,11 +281,11 @@ export default function AppShell({ user, children }: AppShellProps) {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 cursor-pointer bg-white hover:bg-[#1351b4] hover:text-white">
+                <DropdownMenuContent align="end" className="w-56 cursor-pointer bg-white hover:bg-[#fafafa]">
                   <DropdownMenuLabel>{user.nome}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-red-500"
+                    className="text-red-500 cursor-pointer"
                     onClick={() => {
                       handleLogout();
                     }}
