@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Loader2, AlertCircle, MapPin, Mail, Phone, Globe } from "lucide-react";
+import { Building2, Loader2, AlertCircle, MapPin, Mail, Phone, Globe, RefreshCw } from "lucide-react";
 
 import { listPrestadores, type PrestadoresListResponse } from "@/services/prestadores";
 import { listMunicipios, type MunicipioDto } from "@/services/municipios";
@@ -9,6 +9,7 @@ import { formatPhone } from "@/lib/formatters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 export default function PrestadoresPage() {
   const { data, isLoading, error } = useQuery<PrestadoresListResponse>({
@@ -71,12 +72,17 @@ export default function PrestadoresPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Dados do Prestador</h1>
-        <p className="text-sm text-muted-foreground">
-          Informações do prestador associado à sua conta
-        </p>
-      </header>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dados do Prestador</h1>
+          <p className="text-sm text-muted-foreground">
+            Informações do prestador associado à sua conta
+          </p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => window.location.reload()}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
 
       {isLoading && (
         <Card>
@@ -98,35 +104,35 @@ export default function PrestadoresPage() {
       )}
 
       {prestador && (
-        <Card>
-          <CardHeader>
+        <Card className="border-l-4 border-l-blue-500 bg-linear-to-br from-blue-50 to-white shadow-lg">
+          <CardHeader className="text-black rounded-t-lg pt-0">
             <div className="flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-primary" />
+              <Building2 className="h-6 w-6 text-black" />
               <div>
-                <CardTitle>{prestador.nomeFantasia}</CardTitle>
-                <CardDescription>{prestador.razaoSocial}</CardDescription>
+                <CardTitle className="text-black text-lg font-bold">{prestador.nomeFantasia}</CardTitle>
+                <CardDescription className="text-black text-sm">{prestador.razaoSocial}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Dados Cadastrais */}
             <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <h3 className="mb-2 text-sm font-medium">CNPJ</h3>
-                <p className="text-sm text-muted-foreground">
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                <h3 className="mb-2 text-sm font-semibold text-gray-800">CNPJ</h3>
+                <p className="text-sm text-gray-700 font-medium">
                   {prestador.cnpj?.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") || prestador.cnpj}
                 </p>
               </div>
               {prestador.inscricaoMunicipal && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Inscrição Municipal</h3>
-                  <p className="text-sm text-muted-foreground">{prestador.inscricaoMunicipal}</p>
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">Inscrição Municipal</h3>
+                  <p className="text-sm text-gray-700 font-medium">{prestador.inscricaoMunicipal}</p>
                 </div>
               )}
               {prestador.cnae && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">CNAE</h3>
-                  <p className="text-sm text-muted-foreground">{prestador.cnae}</p>
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">CNAE</h3>
+                  <p className="text-sm text-gray-700 font-medium">{prestador.cnae}</p>
                 </div>
               )}
             </div>
@@ -138,9 +144,9 @@ export default function PrestadoresPage() {
                 {/* Informações Tributárias */}
                 <div className="grid gap-4 md:grid-cols-3">
                   {codigoMunicipioTributario && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-medium">Município (IBGE)</h3>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                      <h3 className="mb-2 text-sm font-semibold text-gray-800">Município (IBGE)</h3>
+                      <p className="text-sm text-gray-700 font-medium">
                         {codigoMunicipioTributario}
                         {municipioDescricaoTributario && ` - ${municipioDescricaoTributario}`}
                         {!municipioDescricaoTributario && isLoadingMunicipios && " - Buscando descrição..."}
@@ -148,17 +154,17 @@ export default function PrestadoresPage() {
                     </div>
                   )}
                   {prestador.optanteSimplesNacional !== undefined && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-medium">Optante Simples Nacional</h3>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                      <h3 className="mb-2 text-sm font-semibold text-gray-800">Optante Simples Nacional</h3>
+                      <p className="text-sm text-gray-700 font-medium">
                         {prestador.optanteSimplesNacional === 1 ? "Sim" : "Não"}
                       </p>
                     </div>
                   )}
                   {prestador.regimeEspecialTributario !== undefined && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-medium">Regime Especial Tributário</h3>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                      <h3 className="mb-2 text-sm font-semibold text-gray-800">Regime Especial Tributário</h3>
+                      <p className="text-sm text-gray-700 font-medium">
                         {prestador.regimeEspecialTributario === 0 ? "Nenhum" : prestador.regimeEspecialTributario}
                       </p>
                     </div>
@@ -172,7 +178,7 @@ export default function PrestadoresPage() {
                 <Separator />
 
                 <div>
-                  <h3 className="mb-3 text-sm font-medium">Contatos</h3>
+                  <h3 className="mb-3 text-sm font-semibold text-gray-800 border-b border-gray-200 pb-2">Contatos</h3>
                   <div className="grid gap-3 md:grid-cols-2">
                     {prestador.email && (
                       <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -210,8 +216,8 @@ export default function PrestadoresPage() {
 
                 {/* Endereço */}
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium">Endereço</h3>
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <h3 className="text-sm font-semibold text-gray-800 border-b border-gray-200 pb-2">Endereço</h3>
+                  <div className="flex items-start gap-2 text-sm bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                     <div>
                       {prestador.endereco?.logradouro && prestador.endereco?.numero && (
@@ -242,9 +248,9 @@ export default function PrestadoresPage() {
             {prestador.tipoEmissao !== undefined && (
               <>
                 <Separator />
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Tipo de Emissão</h3>
-                  <p className="text-sm text-muted-foreground">
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">Tipo de Emissão</h3>
+                  <p className="text-sm text-gray-700 font-medium">
                     {prestador.tipoEmissao === 1 ? "Normal" : prestador.tipoEmissao === 2 ? "Contingência" : "Outro"}
                   </p>
                 </div>
