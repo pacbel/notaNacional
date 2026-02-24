@@ -83,7 +83,7 @@ export function ServicoTable({
             </span>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="text-center">
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
             <span>
               <strong>Trib. Municipal:</strong> {servico.codigoTributacaoMunicipal}
@@ -110,8 +110,8 @@ export function ServicoTable({
             )}
           </div>
         </TableCell>
-        <TableCell className="text-right">
-          <div className="flex flex-col items-end gap-1">
+        <TableCell className="text-center">
+          <div className="flex flex-col items-center gap-1">
             <span className="font-semibold text-sm">{formatCurrency(servico.valorUnitario)}</span>
             <Badge variant={servico.ativo ? "default" : "outline"} className="gap-1">
               {servico.ativo ? <BadgeCheck className="h-3 w-3" /> : <BadgeX className="h-3 w-3" />}
@@ -126,13 +126,13 @@ export function ServicoTable({
   return (
     <div>
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-[#1351b4] text-white">
           <TableRow>
-            <TableHead>Serviço</TableHead>
-            <TableHead>Códigos</TableHead>
-            <TableHead>Município</TableHead>
-            <TableHead>Informações</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="text-white">Serviço</TableHead>
+            <TableHead className="text-white">Códigos</TableHead>
+            <TableHead className="text-white">Município</TableHead>
+            <TableHead className="text-white text-center">Informações</TableHead>
+            <TableHead className="text-white text-center">Valor</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{renderRows()}</TableBody>

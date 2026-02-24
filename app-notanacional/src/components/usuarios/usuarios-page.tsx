@@ -105,13 +105,13 @@ export function UsuariosPage({ currentUserRole }: UsuariosPageProps) {
 
       <div className="rounded-lg border bg-card shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-[#1351b4] text-white">
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-white">Nome</TableHead>
+              <TableHead className="text-white">Email</TableHead>
+              <TableHead className="text-white">Role</TableHead>
+              <TableHead className="text-white">Status</TableHead>
+              <TableHead className="text-white text-center">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,8 +146,8 @@ export function UsuariosPage({ currentUserRole }: UsuariosPageProps) {
                       {usuario.ativo ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="text-center">
+                    <div className="flex justify-center gap-2">
                       <Button
                         variant="ghost"
                         size="sm"

@@ -190,7 +190,7 @@ export default function ServicosPage() {
             <div>
               <CardTitle>Lista de serviços</CardTitle>
               <CardDescription>
-                {total} serviço{total === 1 ? "" : "s"} cadastrados
+                {total} serviço{total === 1 ? "" : "s"} cadastrado(s)
               </CardDescription>
             </div>
             {isLoading && (
