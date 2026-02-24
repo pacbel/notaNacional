@@ -39,6 +39,23 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getStatusClasses(status: string | null) {
+  switch (status) {
+    case DpsStatus.RASCUNHO:
+      return "bg-gray-500 text-white";
+    case DpsStatus.ASSINADO:
+      return "bg-blue-500 text-white";
+    case DpsStatus.ENVIADO:
+      return "bg-green-500 text-white"; // Verde WhatsApp
+    case "AUTORIZADO":
+      return "bg-green-600 text-white"; // Verde para autorizado
+    case DpsStatus.CANCELADO:
+      return "bg-red-600 text-white"; // Vermelho mais escuro
+    default:
+      return "border border-gray-300 text-gray-700";
+  }
+}
+
 async function getDashboardData() {
   const currentUser = await getCurrentUser();
 
@@ -325,7 +342,7 @@ export default async function DashboardPage() {
                           <div className="text-xs text-muted-foreground">{nota.chaveAcesso}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{nota.dps?.status ?? "-"}</Badge>
+                          <Badge className={getStatusClasses(nota.dps?.status)}>{nota.dps?.status ?? "-"}</Badge>
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {format(nota.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}
