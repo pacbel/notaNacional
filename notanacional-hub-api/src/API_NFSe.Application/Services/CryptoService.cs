@@ -1,4 +1,5 @@
-﻿using API_NFSe.Application.Interfaces;
+﻿// Services/CryptoService.cs
+using API_NFSe.Application.Interfaces;
 using System.Text;
 
 namespace API_NFSe.Application.Services;
@@ -6,6 +7,12 @@ namespace API_NFSe.Application.Services;
 public class CryptoService : ICryptoService
 {
     private const string Chave = "seguranca";
+
+    static CryptoService()
+    {
+        // Necessário no .NET Core/5+ para encodings como Windows-1252
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
 
     public byte[] Encrypt(string text)
     {
