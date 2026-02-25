@@ -14,24 +14,17 @@ public class CryptoService : ICryptoService
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
-    // Bytes indefinidos no Windows-1252 que o VB6 Chr$() ignora
-    private static readonly HashSet<byte> Win1252Undefined = new() { 0x81, 0x8D, 0x8F, 0x90, 0x9D };
-
     public byte[] Encrypt(string text)
     {
         var encoding = Encoding.GetEncoding(1252);
         var chaveBytes = encoding.GetBytes(Chave);
         var textBytes = encoding.GetBytes(text);
-        var result = new List<byte>();
+        var result = new byte[textBytes.Length];
 
         int indChave = 0;
         for (int i = 0; i < textBytes.Length; i++)
         {
-            var charTmp = (byte)(textBytes[i] + chaveBytes[indChave]);
-
-            if (!Win1252Undefined.Contains(charTmp))
-                result.Add(charTmp);
-
+            result[i] = (byte)(textBytes[i] + chaveBytes[indChave]);
             indChave = (indChave + 1) % chaveBytes.Length;
         }
 
