@@ -60,7 +60,20 @@ async function getDashboardData() {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
-    throw new Error("Usuário não autenticado");
+    // O layout já redireciona usuários não autenticados
+    // Aqui apenas retornamos dados vazios como fallback
+    return {
+      totalNotas: 0,
+      notasMes: 0,
+      notasHoje: 0,
+      dpsPendentes: 0,
+      prestadoresAtivos: 0,
+      tomadoresAtivos: 0,
+      servicosAtivos: 0,
+      valorTotalMes: 0,
+      recentNotas: [],
+      notasPorMes: [],
+    };
   }
 
   const prestadorId = currentUser.prestadorId;
@@ -80,7 +93,6 @@ async function getDashboardData() {
     redirect("/configuracoes?missingRobotCredentials=1");
   }
 
-  // Calcular últimos 6 meses para o gráfico
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const date = subMonths(now, 5 - i);
     return {

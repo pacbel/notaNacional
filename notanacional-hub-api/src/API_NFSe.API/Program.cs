@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using API_NFSe.API.Authorization;
 using API_NFSe.API.Middlewares;
 using API_NFSe.API.Services;
@@ -6,6 +5,7 @@ using API_NFSe.Application;
 using API_NFSe.Application.Configurations;
 using API_NFSe.Application.Interfaces;
 using API_NFSe.Application.Security;
+using API_NFSe.Application.Services;
 using API_NFSe.Infra.Data;
 using API_NFSe.Infra.Data.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +17,7 @@ using Microsoft.OpenApi.Models;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Redoc.AspNetCore;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace API_NFSe.API;
 
@@ -82,6 +83,7 @@ public static class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddSingleton<IAuthorizationHandler, ScopeAuthorizationHandler>();
+        builder.Services.AddScoped<ICryptoService, CryptoService>();
 
         var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
                          ?? throw new InvalidOperationException("Configurações JWT não foram definidas corretamente.");
