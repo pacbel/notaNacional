@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NotaClient",
   description: "Portal de emissão de NFSe NotaClient",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

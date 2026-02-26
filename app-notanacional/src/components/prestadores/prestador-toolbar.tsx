@@ -105,7 +105,7 @@ export function PrestadorToolbar({ filters, onChangeFilters, disabled = false }:
         <SelectContent>
           {perPageOptions.map((option) => (
             <SelectItem key={option} value={String(option)}>
-              {option} / página
+              {option} / pág
             </SelectItem>
           ))}
         </SelectContent>

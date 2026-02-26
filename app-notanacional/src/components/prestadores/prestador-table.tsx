@@ -98,7 +98,7 @@ export function PrestadorTable({
             )}
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="text-center">
           <Badge variant={prestador.ativo ? "default" : "outline"} className="gap-1">
             <ShieldCheck className="h-3 w-3" />
             {prestador.ativo ? "Ativo" : "Inativo"}
@@ -117,13 +117,13 @@ export function PrestadorTable({
   return (
     <div>
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-[#1351b4] text-white">
           <TableRow>
-            <TableHead>Prestador</TableHead>
-            <TableHead>Documento</TableHead>
-            <TableHead>Contato</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Atualização</TableHead>
+            <TableHead className="text-white">Prestador</TableHead>
+            <TableHead className="text-white">Documento</TableHead>
+            <TableHead className="text-white">Contato</TableHead>
+            <TableHead className="text-white text-center">Status</TableHead>
+            <TableHead className="text-white text-right">Atualização</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{renderRows()}</TableBody>

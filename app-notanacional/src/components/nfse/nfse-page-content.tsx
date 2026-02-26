@@ -1429,7 +1429,7 @@ export default function NfsePageContent() {
                 <SelectContent>
                   {PER_PAGE_OPTIONS.map((option) => (
                     <SelectItem key={option} value={String(option)}>
-                      {option} / página
+                      {option} / pág
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1614,13 +1614,13 @@ export default function NfsePageContent() {
           <TabsContent value="dps" className="flex min-h-0 flex-1 flex-col">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-[#1351b4] text-white">
                   <TableRow>
-                    <TableHead>DPS</TableHead>
-                    <TableHead>Prestador</TableHead>
-                    <TableHead>Tomador</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-white">DPS</TableHead>
+                    <TableHead className="text-white">Prestador</TableHead>
+                    <TableHead className="text-white">Tomador</TableHead>
+                    <TableHead className="text-white">Status</TableHead>
+                    <TableHead className="text-white text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1663,8 +1663,8 @@ export default function NfsePageContent() {
                         <TableCell>
                           <Badge variant={STATUS_BADGE_VARIANT[dps.status]}>{STATUS_LABELS[dps.status]}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-2">
                             <Button
                               type="button"
                               size="sm"
@@ -1789,14 +1789,14 @@ export default function NfsePageContent() {
           <TabsContent value="notas" className="flex min-h-0 flex-1 flex-col">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-[#1351b4] text-white">
                   <TableRow>
-                    <TableHead>NFSe</TableHead>
-                    <TableHead>Prestador</TableHead>
-                    <TableHead>Tomador</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-white">NFSe</TableHead>
+                    <TableHead className="text-white">Prestador</TableHead>
+                    <TableHead className="text-white">Tomador</TableHead>
+                    <TableHead className="text-white">Valor</TableHead>
+                    <TableHead className="text-white">Status</TableHead>
+                    <TableHead className="text-white text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1844,8 +1844,8 @@ export default function NfsePageContent() {
                             {nota.dps?.status === "CANCELADO" ? "Cancelada" : "Emitida"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex flex-wrap justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex flex-wrap justify-center gap-2">
                             <Button
                               type="button"
                               size="sm"

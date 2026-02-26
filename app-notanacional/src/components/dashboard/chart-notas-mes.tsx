@@ -17,23 +17,24 @@ export function ChartNotasMes({ data }: ChartNotasMesProps) {
         <XAxis 
           dataKey="mes" 
           className="text-xs"
-          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fill: '#374151' }} // Cinza escuro para melhor legibilidade
         />
         <YAxis 
           className="text-xs"
-          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+          tick={{ fill: '#374151' }} // Cinza escuro para melhor legibilidade
         />
         <Tooltip 
           contentStyle={{
-            backgroundColor: 'hsl(var(--background))',
-            border: '1px solid hsl(var(--border))',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e5e7eb',
             borderRadius: '6px',
+            color: '#111827',
           }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
+          labelStyle={{ color: '#111827' }}
         />
         <Bar 
           dataKey="total" 
-          fill="hsl(var(--primary))" 
+          fill="#1351b4" // Azul do tema para consistência
           radius={[4, 4, 0, 0]}
           name="Notas Emitidas"
         />

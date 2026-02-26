@@ -377,6 +377,10 @@ function resolveErrorMessageFromUnknown(value: unknown, depth = 0): string | nul
 }
 
 function parseNotaApiError(error: unknown): { message: string; statusCode?: number; details?: unknown } {
+  console.log(`[PARSE_ERROR] Iniciando parsing do erro:`, error);
+  console.log(`[PARSE_ERROR] Tipo do erro:`, typeof error);
+  console.log(`[PARSE_ERROR] É AxiosError?`, error && typeof error === 'object' && 'isAxiosError' in error);
+  
   if (typeof error === "object" && error !== null && "isAxiosError" in error) {
     const axiosError = error as AxiosError;
     const statusCode = axiosError.response?.status;
@@ -384,12 +388,20 @@ function parseNotaApiError(error: unknown): { message: string; statusCode?: numb
     let message = axiosError.message;
 
     if (data !== undefined) {
+      console.log(`[PARSE_ERROR] Axios data:`, data);
+      console.log(`[PARSE_ERROR] Data type:`, typeof data);
+      console.log(`[PARSE_ERROR] Data as string:`, String(data));
+      
       const resolved = resolveErrorMessageFromUnknown(data);
+      console.log(`[PARSE_ERROR] Resolved message:`, resolved);
 
       if (resolved) {
         message = resolved;
       }
     }
+    
+    console.log(`[PARSE_ERROR] Final message:`, message);
+    console.log(`[PARSE_ERROR] Status code:`, statusCode);
 
     return {
       message,
@@ -1310,14 +1322,18 @@ export type AssinarDpsInput = z.infer<typeof assinarDpsSchema>;
 
 export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput): Promise<AssinarXmlResponse> {
   const dps = await resolveDps(dpsId);
+  console.log(`[ASSINAR_DPS] DPS resolvida: ${dpsId}, status atual: ${dps.status}`);
 
   const xmlGerado = dps.xmlGerado;
+  console.log(`[ASSINAR_DPS] XML gerado encontrado, tamanho: ${xmlGerado?.length || 0} caracteres`);
 
   if (!xmlGerado) {
+    console.error(`[ASSINAR_DPS] ERRO: XML da DPS não foi gerado para DPS ${dpsId}`);
     throw new AppError("XML da DPS não foi gerado", 400);
   }
 
   const prestadorDto = await getPrestador(dps.prestadorId);
+  console.log(`[ASSINAR_DPS] Prestador encontrado: ${prestadorDto.cnpj}, ID: ${prestadorDto.id}`);
 
   logInfo("Resolvendo certificado para assinatura", { dpsId, prestadorId: dps.prestadorId });
 
@@ -1331,22 +1347,31 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
   logInfo("Certificado resolvido para assinatura", { dpsId, certificateId: resolvedCertificate });
 
   let xmlAssinado: string;
+  console.log(`[ASSINAR_DPS] Iniciando chamada para assinarXml com tag: ${tag}`);
 
   try {
+    console.log(`[ASSINAR_DPS] Chamando assinarXml com parâmetros: prestadorId=${dps.prestadorId}, tag=${tag}, certificateId=${resolvedCertificate}`);
+    console.log(`[ASSINAR_DPS] XML a ser assinado (primeiros 200 chars): ${xmlGerado.substring(0, 200)}...`);
+    
     xmlAssinado = await assinarXml({
       prestadorId: dps.prestadorId,
       xml: xmlGerado,
       tag,
       certificateId: resolvedCertificate,
     });
+    console.log(`[ASSINAR_DPS] XML assinado com sucesso, tamanho: ${xmlAssinado.length} caracteres`);
 
     xmlAssinado = normalizeSignedDpsXml(xmlAssinado);
+    console.log(`[ASSINAR_DPS] XML normalizado após assinatura`);
     
     // Validar estrutura do XML após normalização
+    console.log(`[ASSINAR_DPS] Validando estrutura do XML após normalização`);
     const { validateXmlWellFormed } = await import("./xml/xml-validator");
     const validationResult = validateXmlWellFormed(xmlAssinado);
+    console.log(`[ASSINAR_DPS] Validação XML: válido=${validationResult.valid}`);
     
     if (!validationResult.valid) {
+      console.error(`[ASSINAR_DPS] ERRO: XML malformado após normalização: ${validationResult.error}`);
       logError("XML malformado após normalização da assinatura", {
         dpsId,
         error: validationResult.error,
@@ -1366,15 +1391,23 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
       );
     }
   } catch (error) {
+    console.error(`[ASSINAR_DPS] ERRO durante assinatura:`, error);
+    console.error(`[ASSINAR_DPS] Stack trace:`, error instanceof Error ? error.stack : 'N/A');
+    
     const notaError = parseNotaApiError(error);
+    console.error(`[ASSINAR_DPS] NotaError parsed:`, notaError);
+    console.error(`[ASSINAR_DPS] NotaError details:`, JSON.stringify(notaError, null, 2));
+    
     logError("Falha ao assinar DPS", {
       dpsId,
       prestadorId: dps.prestadorId,
       certificateId: resolvedCertificate,
       statusCode: notaError.statusCode,
       detalhes: notaError.details,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      fullError: error,
     });
-
+    
     throw new AppError(notaError.message, notaError.statusCode ?? 502, notaError.details);
   }
 
@@ -1388,6 +1421,7 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
     logError("Erro ao analisar/salvar XML assinado", { error });
   }
 
+  console.log(`[ASSINAR_DPS] DPS assinada com sucesso, atualizando banco de dados`);
   await prisma.dps.update({
     where: { id: dpsId },
     data: {
@@ -1397,17 +1431,10 @@ export async function assinarDps({ dpsId, tag, certificateId }: AssinarDpsInput)
       digestValue: null,
     },
   });
+  console.log(`[ASSINAR_DPS] DPS ${dpsId} atualizada no banco com status ASSINADO`);
 
   return xmlAssinado;
 }
-
-export const emitirNfseSchema = z.object({
-  dpsId: z.string().uuid(),
-  certificateId: z.string().optional(),
-  ambiente: z.number().int().min(1).max(2).optional(),
-});
-
-export type EmitirNfseInput = z.infer<typeof emitirNfseSchema>;
 
 export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: EmitirNfseInput): Promise<EmitirNfseResponse> {
   const dps = await resolveDps(dpsId);
@@ -1629,6 +1656,14 @@ export async function emitirNotaFiscal({ dpsId, certificateId, ambiente }: Emiti
 
   return response;
 }
+
+export const emitirNfseSchema = z.object({
+  dpsId: z.string().uuid(),
+  certificateId: z.string().optional(),
+  ambiente: z.number().int().min(1).max(2).optional(),
+});
+
+export type EmitirNfseInput = z.infer<typeof emitirNfseSchema>;
 
 export const cancelarNfseSchema = z.object({
   chaveAcesso: z.string().min(1),

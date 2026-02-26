@@ -39,11 +39,41 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getStatusClasses(status: string | null) {
+  switch (status) {
+    case DpsStatus.RASCUNHO:
+      return "bg-gray-500 text-white";
+    case DpsStatus.ASSINADO:
+      return "bg-blue-500 text-white";
+    case DpsStatus.ENVIADO:
+      return "bg-green-500 text-white"; // Verde WhatsApp
+    case "AUTORIZADO":
+      return "bg-green-600 text-white"; // Verde para autorizado
+    case DpsStatus.CANCELADO:
+      return "bg-red-600 text-white"; // Vermelho mais escuro
+    default:
+      return "border border-gray-300 text-gray-700";
+  }
+}
+
 async function getDashboardData() {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
-    throw new Error("Usuário não autenticado");
+    // O layout já redireciona usuários não autenticados
+    // Aqui apenas retornamos dados vazios como fallback
+    return {
+      totalNotas: 0,
+      notasMes: 0,
+      notasHoje: 0,
+      dpsPendentes: 0,
+      prestadoresAtivos: 0,
+      tomadoresAtivos: 0,
+      servicosAtivos: 0,
+      valorTotalMes: 0,
+      recentNotas: [],
+      notasPorMes: [],
+    };
   }
 
   const prestadorId = currentUser.prestadorId;
@@ -63,7 +93,6 @@ async function getDashboardData() {
     redirect("/configuracoes?missingRobotCredentials=1");
   }
 
-  // Calcular últimos 6 meses para o gráfico
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const date = subMonths(now, 5 - i);
     return {
@@ -229,10 +258,10 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Card>
+          <Card className="border-l-4 border-l-blue-500 bg-linear-to-br from-blue-50 to-white">
             <CardHeader className="pb-2">
               <CardDescription>NFSe emitidas (total)</CardDescription>
-              <CardTitle className="text-2xl">{formatNumber(data.totalNotas)}</CardTitle>
+              <CardTitle className="text-xl text-blue-600 font-bold">{formatNumber(data.totalNotas)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">
@@ -241,40 +270,40 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-green-500 bg-linear-to-br from-green-50 to-white">
             <CardHeader className="pb-2">
               <CardDescription>Emissões de hoje</CardDescription>
-              <CardTitle className="text-2xl">{formatNumber(data.notasHoje)}</CardTitle>
+              <CardTitle className="text-xl text-green-600 font-bold">{formatNumber(data.notasHoje)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Dados atualizados diariamente</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-orange-500 bg-linear-to-br from-orange-50 to-white">
             <CardHeader className="pb-2">
               <CardDescription>DPS aguardando ação</CardDescription>
-              <CardTitle className="text-2xl">{formatNumber(data.dpsPendentes)}</CardTitle>
+              <CardTitle className="text-xl text-orange-600 font-bold">{formatNumber(data.dpsPendentes)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Inclui rascunhos e pendentes de envio</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-purple-500 bg-linear-to-br from-purple-50 to-white">
             <CardHeader className="pb-2">
               <CardDescription>Valor emitido no mês</CardDescription>
-              <CardTitle className="text-2xl">{formatCurrency(data.valorTotalMes)}</CardTitle>
+              <CardTitle className="text-xl text-purple-600 font-bold">{formatCurrency(data.valorTotalMes)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Total consolidado das NFSe do mês</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-indigo-500 bg-linear-to-br from-indigo-50 to-white">
             <CardHeader className="pb-2">
-              <CardDescription>Prestadores ativos</CardDescription>
-              <CardTitle className="text-2xl">
+              <CardDescription>Pessoas ativas</CardDescription>
+              <CardTitle className="text-xl text-indigo-600 font-bold">
                 {formatNumber(data.prestadoresAtivos + data.tomadoresAtivos)}
               </CardTitle>
             </CardHeader>
@@ -296,7 +325,6 @@ export default async function DashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>NFSe</TableHead>
                     <TableHead>Tomador</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Emissão</TableHead>
@@ -312,12 +340,7 @@ export default async function DashboardPage() {
                   ) : (
                     data.recentNotas.map((nota) => (
                       <TableRow key={nota.id}>
-                        <TableCell>
-                          <div className="font-medium">{nota.numero}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {nota.prestador?.nomeFantasia || "Prestador"}
-                          </div>
-                        </TableCell>
+
                         <TableCell>
                           <div className="text-sm">
                             {nota.tomador ? nota.tomador.nomeRazaoSocial : "Tomador não identificado"}
@@ -325,7 +348,7 @@ export default async function DashboardPage() {
                           <div className="text-xs text-muted-foreground">{nota.chaveAcesso}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{nota.dps?.status ?? "-"}</Badge>
+                          <Badge className={getStatusClasses(nota.dps?.status)}>{nota.dps?.status ?? "-"}</Badge>
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {format(nota.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR })}
