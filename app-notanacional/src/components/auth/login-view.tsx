@@ -95,6 +95,7 @@ export default function LoginView() {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => null);
+          toast.error("Dados incorretos. Tente novamente.");
           throw new Error(data?.message ?? "Não foi possível autenticar");
         }
 
