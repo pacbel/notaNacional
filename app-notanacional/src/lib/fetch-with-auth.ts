@@ -54,7 +54,11 @@ async function refreshSession(): Promise<boolean> {
         return true;
       }
 
-      window.location.href = "/";
+      // Não redireciona se já estiver na página de login
+      if (window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
+
       return false;
     } catch (error) {
       console.error("[fetchWithAuth] Erro ao renovar sessão:", error);
