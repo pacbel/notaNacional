@@ -7,5 +7,8 @@ namespace API_NFSe.Application.DTOs.Auth
         [Required]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
+        [Required]
+        public string FrontendUrl { get; set; } = string.Empty;
+
     }
 }

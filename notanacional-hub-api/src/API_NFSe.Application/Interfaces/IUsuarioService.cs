@@ -14,7 +14,7 @@ namespace API_NFSe.Application.Interfaces
         Task<UsuarioDto?> AtualizarAsync(Guid id, UpdateUsuarioDto dto);
         Task<bool> AlterarSenhaAsync(Guid id, string senhaAtual, string novaSenha);
         Task<bool> RemoverAsync(Guid id);
-        Task SolicitarResetSenhaAsync(string email);
+        Task SolicitarResetSenhaAsync(string email, string url);
         Task<bool> RedefinirSenhaAsync(string token, string novaSenha);
     }
 }

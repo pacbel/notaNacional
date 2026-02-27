@@ -103,7 +103,7 @@ namespace API_NFSe.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
         {
-            await _usuarioService.SolicitarResetSenhaAsync(dto.Email);
+            await _usuarioService.SolicitarResetSenhaAsync(dto.Email, dto.FrontendUrl);
             return Accepted();
         }
 

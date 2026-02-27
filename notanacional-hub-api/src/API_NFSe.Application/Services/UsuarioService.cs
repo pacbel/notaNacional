@@ -171,7 +171,7 @@ namespace API_NFSe.Application.Services
             return await _usuarioRepository.SaveChangesAsync() > 0;
         }
 
-        public async Task SolicitarResetSenhaAsync(string email)
+        public async Task SolicitarResetSenhaAsync(string email, string url)
         {
             var emailHash = _cryptographyService.ComputeSha256(email.ToLowerInvariant());
             var usuario = await _usuarioRepository.ObterPorEmailHashAsync(emailHash);
@@ -188,9 +188,7 @@ namespace API_NFSe.Application.Services
 
             var smtpSettings = await ObterSmtpSettingsAsync(usuario.PrestadorId);
 
-            var link = string.IsNullOrWhiteSpace(smtpSettings.ResetPasswordUrl)
-                ? string.Empty
-                : $"<p><a href=\"{smtpSettings.ResetPasswordUrl}?token={token}\">Clique aqui para redefinir sua senha</a></p>";
+            var link = $"<p><a href={url}/recuperar-senha?token={token}\">Clique aqui para redefinir sua senha</a></p>";
 
             var corpo = $@"<p>Olá,</p>
 <p>Recebemos uma solicitação para redefinir sua senha.</p>
