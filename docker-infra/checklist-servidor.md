@@ -37,15 +37,30 @@ docker network create web
 ## 8. Configurar permissões
 sudo chown -R $USER:$USER /srv/prod /srv/homolog
 
-## Secrets no GitHub
+## Configurar Docker Hub
 
-Adicione estas secrets no repositório GitHub (Settings > Secrets and variables > Actions):
+1. **Criar conta no Docker Hub** (se não tiver):
+   - Acesse https://hub.docker.com
+   - Crie conta gratuita
+
+2. **Criar repositório**:
+   - Clique em "Create Repository"
+   - Nome: `notanacional` (minúsculo)
+   - Visibilidade: Public (ou Private se preferir)
+   - Clique em "Create"
+
+3. **Gerar Access Token**:
+   - Vá em Account Settings > Security
+   - Clique em "New Access Token"
+   - Nome: `notanacional-deploy`
+   - Permissões: Read, Write, Delete
+   - Copie o token gerado (única vez que aparece!)
 
 - **`SERVER_HOST`**: IP/domínio do servidor
 - **`SERVER_USER`**: Usuário SSH (ex: ubuntu)
 - **`SERVER_SSH_KEY`**: Chave privada SSH completa
-- **`DOCKERHUB_USERNAME`**: Seu username no Docker Hub
-- **`DOCKERHUB_TOKEN`**: Access Token do Docker Hub (não senha)
+- **`DOCKERHUB_USERNAME`**: Seu username no Docker Hub (ex: `pacbel`)
+- **`DOCKERHUB_TOKEN`**: O token gerado acima (não use senha da conta)
 
 ## 10. Primeiro deploy
 # Execute manualmente ou aguarde push na branch
