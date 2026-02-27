@@ -105,6 +105,19 @@ jobs:
             NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET_HOMOLOG }}
             NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_HOMOLOG }}
             JWT_SECRET=${{ secrets.JWT_SECRET_HOMOLOG }}
+            NEXT_PUBLIC_API_BASE_URL=https://hom-notanacional-api.virtual.app.br
+            NEXT_PUBLIC_SYSTEM_URL=https://hom-notanacional.virtual.app.br
+            NEXT_PUBLIC_SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID=${{ secrets.ONBOARDING_MFA_ROBOT_CLIENT_ID }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET=${{ secrets.ONBOARDING_MFA_ROBOT_CLIENT_SECRET }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE="nfse.email nfse.robot"
+            # .NET API overrides
+            Jwt__SecretKey=${{ secrets.JWT_SECRET_HOMOLOG }}
+            Encryption__Key=${{ secrets.ENCRYPTION_KEY_HOMOLOG }}
+            Encryption__IV=${{ secrets.ENCRYPTION_IV_HOMOLOG }}
+            CertificateStorage__BasePath=/app/certs
+            Smtp__Password=${{ secrets.SMTP_PASSWORD }}
+            AdminUser__Senha=${{ secrets.ADMIN_PASSWORD_HOMOLOG }}
           else
             LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL_PROD }}
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD_PROD }}
@@ -117,6 +130,19 @@ jobs:
             NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET_PROD }}
             NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_PROD }}
             JWT_SECRET=${{ secrets.JWT_SECRET_PROD }}
+            NEXT_PUBLIC_API_BASE_URL=https://notanacional-hub-api.virtual.app.br
+            NEXT_PUBLIC_SYSTEM_URL=https://notanacional-hub.virtual.app.br
+            NEXT_PUBLIC_SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID=${{ secrets.ONBOARDING_MFA_ROBOT_CLIENT_ID }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET=${{ secrets.ONBOARDING_MFA_ROBOT_CLIENT_SECRET }}
+            NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE="nfse.email nfse.robot"
+            # .NET API overrides
+            Jwt__SecretKey=${{ secrets.JWT_SECRET_PROD }}
+            Encryption__Key=${{ secrets.ENCRYPTION_KEY_PROD }}
+            Encryption__IV=${{ secrets.ENCRYPTION_IV_PROD }}
+            CertificateStorage__BasePath=/app/certs
+            Smtp__Password=${{ secrets.SMTP_PASSWORD }}
+            AdminUser__Senha=${{ secrets.ADMIN_PASSWORD_PROD }}
           fi
           cat <<EOF > /tmp/env_file
           # Docker Hub
@@ -140,11 +166,28 @@ jobs:
           NEXTAUTH_SECRET=$NEXTAUTH_SECRET
           NEXTAUTH_URL=$NEXTAUTH_URL
 
+          # Next.js public vars
+          NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+          NEXT_PUBLIC_SWAGGER_PATH=/index.html
+          NEXT_PUBLIC_SYSTEM_URL=$NEXT_PUBLIC_SYSTEM_URL
+          NEXT_PUBLIC_SMTP_PASSWORD=$NEXT_PUBLIC_SMTP_PASSWORD
+          NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID=$NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID
+          NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET=$NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET
+          NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE=$NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE
+
+          # .NET API overrides
+          Jwt__SecretKey=$Jwt__SecretKey
+          Encryption__Key=$Encryption__Key
+          Encryption__IV=$Encryption__IV
+          CertificateStorage__BasePath=$CertificateStorage__BasePath
+          Smtp__Password=$Smtp__Password
+          AdminUser__Senha=$AdminUser__Senha
+
           # Para API .NET
           JWT_SECRET=$JWT_SECRET
           SMTP_HOST=${{ secrets.SMTP_HOST }}
           SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_PASS=$Smtp__Password
 
           # FTP settings se necessário
           FTP_HOST=${{ secrets.FTP_HOST }}

@@ -61,6 +61,15 @@ services:
     image: ${DOCKERHUB_USERNAME}/app-notanacional:latest
     environment:
       - DATABASE_URL=${DATABASE_URL_APP}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      - NEXT_PUBLIC_SWAGGER_PATH=${NEXT_PUBLIC_SWAGGER_PATH}
+      - NEXT_PUBLIC_SYSTEM_URL=${NEXT_PUBLIC_SYSTEM_URL}
+      - NEXT_PUBLIC_SMTP_PASSWORD=${NEXT_PUBLIC_SMTP_PASSWORD}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-notanacional.rule=Host(`hom-app.notanacional.virtual.app.br`)"
@@ -79,6 +88,15 @@ services:
     image: ${DOCKERHUB_USERNAME}/notanacional-hub:latest
     environment:
       - DATABASE_URL=${DATABASE_URL_HUB}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+      - NEXT_PUBLIC_SWAGGER_PATH=${NEXT_PUBLIC_SWAGGER_PATH}
+      - NEXT_PUBLIC_SYSTEM_URL=${NEXT_PUBLIC_SYSTEM_URL}
+      - NEXT_PUBLIC_SMTP_PASSWORD=${NEXT_PUBLIC_SMTP_PASSWORD}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_ID}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_CLIENT_SECRET}
+      - NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE=${NEXT_PUBLIC_ONBOARDING_MFA_ROBOT_SCOPE}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notanacional-hub.rule=Host(`hom-notanacional-hub.virtual.app.br`)"
@@ -96,8 +114,14 @@ services:
   notanacional-hub-api:
     image: ${DOCKERHUB_USERNAME}/notanacional-hub-api:latest
     environment:
-      - ConnectionStrings__DefaultConnection=${DATABASE_URL}
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL_API}
       - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__SecretKey=${Jwt__SecretKey}
+      - Encryption__Key=${Encryption__Key}
+      - Encryption__IV=${Encryption__IV}
+      - CertificateStorage__BasePath=${CertificateStorage__BasePath}
+      - Smtp__Password=${Smtp__Password}
+      - AdminUser__Senha=${AdminUser__Senha}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notanacional-hub-api.rule=Host(`hom-notanacional-hub-api.virtual.app.br`)"
