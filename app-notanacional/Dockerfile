@@ -1,3 +1,4 @@
+# Dockerfile para Apps Next.js (usar para notanacional-hub)
 FROM node:20-slim AS base
 
 FROM base AS deps
@@ -7,13 +8,12 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f package-lock.json ]; then npm ci --include=dev; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
 
 FROM base AS builder
-# Instalar openssl no stage builder também
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -46,6 +46,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 
 EXPOSE 3000
+
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
