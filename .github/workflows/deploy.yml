@@ -26,12 +26,8 @@ jobs:
           echo "SERVER_DIR=/srv/homolog" >> $GITHUB_ENV
         fi
 
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set repository name to lowercase
+      run: echo "REPO_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
     - name: Build and push Landing image
       uses: docker/build-push-action@v5
@@ -39,7 +35,7 @@ jobs:
         context: ./notanacional
         file: ./notanacional/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository }}/landing:${{ github.sha }},ghcr.io/${{ github.repository }}/landing:latest
+        tags: ghcr.io/${{ env.REPO_NAME }}/landing:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/landing:latest
 
     - name: Build and push App Notanacional image
       uses: docker/build-push-action@v5
@@ -47,7 +43,7 @@ jobs:
         context: ./app-notanacional
         file: ./app-notanacional/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository }}/app-notanacional:${{ github.sha }},ghcr.io/${{ github.repository }}/app-notanacional:latest
+        tags: ghcr.io/${{ env.REPO_NAME }}/app-notanacional:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/app-notanacional:latest
 
     - name: Build and push Notanacional Hub image
       uses: docker/build-push-action@v5
@@ -55,7 +51,7 @@ jobs:
         context: ./notanacional-hub
         file: ./notanacional-hub/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository }}/notanacional-hub:${{ github.sha }},ghcr.io/${{ github.repository }}/notanacional-hub:latest
+        tags: ghcr.io/${{ env.REPO_NAME }}/notanacional-hub:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/notanacional-hub:latest
 
     - name: Build and push API image
       uses: docker/build-push-action@v5
@@ -63,7 +59,7 @@ jobs:
         context: ./notanacional-hub-api
         file: ./notanacional-hub-api/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository }}/notanacional-hub-api:${{ github.sha }},ghcr.io/${{ github.repository }}/notanacional-hub-api:latest
+        tags: ghcr.io/${{ env.REPO_NAME }}/notanacional-hub-api:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/notanacional-hub-api:latest
 
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
