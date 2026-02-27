@@ -1,5 +1,5 @@
 # Dockerfile para Apps Next.js (usar para app-notanacional)
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps

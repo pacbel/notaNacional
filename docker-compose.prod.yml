@@ -42,7 +42,7 @@ services:
       retries: 10
 
   landing:
-    image: ${DOCKERHUB_USERNAME}/notanacional/landing:latest
+    image: ${DOCKERHUB_USERNAME}/notanacional-landing:latest
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.landing.rule=Host(`notanacional.virtual.app.br`)"
@@ -54,7 +54,7 @@ services:
     restart: unless-stopped
 
   app-notanacional:
-    image: ${DOCKERHUB_USERNAME}/notanacional/app-notanacional:latest
+    image: ${DOCKERHUB_USERNAME}/app-notanacional:latest
     environment:
       - DATABASE_URL=${DATABASE_URL}
       # Outras env vars
@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
 
   notanacional-hub:
-    image: ${DOCKERHUB_USERNAME}/notanacional/notanacional-hub:latest
+    image: ${DOCKERHUB_USERNAME}/notanacional-hub:latest
     environment:
       - DATABASE_URL=${DATABASE_URL}
     labels:
@@ -91,7 +91,7 @@ services:
     restart: unless-stopped
 
   notanacional-hub-api:
-    image: ${DOCKERHUB_USERNAME}/notanacional/notanacional-hub-api:latest
+    image: ${DOCKERHUB_USERNAME}/notanacional-hub-api:latest
     environment:
       - ConnectionStrings__DefaultConnection=${DATABASE_URL}
       - ASPNETCORE_ENVIRONMENT=Production
