@@ -3,14 +3,14 @@ FROM node:20-slim AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps
-RUN apt-get update && apt-get install -y libc6-dev openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libc6-dev openssl libxml2-dev g++ make python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copiar arquivos de dependências
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile --production=false; \
-  elif [ -f package-lock.json ]; then npm install --production=false; \
+  elif [ -f package-lock.json ]; then npm ci; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
