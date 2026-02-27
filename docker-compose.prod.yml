@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./app-data/certs:/letsencrypt
+    restart: unless-stopped
+    networks:
+      - web
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./app-data/mysql/data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  landing:
+    build:
+      context: ./notanacional
+      dockerfile: ./Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.landing.rule=Host(`notanacional.virtual.app.br`)"
+      - "traefik.http.routers.landing.entrypoints=websecure"
+      - "traefik.http.routers.landing.tls.certresolver=letsencrypt"
+      - "traefik.http.services.landing.loadbalancer.server.port=80"
+    networks:
+      - web
+    restart: unless-stopped
+
+  app-notanacional:
+    build:
+      context: ./app-notanacional
+      dockerfile: ./Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      # Outras env vars
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app-notanacional.rule=Host(`app.notanacional.virtual.app.br`)"
+      - "traefik.http.routers.app-notanacional.entrypoints=websecure"
+      - "traefik.http.routers.app-notanacional.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app-notanacional.loadbalancer.server.port=3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - web
+      - internal
+    restart: unless-stopped
+
+  notanacional-hub:
+    build:
+      context: ./notanacional-hub
+      dockerfile: ./Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notanacional-hub.rule=Host(`notanacional-hub.virtual.app.br`)"
+      - "traefik.http.routers.notanacional-hub.entrypoints=websecure"
+      - "traefik.http.routers.notanacional-hub.tls.certresolver=letsencrypt"
+      - "traefik.http.services.notanacional-hub.loadbalancer.server.port=3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - web
+      - internal
+    restart: unless-stopped
+
+  notanacional-hub-api:
+    build:
+      context: ./notanacional-hub-api
+      dockerfile: ./Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL}
+      - ASPNETCORE_ENVIRONMENT=Production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notanacional-hub-api.rule=Host(`notanacional-hub-api.virtual.app.br`)"
+      - "traefik.http.routers.notanacional-hub-api.entrypoints=websecure"
+      - "traefik.http.routers.notanacional-hub-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.notanacional-hub-api.loadbalancer.server.port=80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./app-data/uploads:/app/uploads
+    networks:
+      - web
+      - internal
+    restart: unless-stopped
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  certs:
+  uploads:
