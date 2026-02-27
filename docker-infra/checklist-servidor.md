@@ -83,11 +83,42 @@ sudo chown -R $USER:$USER /srv/prod /srv/homolog
 
 3. **Se der erro**: Token incorreto ou repositório não existe
 
-### Verificar secrets no GitHub
+## Verificação das Secrets no GitHub
 
-- Vá em Settings > Secrets and variables > Actions
-- Confirme que `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` estão definidos
-- **Importante**: Secrets são case-sensitive!
+### Como verificar se as secrets estão definidas:
+
+1. **Acesse seu repositório no GitHub**
+2. **Vá para Settings > Secrets and variables > Actions**
+3. **Verifique se existem estas secrets:**
+   - `DOCKERHUB_USERNAME` (deve conter: `pacbel2022`)
+   - `DOCKERHUB_TOKEN` (deve conter o token do Docker Hub)
+
+### Se as secrets não existirem:
+
+1. **Clique em "New repository secret"**
+2. **Para DOCKERHUB_USERNAME:**
+   - Name: `DOCKERHUB_USERNAME`
+   - Value: `pacbel2022`
+3. **Para DOCKERHUB_TOKEN:**
+   - Name: `DOCKERHUB_TOKEN`
+   - Value: Cole o token gerado no Docker Hub (sem aspas)
+
+### ⚠️ Importante:
+- Secrets são **case-sensitive**
+- O valor de `DOCKERHUB_USERNAME` deve ser exatamente `pacbel2022`
+- O `DOCKERHUB_TOKEN` deve ser o token completo gerado no Docker Hub
+- Não use a senha da conta Docker Hub, use o Access Token
+
+### Teste das secrets:
+
+Após configurar, faça um push na branch `homolog`. O workflow agora vai mostrar no log:
+```
+DOCKERHUB_USERNAME: 'pacbel2022'
+DOCKERHUB_TOKEN exists: YES
+DOCKERHUB_TOKEN length: [número > 0]
+```
+
+Se aparecer vazio ou NO, as secrets não estão configuradas corretamente.
 
 ### Possíveis problemas
 

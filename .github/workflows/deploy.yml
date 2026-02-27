@@ -58,11 +58,11 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub:latest
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Debug secrets
+      run: |
+        echo "DOCKERHUB_USERNAME: '${{ secrets.DOCKERHUB_USERNAME }}'"
+        echo "DOCKERHUB_TOKEN exists: $(if [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then echo 'YES'; else echo 'NO'; fi)"
+        echo "DOCKERHUB_TOKEN length: $(echo -n '${{ secrets.DOCKERHUB_TOKEN }}' | wc -c)"
 
     - name: Test Docker Hub login
       run: docker info
