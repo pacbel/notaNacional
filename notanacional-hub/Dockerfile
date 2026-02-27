@@ -24,7 +24,8 @@ COPY . .
 # Next.js coleta dados de telemetria completamente anônimos sobre uso geral.
 # Saiba mais aqui: https://nextjs.org/telemetry
 # Descomente a seguinte linha caso queira desabilitar a telemetria durante o build.
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV TURBOPACK=0
 
 RUN \
   if [ -f yarn.lock ]; then yarn build; \
