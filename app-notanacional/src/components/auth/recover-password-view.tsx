@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Loader2, ShieldCheck, Mail, Lock, ArrowLeft, Building2 } from "lucide-react";
 
 import {
   Card,
@@ -134,7 +134,9 @@ export default function RecoverPasswordView() {
       <Card className="w-full max-w-xl shadow-xl">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-3 text-primary">
-            <ShieldCheck className="h-8 w-8" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1351b4]">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
             <div>
               <CardTitle className="text-2xl">Recuperação de senha</CardTitle>
               <CardDescription>Receba um código por e-mail e redefina com segurança.</CardDescription>
@@ -171,7 +173,7 @@ export default function RecoverPasswordView() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isPending}>
+                <Button type="submit" className="w-full bg-blue-800 text-white hover:bg-blue-900" disabled={isPending}>
                   {isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
@@ -191,8 +193,8 @@ export default function RecoverPasswordView() {
               <p>Se o e-mail informado estiver cadastrado, você receberá uma mensagem com um código de verificação.</p>
               <p>O código expira em poucos minutos. Caso não encontre o e-mail, verifique a caixa de spam ou tente novamente.</p>
               <Button
-                variant="ghost"
-                className="gap-2"
+                variant="link"
+                className="gap-2 text-red-600 hover:text-red-800"
                 onClick={() => setViewMode("request")}
               >
                 <ArrowLeft className="h-4 w-4" /> Inserir outro e-mail
@@ -244,7 +246,7 @@ export default function RecoverPasswordView() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isPending}>
+                <Button type="submit" className="w-full bg-blue-800 text-white hover:bg-blue-900" disabled={isPending}>
                   {isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Redefinindo...
@@ -263,7 +265,7 @@ export default function RecoverPasswordView() {
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>Sua senha foi atualizada com sucesso. Faça login novamente para continuar utilizando o sistema.</p>
               <Button
-                className="w-full"
+                className="w-full bg-blue-800 text-white hover:bg-blue-900"
                 onClick={() => {
                   router.replace("/");
                   router.refresh();

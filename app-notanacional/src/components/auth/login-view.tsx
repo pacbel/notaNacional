@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Mail, ShieldCheck, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, ShieldCheck, Lock, Eye, EyeOff, Building2 } from "lucide-react";
 
 import {
   Card,
@@ -164,7 +164,9 @@ export default function LoginView() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-3 text-primary">
-            <ShieldCheck className="h-8 w-8" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1351b4]">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
             <div>
               <CardTitle className="text-2xl">Nota Nacional</CardTitle>
               <CardDescription>Emissão de documentos fiscais.</CardDescription>
@@ -235,7 +237,7 @@ export default function LoginView() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isCredentialsPending}>
+                <Button type="submit" className="w-full bg-blue-800 text-white hover:bg-blue-900" disabled={isCredentialsPending}>
                   {isCredentialsPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Autenticando...
@@ -246,16 +248,17 @@ export default function LoginView() {
                   )}
                 </Button>
 
-                <Button variant="link" type="button" className="w-full" asChild>
+                <Button variant="link" type="button" className="w-full text-red-600 hover:text-red-800" asChild>
                   <Link href="/recuperar-senha">Esqueci minha senha</Link>
                 </Button>
+                
               </form>
             </Form>
           ) : (
             <form className="space-y-6" onSubmit={handleMfaSubmit}>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Enviamos um código de verificação para o e-mail informado. Digite-o abaixo para acessar o sistema.
+                  Enviamos um código de verificação para o e-mail <b>{userEmail}</b>. <br/>Digite-o abaixo para acessar o sistema.
                 </p>
               </div>
 
@@ -283,7 +286,7 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-blue-800 text-white hover:bg-blue-900"
                 disabled={isMfaPending || mfaCode.length === 0}
               >
                 {isMfaPending ? (
@@ -299,8 +302,8 @@ export default function LoginView() {
 
               <Button
                 type="button"
-                variant="ghost"
-                className="w-full"
+                variant="link"
+                className="w-full text-red-600 hover:text-red-800"
                 disabled={isMfaPending}
                 onClick={() => {
                   setIsMfaPending(false);
