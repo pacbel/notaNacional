@@ -25,7 +25,11 @@ jobs:
             echo "DOCKER_COMPOSE_FILE=docker-compose.homolog.yml" >> $GITHUB_ENV
             echo "SERVER_DIR=/srv/homolog" >> $GITHUB_ENV
           fi
-
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "ENV_FILE=.env.prod" >> $GITHUB_ENV
+          else
+            echo "ENV_FILE=.env.homolog" >> $GITHUB_ENV
+          fi
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -85,6 +89,81 @@ jobs:
           source: ${{ env.DOCKER_COMPOSE_FILE }}
           target: ${{ env.SERVER_DIR }}
 
+      # ========== CREATE ENV FILE FROM SECRETS ==========
+
+      - name: Create env file from secrets
+        run: |
+          if [ "${{ env.ENVIRONMENT }}" = "homolog" ]; then
+            LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL_HOMOLOG }}
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD_HOMOLOG }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE_HOMOLOG }}
+            MYSQL_USER=${{ secrets.MYSQL_USER_HOMOLOG }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD_HOMOLOG }}
+            DATABASE_URL_APP=${{ secrets.DATABASE_URL_APP_HOMOLOG }}
+            DATABASE_URL_HUB=${{ secrets.DATABASE_URL_HUB_HOMOLOG }}
+            DATABASE_URL_API=${{ secrets.DATABASE_URL_API_HOMOLOG }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET_HOMOLOG }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_HOMOLOG }}
+            JWT_SECRET=${{ secrets.JWT_SECRET_HOMOLOG }}
+          else
+            LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL_PROD }}
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD_PROD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE_PROD }}
+            MYSQL_USER=${{ secrets.MYSQL_USER_PROD }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD_PROD }}
+            DATABASE_URL_APP=${{ secrets.DATABASE_URL_APP_PROD }}
+            DATABASE_URL_HUB=${{ secrets.DATABASE_URL_HUB_PROD }}
+            DATABASE_URL_API=${{ secrets.DATABASE_URL_API_PROD }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET_PROD }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_PROD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET_PROD }}
+          fi
+          cat <<EOF > /tmp/env_file
+          # Docker Hub
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+
+          # Let's Encrypt
+          LETSENCRYPT_EMAIL=$LETSENCRYPT_EMAIL
+
+          # MySQL
+          MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+          MYSQL_DATABASE=$MYSQL_DATABASE
+          MYSQL_USER=$MYSQL_USER
+          MYSQL_PASSWORD=$MYSQL_PASSWORD
+
+          # Database URLs para apps Next.js (bases diferentes)
+          DATABASE_URL_APP=$DATABASE_URL_APP
+          DATABASE_URL_HUB=$DATABASE_URL_HUB
+          DATABASE_URL_API=$DATABASE_URL_API
+
+          # Outras variáveis específicas das apps
+          NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+          NEXTAUTH_URL=$NEXTAUTH_URL
+
+          # Para API .NET
+          JWT_SECRET=$JWT_SECRET
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+
+          # FTP settings se necessário
+          FTP_HOST=${{ secrets.FTP_HOST }}
+          FTP_USER=${{ secrets.FTP_USER }}
+          FTP_PASS=${{ secrets.FTP_PASS }}
+
+          # Certificados A1 path (se usado na API)
+          CERT_PATH=/app/certs
+          EOF
+
+      - name: Copy env file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: /tmp/env_file
+          target: ${{ env.SERVER_DIR }}/${{ env.ENV_FILE }}
+
       # ========== DEPLOY ==========
 
       - name: Deploy to server
@@ -96,5 +175,5 @@ jobs:
           script: |
             mkdir -p ${{ env.SERVER_DIR }}
             cd ${{ env.SERVER_DIR }}
-            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} pull
-            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d
+            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} --env-file ${{ env.ENV_FILE }} pull
+            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} --env-file ${{ env.ENV_FILE }} up -d

@@ -34,6 +34,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./app-data/mysql/data:/var/lib/mysql
+    # Porta externa opcional - habilitada para acesso remoto
+    ports:
+      - "3307:3306"
     restart: unless-stopped
     networks:
       - internal
@@ -57,7 +60,7 @@ services:
   app-notanacional:
     image: ${DOCKERHUB_USERNAME}/app-notanacional:latest
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL_APP}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-notanacional.rule=Host(`hom-app.notanacional.virtual.app.br`)"
@@ -75,7 +78,7 @@ services:
   notanacional-hub:
     image: ${DOCKERHUB_USERNAME}/notanacional-hub:latest
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL_HUB}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notanacional-hub.rule=Host(`hom-notanacional-hub.virtual.app.br`)"

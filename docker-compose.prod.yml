@@ -33,6 +33,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./app-data/mysql/data:/var/lib/mysql
+    # Porta externa opcional - habilitada para acesso remoto
+    ports:
+      - "3307:3306"
     restart: unless-stopped
     networks:
       - internal
@@ -56,7 +59,7 @@ services:
   app-notanacional:
     image: ${DOCKERHUB_USERNAME}/app-notanacional:latest
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL_APP}
       # Outras env vars
     labels:
       - "traefik.enable=true"
@@ -75,7 +78,7 @@ services:
   notanacional-hub:
     image: ${DOCKERHUB_USERNAME}/notanacional-hub:latest
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL_HUB}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.notanacional-hub.rule=Host(`notanacional-hub.virtual.app.br`)"
@@ -93,7 +96,7 @@ services:
   notanacional-hub-api:
     image: ${DOCKERHUB_USERNAME}/notanacional-hub-api:latest
     environment:
-      - ConnectionStrings__DefaultConnection=${DATABASE_URL}
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL_API}
       - ASPNETCORE_ENVIRONMENT=Production
     labels:
       - "traefik.enable=true"
