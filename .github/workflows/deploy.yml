@@ -53,13 +53,14 @@ jobs:
         push: true
         tags: ${{ env.REPO_NAME }}/notanacional-hub:${{ github.sha }},${{ env.REPO_NAME }}/notanacional-hub:latest
 
-    - name: Build and push API image
-      uses: docker/build-push-action@v5
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
       with:
-        context: ./notanacional-hub-api
-        file: ./notanacional-hub-api/Dockerfile
-        push: true
-        tags: ${{ env.REPO_NAME }}/notanacional-hub-api:${{ github.sha }},${{ env.REPO_NAME }}/notanacional-hub-api:latest
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Test Docker Hub login
+      run: docker info
 
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3

@@ -62,11 +62,36 @@ sudo chown -R $USER:$USER /srv/prod /srv/homolog
 - **`DOCKERHUB_USERNAME`**: Seu username no Docker Hub (ex: `pacbel`)
 - **`DOCKERHUB_TOKEN`**: O token gerado acima (não use senha da conta)
 
-## 10. Primeiro deploy
-# Execute manualmente ou aguarde push na branch
-cd /srv/prod
-docker-compose -f docker-compose.prod.yml up -d
+## Troubleshooting Docker Hub
 
-# Verificar status
-docker-compose -f docker-compose.prod.yml ps
-docker-compose -f docker-compose.prod.yml logs
+### Testar credenciais localmente
+
+1. **No seu computador** (Windows):
+   ```bash
+   # Instalar Docker Desktop se não tiver
+   # Fazer login manualmente
+   docker login -u SEU_USERNAME
+   # Digite o access token quando pedir senha
+   ```
+
+2. **Verificar se funciona**:
+   ```bash
+   docker pull hello-world
+   docker tag hello-world SEU_USERNAME/notanacional:teste
+   docker push SEU_USERNAME/notanacional:teste
+   ```
+
+3. **Se der erro**: Token incorreto ou repositório não existe
+
+### Verificar secrets no GitHub
+
+- Vá em Settings > Secrets and variables > Actions
+- Confirme que `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` estão definidos
+- **Importante**: Secrets são case-sensitive!
+
+### Possíveis problemas
+
+- **Token expirado**: Gere um novo token no Docker Hub
+- **Username errado**: Deve ser exatamente o mesmo do Docker Hub
+- **Repositório não existe**: Crie `notanacional` no Docker Hub
+- **Permissões insuficientes**: Token precisa de Read/Write/Delete
