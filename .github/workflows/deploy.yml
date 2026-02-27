@@ -1,81 +1,100 @@
 name: Deploy to Server
+
 on:
   push:
     branches:
       - main
       - homolog
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set environment variables
-      run: |
-        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-          echo "DOCKER_COMPOSE_FILE=docker-compose.prod.yml" >> $GITHUB_ENV
-          echo "SERVER_DIR=/srv/prod" >> $GITHUB_ENV
-        else
-          echo "ENVIRONMENT=homolog" >> $GITHUB_ENV
-          echo "DOCKER_COMPOSE_FILE=docker-compose.homolog.yml" >> $GITHUB_ENV
-          echo "SERVER_DIR=/srv/homolog" >> $GITHUB_ENV
-        fi
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+            echo "DOCKER_COMPOSE_FILE=docker-compose.prod.yml" >> $GITHUB_ENV
+            echo "SERVER_DIR=/srv/prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=homolog" >> $GITHUB_ENV
+            echo "DOCKER_COMPOSE_FILE=docker-compose.homolog.yml" >> $GITHUB_ENV
+            echo "SERVER_DIR=/srv/homolog" >> $GITHUB_ENV
+          fi
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and push Landing image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./notanacional
-        file: ./notanacional/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:${{ github.sha }}
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:latest
+      # ========== BUILD & PUSH IMAGES ==========
 
-    - name: Build and push API image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./notanacional-hub-api
-        file: ./notanacional-hub-api/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:${{ github.sha }}
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:latest
+      - name: Build and push Landing image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./notanacional
+          file: ./notanacional/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:latest
 
-    - name: Build and push App Notanacional image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./app-notanacional
-        file: ./app-notanacional/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:${{ github.sha }}
-          ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:latest
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./notanacional-hub-api
+          file: ./notanacional-hub-api/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:latest
 
-    - name: Build and push Notanacional Hub image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./notanacional-hub
-        file: ./notanacional-hub/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:${{ github.sha }}
-          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:latest
+      - name: Build and push App Notanacional image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app-notanacional
+          file: ./app-notanacional/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:latest
 
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          cd ${{ env.SERVER_DIR }}
-          docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} pull
-          docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --build
+      - name: Build and push Notanacional Hub image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./notanacional-hub
+          file: ./notanacional-hub/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:latest
+
+      # ========== COPY ONLY COMPOSE FILE ==========
+
+      - name: Copy docker-compose file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ${{ env.DOCKER_COMPOSE_FILE }}
+          target: ${{ env.SERVER_DIR }}
+
+      # ========== DEPLOY ==========
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            mkdir -p ${{ env.SERVER_DIR }}
+            cd ${{ env.SERVER_DIR }}
+            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} pull
+            docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d
