@@ -3,7 +3,7 @@ FROM node:20-slim AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps
-RUN apt-get update && apt-get install -y libc6-dev openssl libxml2-dev g++ make python3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libc6-dev openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copiar arquivos de dependências
@@ -27,7 +27,7 @@ RUN npx prisma generate
 # Next.js coleta dados de telemetria completamente anônimos sobre uso geral.
 # Saiba mais aqui: https://nextjs.org/telemetry
 # Descomente a seguinte linha caso queira desabilitar a telemetria durante o build.
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN \
   if [ -f yarn.lock ]; then yarn build; \
@@ -40,8 +40,8 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -61,8 +61,8 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
