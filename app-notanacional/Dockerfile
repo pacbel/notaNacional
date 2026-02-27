@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat libxml2-dev g++ make python3
 WORKDIR /app
 
 # Copiar arquivos de dependências
@@ -20,6 +20,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Gerar Prisma client
+RUN npx prisma generate
 
 # Next.js coleta dados de telemetria completamente anônimos sobre uso geral.
 # Saiba mais aqui: https://nextjs.org/telemetry
