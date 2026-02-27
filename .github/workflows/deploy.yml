@@ -1,15 +1,12 @@
 name: Deploy to Server
-
 on:
   push:
     branches:
       - main
       - homolog
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -26,13 +23,21 @@ jobs:
           echo "SERVER_DIR=/srv/homolog" >> $GITHUB_ENV
         fi
 
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
     - name: Build and push Landing image
       uses: docker/build-push-action@v5
       with:
         context: ./notanacional
         file: ./notanacional/Dockerfile
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/notanacional/landing:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/notanacional/landing:latest
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-landing:latest
 
     - name: Build and push API image
       uses: docker/build-push-action@v5
@@ -40,7 +45,9 @@ jobs:
         context: ./notanacional-hub-api
         file: ./notanacional-hub-api/Dockerfile
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub-api:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub-api:latest
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub-api:latest
 
     - name: Build and push App Notanacional image
       uses: docker/build-push-action@v5
@@ -48,7 +55,9 @@ jobs:
         context: ./app-notanacional
         file: ./app-notanacional/Dockerfile
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/notanacional/app-notanacional:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/notanacional/app-notanacional:latest
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/app-notanacional:latest
 
     - name: Build and push Notanacional Hub image
       uses: docker/build-push-action@v5
@@ -56,16 +65,9 @@ jobs:
         context: ./notanacional-hub
         file: ./notanacional-hub/Dockerfile
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub:${{ github.sha }},${{ secrets.DOCKERHUB_USERNAME }}/notanacional/notanacional-hub:latest
-
-    - name: Debug secrets
-      run: |
-        echo "DOCKERHUB_USERNAME: '${{ secrets.DOCKERHUB_USERNAME }}'"
-        echo "DOCKERHUB_TOKEN exists: $(if [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then echo 'YES'; else echo 'NO'; fi)"
-        echo "DOCKERHUB_TOKEN length: $(echo -n '${{ secrets.DOCKERHUB_TOKEN }}' | wc -c)"
-
-    - name: Test Docker Hub login
-      run: docker info
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/notanacional-hub:latest
 
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
