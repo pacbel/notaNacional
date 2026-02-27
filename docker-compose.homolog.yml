@@ -43,9 +43,7 @@ services:
       retries: 10
 
   landing:
-    build:
-      context: ./notanacional
-      dockerfile: ./Dockerfile
+    image: pacbel/notanacional/landing:latest
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.landing.rule=Host(`hom-notanacional.virtual.app.br`)"
@@ -57,9 +55,7 @@ services:
     restart: unless-stopped
 
   app-notanacional:
-    build:
-      context: ./app-notanacional
-      dockerfile: ./Dockerfile
+    image: pacbel/notanacional/app-notanacional:latest
     environment:
       - DATABASE_URL=${DATABASE_URL}
     labels:
@@ -77,9 +73,7 @@ services:
     restart: unless-stopped
 
   notanacional-hub:
-    build:
-      context: ./notanacional-hub
-      dockerfile: ./Dockerfile
+    image: pacbel/notanacional/notanacional-hub:latest
     environment:
       - DATABASE_URL=${DATABASE_URL}
     labels:
@@ -97,9 +91,7 @@ services:
     restart: unless-stopped
 
   notanacional-hub-api:
-    build:
-      context: ./notanacional-hub-api
-      dockerfile: ./Dockerfile
+    image: pacbel/notanacional/notanacional-hub-api:latest
     environment:
       - ConnectionStrings__DefaultConnection=${DATABASE_URL}
       - ASPNETCORE_ENVIRONMENT=Production

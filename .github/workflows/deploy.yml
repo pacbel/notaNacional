@@ -35,7 +35,7 @@ jobs:
         context: ./notanacional
         file: ./notanacional/Dockerfile
         push: true
-        tags: ghcr.io/${{ env.REPO_NAME }}/landing:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/landing:latest
+        tags: ${{ env.REPO_NAME }}/landing:${{ github.sha }},${{ env.REPO_NAME }}/landing:latest
 
     - name: Build and push App Notanacional image
       uses: docker/build-push-action@v5
@@ -43,7 +43,7 @@ jobs:
         context: ./app-notanacional
         file: ./app-notanacional/Dockerfile
         push: true
-        tags: ghcr.io/${{ env.REPO_NAME }}/app-notanacional:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/app-notanacional:latest
+        tags: ${{ env.REPO_NAME }}/app-notanacional:${{ github.sha }},${{ env.REPO_NAME }}/app-notanacional:latest
 
     - name: Build and push Notanacional Hub image
       uses: docker/build-push-action@v5
@@ -51,7 +51,7 @@ jobs:
         context: ./notanacional-hub
         file: ./notanacional-hub/Dockerfile
         push: true
-        tags: ghcr.io/${{ env.REPO_NAME }}/notanacional-hub:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/notanacional-hub:latest
+        tags: ${{ env.REPO_NAME }}/notanacional-hub:${{ github.sha }},${{ env.REPO_NAME }}/notanacional-hub:latest
 
     - name: Build and push API image
       uses: docker/build-push-action@v5
@@ -59,7 +59,7 @@ jobs:
         context: ./notanacional-hub-api
         file: ./notanacional-hub-api/Dockerfile
         push: true
-        tags: ghcr.io/${{ env.REPO_NAME }}/notanacional-hub-api:${{ github.sha }},ghcr.io/${{ env.REPO_NAME }}/notanacional-hub-api:latest
+        tags: ${{ env.REPO_NAME }}/notanacional-hub-api:${{ github.sha }},${{ env.REPO_NAME }}/notanacional-hub-api:latest
 
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
