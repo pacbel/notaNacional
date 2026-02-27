@@ -38,6 +38,10 @@ type RequestFormValues = z.infer<typeof requestSchema>;
 const resetSchema = z.object({
   token: z.string().min(1, "Informe o token recebido"),
   novaSenha: z.string().min(8, "A nova senha precisa ter pelo menos 8 caracteres"),
+  confirmarSenha: z.string().min(8, "Confirme a nova senha"),
+}).refine((data) => data.novaSenha === data.confirmarSenha, {
+  message: "As senhas não coincidem",
+  path: ["confirmarSenha"],
 });
 
 type ResetFormValues = z.infer<typeof resetSchema>;
@@ -64,6 +68,7 @@ export default function RecoverPasswordView() {
     defaultValues: {
       token: tokenFromUrl,
       novaSenha: "",
+      confirmarSenha: "",
     },
   });
 
@@ -121,6 +126,7 @@ export default function RecoverPasswordView() {
         resetForm.reset({
           token: tokenFromUrl,
           novaSenha: "",
+          confirmarSenha: "",
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Erro inesperado";
@@ -184,14 +190,23 @@ export default function RecoverPasswordView() {
                     </>
                   )}
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="link"
+                  className="w-full text-red-600 hover:text-red-800"
+                  onClick={() => setViewMode("reset")}
+                >
+                  Já tenho um token
+                </Button>
               </form>
             </Form>
           )}
 
           {viewMode === "sent" && (
             <div className="space-y-4 text-sm text-muted-foreground">
-              <p>Se o e-mail informado estiver cadastrado, você receberá uma mensagem com um código de verificação.</p>
-              <p>O código expira em poucos minutos. Caso não encontre o e-mail, verifique a caixa de spam ou tente novamente.</p>
+              <p>Se o e-mail informado estiver cadastrado, você receberá uma mensagem com um token de verificação.</p>
+              <p>Copie o token do e-mail e use o botão "Já tenho um token" para redefinir sua senha. O token expira em poucos minutos.</p>
               <Button
                 variant="link"
                 className="gap-2 text-red-600 hover:text-red-800"
@@ -216,7 +231,7 @@ export default function RecoverPasswordView() {
                       <FormLabel>Token</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Cole o token do link recebido"
+                          placeholder="Cole o token recebido por e-mail"
                           disabled={isPending || Boolean(tokenFromUrl)}
                           {...field}
                         />
@@ -232,6 +247,26 @@ export default function RecoverPasswordView() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nova senha</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          disabled={isPending}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={resetForm.control}
+                  name="confirmarSenha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirmar nova senha</FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -278,7 +313,7 @@ export default function RecoverPasswordView() {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3 text-center text-xs text-muted-foreground">
-          <p>Se surgir alguma dúvida, contate o suporte via suporte@notaclient.com.br</p>
+          <p>Se surgir alguma dúvida, contate o suporte via suporte@sistemavirtual.com.br</p>
         </CardFooter>
       </Card>
     </div>

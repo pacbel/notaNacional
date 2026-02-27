@@ -321,7 +321,7 @@ export default function LoginView() {
 
         <CardFooter className="flex flex-col gap-3 text-center text-xs text-muted-foreground">
           {/* <p>Autenticação multifator obrigatória para garantir a segurança das NFSe.</p>
-          <p>Suporte: suporte@notaclient.com.br</p> */}
+          <p>Suporte: suporte@sistemavirtual.com.br</p> */}
         </CardFooter>
       </Card>
     </div>

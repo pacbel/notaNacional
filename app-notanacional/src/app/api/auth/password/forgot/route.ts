@@ -24,7 +24,10 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(parseResult.data),
+      body: JSON.stringify({
+        ...parseResult.data,
+        frontendUrl: env.APP_BASE_URL,
+      }),
     });
 
     if (!response.ok) {
