@@ -188,7 +188,7 @@ namespace API_NFSe.Application.Services
 
             var smtpSettings = await ObterSmtpSettingsAsync(usuario.PrestadorId);
 
-            var link = $"<p><a href={url}/recuperar-senha?token={token}\">Clique aqui para redefinir sua senha</a></p>";
+            var link = $"<p><a href={url}/recuperar-senha?token={token}>Clique aqui para redefinir sua senha</a></p>";
 
             var corpo = $@"<p>Olá,</p>
 <p>Recebemos uma solicitação para redefinir sua senha.</p>
