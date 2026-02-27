@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl1.1-compat
 WORKDIR /app
 
 # Copiar arquivos de dependências

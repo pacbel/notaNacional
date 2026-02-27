@@ -18,6 +18,7 @@ function resolveGitCommit() {
 }
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   env: {
     NEXT_PUBLIC_BUILD_TIMESTAMP: process.env.VERCEL_DEPLOYED_AT ?? new Date().toISOString(),
     NEXT_PUBLIC_BUILD_COMMIT: resolveGitCommit(),
