@@ -3,7 +3,7 @@ FROM node:20-slim AS base
 
 # Instalar dependências apenas quando necessário
 FROM base AS deps
-RUN apt-get update && apt-get install -y libc6-dev openssl libxml2-dev g++ make python3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libc6-dev openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copiar arquivos de dependências

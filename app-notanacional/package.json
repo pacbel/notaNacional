@@ -39,7 +39,6 @@
     "date-fns": "^4.1.0",
     "jsonwebtoken": "^9.0.3",
     "jszip": "^3.10.1",
-    "libxml-xsd": "^0.5.1",
     "lucide-react": "^0.562.0",
     "nodemailer": "^7.0.12",
     "prisma": "^5.20.0",
