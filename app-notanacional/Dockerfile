@@ -32,7 +32,7 @@ ENV TURBOPACK=0
 
 RUN \
   if [ -f yarn.lock ]; then yarn build; \
-  elif [ -f package-lock.json ]; then npx next build --no-turbopack; \
+  elif [ -f package-lock.json ]; then npx next build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm build; \
   else echo "Lockfile not found." && exit 1; \
   fi
