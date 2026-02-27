@@ -77,5 +77,5 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           cd ${{ env.SERVER_DIR }}
-          docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} pull
-          docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --build
+          docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} pull
+          docker compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --build
